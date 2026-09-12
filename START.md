@@ -35,7 +35,13 @@ Auf iPad und iPhone gibt es kein `localhost`, auf dem die App liegen könnte. Ü
 
 Damit die App auf iPad und iPhone läuft, muss der Notenblock-Ordner über eine **`https://`-Adresse** erreichbar sein. Das ist ein reiner Ablageort für die Programmdateien (HTML, CSS, JavaScript) – so wie ein Ordner, den man sich vom Mac herunterlädt. Die App stellt im Betrieb keine einzige Anfrage an diesen Ort oder an einen anderen Server; Noten, Namen und Notizen verlassen das Gerät nie. Geeignet sind Anbieter für statische Webseiten (etwa GitHub Pages) oder ein Schul-Webspace mit https.
 
-**GitHub Pages (vorbereitet):** Der Ordner ist so aufgebaut, dass er unverändert auf GitHub Pages läuft (alle Pfade relativ, Datei `.nojekyll` vorhanden). Wenn das GitHub-Konto eingerichtet ist: ein Repository anlegen, den kompletten Notenblock-Ordner hochladen, unter „Settings → Pages“ den Branch `main` (Ordner `/`) wählen. Die Adresse lautet dann `https://<benutzername>.github.io/<repository>/`. Das Repository darf privat oder öffentlich sein – die Seite selbst ist bei GitHub Pages immer öffentlich erreichbar, enthält aber nur die Programmdateien, keine Daten.
+**GitHub Pages (eingerichtet):** Die App ist unter **https://leapxxs168.github.io/notenblock/** erreichbar. Quelle ist das öffentliche Repository https://github.com/leapxxs168/notenblock (Branch `main`, Wurzelordner). Dort liegen nur die Programmdateien – keine Daten. Nach Änderungen im Ordner kommt die neue Fassung so online (Terminal, im Notenblock-Ordner):
+
+```bash
+git add -A && git commit -m "Änderung beschreiben" && git push
+```
+
+Etwa eine Minute später ist sie unter der Adresse verfügbar; auf den Geräten greift sie nach zweimaligem Öffnen der App.
 
 Dann auf dem iPad/iPhone:
 
