@@ -1,0 +1,1212 @@
+/* =====================================================================
+   Notenblock – Stylesheet
+   Ruhig, hell, Systemschrift. Ein Akzentton; die Notenfarben (1–6) sind
+   das einzige kräftige Farbelement und werden nur für Noten verwendet.
+   ===================================================================== */
+
+/* Das Attribut hidden gewinnt gegen jede display-Regel. */
+[hidden] { display: none !important; }
+
+:root {
+  --akzent: #3b6ea5;
+  --akzent-dunkel: #2d5985;
+  --akzent-hell: #e6eef8;
+  --hintergrund: #f4f5f7;
+  --flaeche: #ffffff;
+  --text: #1f2933;
+  --text-schwach: #66707a;
+  --linie: #d9dde3;
+  --linie-stark: #b8bfc8;
+  --fehler: #b3261e;
+  --fehler-hell: #fbeae8;
+  --hinweis-hell: #fff6e0;
+
+  /* Notenfarbskala 1 (grün) bis 6 (rot) – nur für Noten verwenden */
+  --note-1: #3a9d5d;
+  --note-2: #8cbf3f;
+  --note-3: #d9c227;
+  --note-4: #f0a030;
+  --note-5: #e8702a;
+  --note-6: #d43d3d;
+
+  --radius: 10px;
+  --tippziel: 44px;
+  --schrift: 17px;
+  --schrift-klein: 0.88rem;
+  --schatten: 0 1px 2px rgba(31, 41, 51, 0.08);
+  --schrift-familie: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Schriftgröße in drei Stufen (Einstellung „Darstellung“) */
+html.schrift-klein { --schrift: 15px; }
+html.schrift-gross { --schrift: 19px; }
+
+/* ---------- Grundgerüst ---------- */
+* { box-sizing: border-box; }
+
+html {
+  height: 100%;
+  font-size: var(--schrift);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--schrift-familie);
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--hintergrund);
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, h3 { margin: 0 0 0.5em; font-weight: 600; line-height: 1.25; }
+h1 { font-size: 1.35rem; }
+h2 { font-size: 1.15rem; }
+h3 { font-size: 1rem; }
+p { margin: 0 0 0.75em; }
+.text-schwach { color: var(--text-schwach); }
+.text-klein { font-size: var(--schrift-klein); }
+
+:focus { outline: none; }
+:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- Vollbild-Bildschirme (Laden, Fehler, Einrichtung, Sperre) ---------- */
+.vollbild {
+  min-height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+
+.karte {
+  width: 100%;
+  max-width: 440px;
+  background: var(--flaeche);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  padding: 24px 20px;
+  margin-top: 6vh;
+}
+.karte-mittig { text-align: center; }
+.laden-text { color: var(--text-schwach); margin: 0; }
+
+/* ---------- Formularelemente ---------- */
+.feld { display: block; margin-bottom: 14px; }
+.feld-name { display: block; font-weight: 600; margin-bottom: 6px; }
+
+input[type="text"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+textarea,
+select {
+  width: 100%;
+  font: inherit;
+  font-size: max(16px, 1rem); /* verhindert Auto-Zoom auf iOS */
+  color: var(--text);
+  background: var(--flaeche);
+  border: 1px solid var(--linie-stark);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: var(--tippziel);
+  -webkit-appearance: none;
+  appearance: none;
+}
+textarea { resize: vertical; line-height: 1.4; }
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: none;
+  border-color: var(--akzent);
+  box-shadow: 0 0 0 3px var(--akzent-hell);
+}
+input:disabled { background: var(--hintergrund); color: var(--text-schwach); }
+
+.kontrollkaestchen {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: var(--tippziel);
+  padding: 8px 0;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.kontrollkaestchen input {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin: 2px 0 0;
+  accent-color: var(--akzent);
+}
+
+.fehler {
+  color: var(--fehler);
+  background: var(--fehler-hell);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+}
+
+/* Stärkeanzeige der Passphrase */
+.staerke { margin: -6px 0 14px; min-height: 22px; }
+.staerke-balken { display: flex; gap: 4px; margin-bottom: 4px; }
+.staerke-balken span { flex: 1; height: 6px; border-radius: 3px; background: var(--linie); }
+.staerke[data-stufe="1"] .staerke-balken span:nth-child(-n+1),
+.staerke[data-stufe="2"] .staerke-balken span:nth-child(-n+2),
+.staerke[data-stufe="3"] .staerke-balken span:nth-child(-n+3) { background: var(--akzent); }
+.staerke-text { font-size: var(--schrift-klein); color: var(--text-schwach); }
+
+/* ---------- Knöpfe ---------- */
+.knopf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--tippziel);
+  min-width: var(--tippziel);
+  padding: 10px 18px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--akzent);
+  background: var(--flaeche);
+  border: 1px solid var(--linie-stark);
+  border-radius: 8px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.knopf:active { background: var(--akzent-hell); }
+.knopf.primaer { color: #fff; background: var(--akzent); border-color: var(--akzent); }
+.knopf.primaer:active { background: var(--akzent-dunkel); }
+.knopf.gefaehrlich { color: var(--fehler); }
+.knopf:disabled { opacity: 0.5; cursor: default; }
+.knopf.breit { width: 100%; }
+.knopfzeile { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.knopfzeile .knopf { flex: 1 1 auto; }
+
+.symbolknopf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tippziel);
+  height: var(--tippziel);
+  padding: 0;
+  font: inherit;
+  color: var(--akzent);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.symbolknopf:active { background: var(--akzent-hell); }
+
+/* ---------- App-Gerüst: Kopf, Inhalt, Navigation ---------- */
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.kopf {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 52px;
+  padding: env(safe-area-inset-top) 8px 0 8px;
+  background: var(--flaeche);
+  border-bottom: 1px solid var(--linie);
+}
+.kopf h1 { margin: 0; font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kopf-links:empty + h1 { padding-left: 8px; }
+.kopf-aktionen { display: flex; align-items: center; gap: 4px; }
+
+#inhalt {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+.bereich { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+.navigation {
+  flex: 0 0 auto;
+  display: flex;
+  background: var(--flaeche);
+  border-top: 1px solid var(--linie);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-knopf {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 6px 4px;
+  font: inherit;
+  font-size: 0.72rem;
+  color: var(--text-schwach);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.nav-knopf[aria-current="page"] { color: var(--akzent); font-weight: 600; }
+.nav-knopf:active { background: var(--akzent-hell); }
+.nav-knopf:focus-visible { outline-offset: -3px; }
+
+/* Leere Bereiche: Aufforderung, kein Fehler */
+.leer {
+  text-align: center;
+  color: var(--text-schwach);
+  padding: 48px 16px;
+}
+.leer-titel { font-size: 1.15rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+
+/* ---------- Meldungen (oben eingeblendet) ---------- */
+#meldungen {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 480px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.meldung {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--text);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  pointer-events: auto;
+  animation: meldung-ein 0.18s ease-out;
+}
+.meldung.fehlerhaft { background: var(--fehler); }
+.meldung .meldung-text { flex: 1 1 auto; }
+.meldung .meldung-schliessen {
+  flex: 0 0 auto;
+  min-width: var(--tippziel);
+  min-height: var(--tippziel);
+  margin: -10px -10px -10px 0;
+  color: #fff;
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+@keyframes meldung-ein {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Kleine Bildschirme ---------- */
+@media (max-width: 360px) {
+  .karte { padding: 20px 14px; }
+  .bereich { padding: 12px; }
+}
+
+/* =====================================================================
+   Schritt 2: Klassen, Kinder verwalten, Bewertung, Overlays, Kalender
+   ===================================================================== */
+
+.text-mittig { text-align: center; }
+.abstand-oben { margin-top: 16px; }
+.textknopf {
+  min-height: var(--tippziel);
+  padding: 8px 12px;
+  font: inherit;
+  color: var(--akzent);
+  background: transparent;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+/* ---------- Kopfzeile mit Platzhaltern ---------- */
+.kopf-links, .kopf-rechts { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 0 1 auto; }
+.kopf-links:empty, .kopf-rechts:empty { display: none; }
+.kopf h1 { flex: 1 1 auto; min-width: 0; }
+.kopf h1:empty { display: none; }
+.kopf-links + h1:empty + .kopf-rechts { margin-left: auto; }
+.kopf-knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--tippziel);
+  max-width: 48vw;
+  padding: 6px 8px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--akzent);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.kopf-knopf:active { background: var(--akzent-hell); }
+.kopf-knopf-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kopf-knopf-pfeil { flex: 0 0 auto; font-size: 0.9rem; line-height: 1; margin-top: -4px; }
+.pfeil-zurueck { font-size: 1.9rem; line-height: 1; margin-top: -4px; }
+
+/* ---------- Bildschirme ---------- */
+.bildschirm { max-width: 900px; margin: 0 auto; padding: 0 0 24px; }
+.karte-inhalt { padding: 16px; }
+.formular textarea { font-family: var(--schrift-familie); line-height: 1.5; }
+
+/* ---------- Klassenliste ---------- */
+.klassenliste { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.klasse-karte {
+  display: flex;
+  align-items: stretch;
+  background: var(--flaeche);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  overflow: hidden;
+}
+.klasse-oeffnen {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 64px;
+  padding: 12px 16px;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.klasse-oeffnen:active { background: var(--akzent-hell); }
+.klasse-name { font-weight: 600; font-size: 1.05rem; }
+.klasse-stift { align-self: center; margin-right: 8px; flex: 0 0 auto; }
+
+/* ---------- Bewertung ---------- */
+.bewertung { touch-action: pan-y; }
+.bw-hinweis { margin: 8px 16px 0; padding: 8px 12px; background: var(--hinweis-hell); border-radius: 8px; font-size: var(--schrift-klein); }
+.bw-kind {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px 4px;
+  background: var(--hintergrund);
+}
+.bw-pfeil { width: 48px; height: 48px; font-size: 2rem; line-height: 1; flex: 0 0 auto; }
+.bw-pfeil span { margin-top: -6px; }
+.bw-name { flex: 1 1 auto; min-width: 0; text-align: center; }
+.bw-kindname { font-size: 1.45rem; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bw-position { font-size: var(--schrift-klein); }
+
+.bw-faecher {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px 16px;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.bw-faecher::-webkit-scrollbar { display: none; }
+.bw-fach {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 6px 14px;
+  font: inherit;
+  color: var(--text);
+  background: var(--flaeche);
+  border: 1px solid var(--linie-stark);
+  border-radius: 20px;
+  cursor: pointer;
+}
+.bw-fach[aria-pressed="true"] { color: #fff; background: var(--akzent); border-color: var(--akzent); font-weight: 600; }
+
+.bw-filter {
+  display: flex;
+  margin: 6px 16px 12px;
+  background: var(--flaeche);
+  border: 1px solid var(--linie-stark);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.bw-filter button {
+  flex: 1 1 0;
+  min-height: 40px;
+  font: inherit;
+  color: var(--text-schwach);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.bw-filter button + button { border-left: 1px solid var(--linie); }
+.bw-filter button[aria-pressed="true"] { color: var(--akzent); background: var(--akzent-hell); font-weight: 600; }
+
+.bw-fehlt-hinweis { margin: 0 16px 10px; padding: 8px 12px; background: var(--hinweis-hell); border-radius: 8px; font-size: var(--schrift-klein); }
+.bw-matrix { padding: 0 16px; }
+.bw-leer-hinweis { padding: 8px 0; }
+
+.krit {
+  background: var(--flaeche);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  padding: 10px 12px 8px;
+  margin-bottom: 10px;
+}
+.krit-name { font-weight: 600; margin-bottom: 6px; }
+.krit-text { margin-top: 6px; font-size: var(--schrift-klein); color: var(--text-schwach); min-height: 1.3em; }
+.krit.gesperrt .skala { opacity: 0.35; pointer-events: none; }
+
+/* Skala: Tippfeld und Schieberegler zugleich */
+.skala {
+  position: relative;
+  display: flex;
+  height: 48px;
+  background: var(--hintergrund);
+  border: 1px solid var(--linie);
+  border-radius: 8px;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: pointer;
+}
+.skala:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+.stufe {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-schwach);
+  font-weight: 600;
+  line-height: 1.1;
+  pointer-events: none;
+}
+.stufe-wort { font-size: 0.58rem; font-weight: 400; }
+.stufe.aktiv { color: #fff; }
+.skala.standard .stufe.aktiv { color: var(--text); }
+.skala-knopf {
+  position: absolute;
+  z-index: 0;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 6);
+  border-radius: 6px;
+  background: var(--note-3);
+  transition: transform 0.12s ease-out, background-color 0.12s ease-out, opacity 0.12s;
+}
+.skala.ziehen .skala-knopf { transition: none; }
+.skala.leer .skala-knopf { display: none; }
+.skala.standard .skala-knopf { opacity: 0.3; }
+.skala[data-note="1"] .skala-knopf { background: var(--note-1); }
+.skala[data-note="2"] .skala-knopf { background: var(--note-2); }
+.skala[data-note="3"] .skala-knopf { background: var(--note-3); }
+.skala[data-note="4"] .skala-knopf { background: var(--note-4); }
+.skala[data-note="5"] .skala-knopf { background: var(--note-5); }
+.skala[data-note="6"] .skala-knopf { background: var(--note-6); }
+
+.bw-notiz { padding: 4px 16px 8px; }
+.bw-notiz label { display: block; }
+.bw-notiz .feld-name { margin-bottom: 4px; color: var(--text-schwach); }
+
+@media (min-width: 640px) {
+  .krit {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) minmax(300px, 2fr);
+    grid-template-areas: "name skala" "text text";
+    column-gap: 16px;
+    align-items: center;
+  }
+  .krit-name { grid-area: name; margin: 0; }
+  .skala { grid-area: skala; }
+  .krit-text { grid-area: text; }
+}
+
+/* Fußleiste über der Navigation */
+#fuss { flex: 0 0 auto; background: var(--flaeche); border-top: 1px solid var(--linie); }
+.bw-fuss { display: flex; align-items: center; gap: 10px; max-width: 900px; margin: 0 auto; padding: 8px 12px; }
+.bw-fortschritt { flex: 1 1 auto; min-width: 0; }
+.bw-balken { height: 6px; border-radius: 3px; background: var(--linie); overflow: hidden; }
+.bw-balken span { display: block; height: 100%; width: 0; background: var(--akzent); transition: width 0.15s; }
+.bw-zaehler { margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bw-fehlt, .bw-weiter { flex: 0 0 auto; }
+.bw-fehlt[aria-pressed="true"] { color: #fff; background: var(--text-schwach); border-color: var(--text-schwach); }
+
+/* ---------- Overlays, Dialoge, Auswahllisten ---------- */
+.overlay {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(31, 41, 51, 0.45);
+}
+.overlay-inhalt {
+  width: 100%;
+  max-width: 420px;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px;
+  background: var(--flaeche);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.overlay-inhalt h2 { margin-bottom: 0.6em; }
+.overlay.unten { align-items: flex-end; padding: 0; }
+.overlay-inhalt.blatt {
+  max-width: 100%;
+  border-radius: 14px 14px 0 0;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+@media (min-width: 640px) {
+  .overlay.unten { align-items: center; padding: 16px; }
+  .overlay-inhalt.blatt { max-width: 420px; border-radius: var(--radius); }
+}
+.auswahl-liste { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.auswahl-eintrag {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.auswahl-eintrag:active { background: var(--akzent-hell); }
+.auswahl-eintrag[aria-selected="true"] { background: var(--akzent-hell); border-color: var(--akzent); font-weight: 600; }
+.auswahl-eintrag.auswahl-sekundaer { color: var(--akzent); }
+
+/* ---------- Monatskalender ---------- */
+.overlay-inhalt.kalender { max-width: 400px; padding: 14px 12px 12px; }
+.kal-kopf { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.kal-pfeil { font-size: 1.8rem; }
+.kal-titel {
+  flex: 1 1 auto;
+  min-height: var(--tippziel);
+  font: inherit;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.kal-raster { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; touch-action: pan-y; }
+.kal-wt { text-align: center; font-size: 0.72rem; color: var(--text-schwach); padding: 4px 0; }
+.kal-tag {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.kal-tag:active { background: var(--akzent-hell); }
+.kal-zahl { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; }
+.kal-tag.unterricht { font-weight: 700; }
+.kal-tag.blass { color: var(--text-schwach); }
+.kal-tag.frei { color: var(--text-schwach); background: repeating-linear-gradient(135deg, transparent 0 5px, var(--linie) 5px 6px); }
+.kal-tag.ausserhalb { color: var(--linie-stark); }
+.kal-tag.heute .kal-zahl { box-shadow: inset 0 0 0 2px var(--akzent); }
+.kal-tag.gewaehlt .kal-zahl { color: #fff; background: var(--akzent); font-weight: 600; }
+.kal-tag.cursor { outline: 2px solid var(--akzent); outline-offset: -2px; }
+.kal-punkt { position: absolute; bottom: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--text); }
+.kal-fuss { text-align: center; margin: 8px 0 2px; }
+.kal-knoepfe { margin-top: 10px; }
+
+/* =====================================================================
+   Schritt 3: Einstellungen
+   ===================================================================== */
+
+.einst-abschnitte { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.einst-abschnitt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 14px;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: var(--flaeche);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  cursor: pointer;
+}
+.einst-abschnitt:active { background: var(--akzent-hell); }
+.einst-abschnitt-text { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.einst-abschnitt-titel { font-weight: 600; font-size: 1.05rem; }
+.einst-pfeil { flex: 0 0 auto; font-size: 1.6rem; line-height: 1; color: var(--text-schwach); }
+
+.einst-gruppe { margin-bottom: 20px; }
+.einst-gruppe-titel { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-schwach); margin: 0 0 6px 4px; }
+.einst-karte { background: var(--flaeche); border-radius: var(--radius); box-shadow: var(--schatten); }
+
+.einst-zeile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--linie);
+}
+.einst-zeile:last-child { border-bottom: none; }
+label.einst-zeile { cursor: pointer; }
+.einst-text { flex: 1 1 auto; min-width: 0; }
+.einst-label { font-weight: 600; }
+.einst-beschreibung { margin-top: 2px; }
+.einst-steuerung { flex: 0 0 auto; display: flex; align-items: center; }
+.einst-zeile-auswahl, .einst-zeile-segment, .einst-zeile-feld { flex-direction: column; align-items: stretch; }
+.einst-zeile-auswahl .einst-steuerung, .einst-zeile-segment .einst-steuerung, .einst-zeile-feld .einst-steuerung { margin-top: 8px; }
+.einst-zeile-auswahl select, .einst-zeile-feld input { width: 100%; }
+.einst-zeile-knoepfe { display: block; }
+.einst-zeile-knopf { flex-direction: column; align-items: stretch; }
+.einst-zeile-knopf .einst-steuerung { margin-top: 8px; }
+@media (min-width: 640px) {
+  .einst-zeile-knopf { flex-direction: row; align-items: center; }
+  .einst-zeile-knopf .einst-steuerung { margin-top: 0; }
+}
+.einst-zeile-knoepfe .knopfzeile { margin: 0; }
+
+@media (min-width: 640px) {
+  .einst-zeile-auswahl { flex-direction: row; align-items: center; }
+  .einst-zeile-auswahl .einst-steuerung { margin-top: 0; }
+  .einst-zeile-auswahl select { width: auto; min-width: 220px; max-width: 320px; }
+}
+
+.einst-zeile-kompakt { min-height: 52px; padding-top: 6px; padding-bottom: 6px; }
+.einst-zeile-kompakt select { width: auto; min-width: 10em; max-width: 60%; min-height: 40px; padding: 6px 28px 6px 10px; text-overflow: ellipsis; background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2366707a' stroke-width='2'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+
+/* Ein-/Aus-Schalter */
+.schalter {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 32px;
+  margin: 0;
+  border-radius: 16px;
+  background: var(--linie-stark);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.schalter::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s;
+}
+.schalter:checked { background: var(--akzent); }
+.schalter:checked::before { transform: translateX(20px); }
+.schalter:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+
+/* Segmentierte Auswahl */
+.segment {
+  display: flex;
+  width: 100%;
+  background: var(--hintergrund);
+  border: 1px solid var(--linie-stark);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.segment button {
+  flex: 1 1 0;
+  min-height: 40px;
+  padding: 6px 8px;
+  font: inherit;
+  color: var(--text-schwach);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.segment button + button { border-left: 1px solid var(--linie); }
+.segment button[aria-pressed="true"] { color: var(--akzent); background: var(--akzent-hell); font-weight: 600; }
+
+/* Listen (Fächer, Kriterien, Klassen) */
+.einst-liste { display: flex; flex-direction: column; }
+.einst-eintrag {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 4px 6px 4px 0;
+  border-bottom: 1px solid var(--linie);
+}
+.einst-eintrag:last-child { border-bottom: none; }
+.einst-eintrag.ausgeblendet .einst-eintrag-titel { color: var(--text-schwach); }
+.einst-eintrag-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px 14px;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: default;
+}
+button.einst-eintrag-text { cursor: pointer; }
+button.einst-eintrag-text:active { background: var(--akzent-hell); }
+.einst-eintrag-titel { font-weight: 600; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.einst-leer { padding: 12px 14px; margin: 0; }
+.symbolknopf.klein { width: 40px; height: 44px; font-size: 1.2rem; }
+.symbolknopf.gefaehrlich { color: var(--fehler); font-size: 1.5rem; }
+.symbolknopf:disabled { opacity: 0.3; cursor: default; }
+.knopf.klein { min-height: 40px; padding: 6px 12px; flex: 0 0 auto; }
+
+/* Beschreibungstexte eines Kriteriums */
+.einst-stufen { padding: 12px 14px 4px; }
+.einst-stufe .feld-name { display: flex; align-items: center; gap: 8px; }
+.notenmarke {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.notenmarke[data-note="1"] { background: var(--note-1); }
+.notenmarke[data-note="2"] { background: var(--note-2); }
+.notenmarke[data-note="3"] { background: var(--note-3); }
+.notenmarke[data-note="4"] { background: var(--note-4); }
+.notenmarke[data-note="5"] { background: var(--note-5); }
+.notenmarke[data-note="6"] { background: var(--note-6); }
+
+/* =====================================================================
+   Schritt 4: Stundenplan-Einstellungen, Datumshinweis
+   ===================================================================== */
+
+.textknopf.klein { min-height: 36px; padding: 4px 8px; font-size: var(--schrift-klein); }
+.bw-hinweis { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.bw-hinweis .textknopf { margin: -4px 0; }
+
+.datumknopf { font-weight: 500; white-space: nowrap; }
+.einst-datumspaar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.einst-zeitfelder { display: flex; align-items: center; gap: 8px; }
+.einst-zeitfelder input[type="time"] { width: auto; min-width: 7.5em; padding: 6px 8px; min-height: 40px; }
+.einst-zeit { min-height: 52px; padding-top: 6px; padding-bottom: 6px; }
+.einst-formular-felder { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.einst-formular-felder .knopf { align-self: flex-start; }
+.einst-formular-felder .fehler { margin: 0; }
+.einst-hinzu { color: var(--akzent); font-weight: 600; }
+.einst-hinweis { margin: -12px 4px 20px; }
+input[type="time"] {
+  font: inherit;
+  font-size: max(16px, 1rem);
+  color: var(--text);
+  background: var(--flaeche);
+  border: 1px solid var(--linie-stark);
+  border-radius: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* =====================================================================
+   Schritt 5: Bereich Kalender – Tagesansicht, Wochenansicht, Planung
+   ===================================================================== */
+
+.kalender { touch-action: pan-y; }
+.kal-datum { max-width: none; }
+.kal-umschalter { margin: 0 0 12px; }
+.kal-stand { margin: 0 0 10px 4px; font-size: var(--schrift-klein); }
+.kal-legende { margin: 10px 4px 0; }
+
+.kal-frei-hinweis {
+  background: var(--flaeche);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  padding: 16px;
+  margin-bottom: 12px;
+  background-image: repeating-linear-gradient(135deg, transparent 0 8px, var(--hintergrund) 8px 9px);
+}
+.kal-frei-titel { font-weight: 600; font-size: 1.05rem; margin-bottom: 2px; }
+.kal-leer { padding: 24px 16px; }
+
+.kal-stunden { display: flex; flex-direction: column; gap: 8px; }
+.kal-luecke {
+  margin: 0 12px;
+  padding: 2px 8px;
+  border-left: 2px dashed var(--linie);
+  line-height: 1.3;
+}
+.kal-stunde {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 12px 10px 14px;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: var(--flaeche);
+  border: none;
+  border-left: 3px solid var(--akzent);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  cursor: pointer;
+}
+.kal-stunde.geplant { border-left-color: transparent; }
+.kal-stunde:active { background: var(--akzent-hell); }
+.kal-stunde-nr { flex: 0 0 auto; min-width: 34px; display: flex; flex-direction: column; align-items: flex-start; }
+.kal-nr { font-weight: 700; font-size: 1.1rem; }
+.kal-zeit { white-space: nowrap; font-size: 0.68rem; }
+.kal-stunde-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.kal-stunde-titel { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kal-stunde-text .text-klein { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kal-stunde-marken { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+.kal-stunde-zeile2 { display: flex; align-items: center; gap: 6px; }
+.kal-bewertet { color: var(--akzent); font-weight: 600; white-space: nowrap; }
+.kal-bewertet::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--akzent); margin-right: 4px; vertical-align: 1px; }
+.kal-haken { display: inline-flex; color: var(--linie-stark); }
+.kal-haken.fertig { color: var(--akzent); }
+
+/* Wochenraster */
+.wo-raster {
+  display: grid;
+  gap: 3px;
+  background: transparent;
+}
+.wo-ecke { }
+.wo-tag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 4px 2px;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.wo-tag:active { background: var(--akzent-hell); }
+.wo-tag-name { font-size: 0.72rem; color: var(--text-schwach); }
+.wo-tag-datum { font-weight: 600; }
+.wo-tag.heute .wo-tag-datum { color: var(--akzent); box-shadow: inset 0 0 0 2px var(--akzent); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
+.wo-tag.frei { background: repeating-linear-gradient(135deg, transparent 0 5px, var(--linie) 5px 6px); }
+.wo-zeile-kopf { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 4px 2px; }
+.wo-nr { font-weight: 700; font-size: 0.95rem; }
+.wo-zeit { font-size: 0.62rem; color: var(--text-schwach); }
+.wo-zelle { display: flex; flex-direction: column; gap: 3px; min-height: 52px; min-width: 0; }
+.wo-zelle.wo-leer { background: var(--flaeche); border-radius: 6px; opacity: 0.5; }
+.wo-zelle.wo-leer.frei { background: repeating-linear-gradient(135deg, var(--flaeche) 0 5px, var(--linie) 5px 6px); }
+.wo-stunde {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  min-height: 52px;
+  min-width: 0;
+  padding: 4px 5px;
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: var(--text);
+  text-align: left;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.wo-stunde:active { background: var(--akzent-hell); }
+.wo-stunde.geplant { background: var(--akzent-hell); border-color: var(--akzent-hell); }
+.wo-stunde.bewertet::after { content: ""; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--akzent); }
+.wo-klasse { font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wo-fach { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-schwach); }
+@media (min-width: 640px) {
+  .wo-stunde { font-size: 0.85rem; min-height: 60px; padding: 6px 8px; }
+  .wo-zeit { font-size: 0.72rem; }
+}
+
+/* Stundenplanung */
+.planung-kopf { margin-bottom: 12px; }
+.planung-titel { font-weight: 700; font-size: 1.2rem; }
+.planung-karte { padding: 0; }
+.planung-felder { padding: 14px 14px 2px; }
+.planung-felder textarea { min-height: 96px; }
+.planung-knoepfe { margin-top: 14px; }
+
+/* =====================================================================
+   Schritt 6: Notizen und Aufgaben
+   ===================================================================== */
+
+.suchfeld { flex: 1 1 auto; min-width: 0; }
+.notiz-kopf { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+.notiz-kopf .knopf { flex: 0 0 auto; }
+.notiz-liste { display: flex; flex-direction: column; gap: 10px; }
+.notiz-karte {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: var(--flaeche);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  cursor: pointer;
+}
+.notiz-karte:active { background: var(--akzent-hell); }
+.notiz-karte.angeheftet { border-left: 3px solid var(--akzent); }
+.notiz-kopfzeile { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.notiz-titel { font-weight: 600; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notiz-nadel { flex: 0 0 auto; font-size: 0.9rem; }
+.notiz-vorschau {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-line;
+  color: var(--text);
+}
+.notiz-editor { padding: 12px 14px; margin-bottom: 14px; }
+.notiz-editor input.notiz-titel-feld { font-weight: 600; font-size: 1.1rem; border: none; border-bottom: 1px solid var(--linie); padding: 6px 0; border-radius: 0; }
+.notiz-editor input.notiz-titel-feld:focus-visible { box-shadow: none; border-color: var(--akzent); }
+.notiz-editor textarea.notiz-text-feld { border: none; padding: 8px 0; min-height: 180px; border-radius: 0; }
+.notiz-editor textarea.notiz-text-feld:focus-visible { box-shadow: none; }
+
+.aufgabe-kopf { margin-bottom: 14px; }
+.aufgabe-eingabe { font-size: max(16px, 1.05rem); }
+.aufgabe-liste { display: flex; flex-direction: column; gap: 8px; }
+.aufgabe {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 6px 10px 12px;
+  background: var(--flaeche);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+}
+.aufgabe.ueberfaellig { border-left: 3px solid var(--fehler); }
+.aufgabe.erledigt { opacity: 0.55; }
+.aufgabe.erledigt .aufgabe-text { text-decoration: line-through; }
+.aufgabe-haken {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  margin: 9px 0 0;
+  accent-color: var(--akzent);
+  cursor: pointer;
+}
+.aufgabe-inhalt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.aufgabe-text {
+  min-height: var(--tippziel);
+  padding: 8px 4px;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: pre-line;
+  word-break: break-word;
+}
+.aufgabe-text:active { background: var(--akzent-hell); }
+.aufgabe-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 4px 2px; }
+.aufgabe-chip {
+  min-height: 32px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: var(--schrift-klein);
+  color: var(--text-schwach);
+  background: var(--hintergrund);
+  border: 1px dashed var(--linie-stark);
+  border-radius: 16px;
+  cursor: pointer;
+}
+.aufgabe-chip.gesetzt { color: var(--text); border-style: solid; background: var(--flaeche); }
+.aufgabe-chip.heute { color: var(--akzent); border-color: var(--akzent); font-weight: 600; }
+.aufgabe-chip.ueberfaellig { color: var(--fehler); border-color: var(--fehler); font-weight: 600; }
+.aufgabe-trenner { margin: 10px 4px 2px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.kal-aufgaben { margin-top: 18px; }
+.kal-aufgaben-titel { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-schwach); margin: 0 0 6px 4px; }
+.aufgabe .symbolknopf.gefaehrlich { color: var(--linie-stark); }
+.aufgabe .symbolknopf.gefaehrlich:active { color: var(--fehler); }
+
+/* =====================================================================
+   Schritt 7: Auswertung
+   ===================================================================== */
+
+.aw-titel { font-size: 1.25rem; font-weight: 700; margin: 0 0 6px; }
+.aw-faecher { padding: 0 0 10px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+.aw-stand { margin: 0 4px 8px; }
+.aw-hinweis { margin: 10px 4px 0; }
+.aw-liste { display: flex; flex-direction: column; gap: 6px; }
+.aw-zeile {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(60px, 1fr) auto;
+  grid-template-areas: "name balken werte";
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 12px;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: var(--flaeche);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  cursor: pointer;
+}
+.aw-zeile:active { background: var(--akzent-hell); }
+.aw-zeile-name { grid-area: name; display: flex; flex-direction: column; min-width: 0; }
+.aw-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aw-balken { grid-area: balken; display: block; height: 10px; border-radius: 5px; background: var(--hintergrund); overflow: hidden; }
+.aw-balken-fuellung { display: block; height: 100%; border-radius: 5px; background: var(--linie-stark); }
+.aw-werte { grid-area: werte; display: flex; align-items: center; gap: 8px; }
+.aw-gesamt { font-weight: 700; font-size: 1.1rem; min-width: 2.2em; text-align: right; }
+.aw-vorschlag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 700;
+  background: var(--linie-stark);
+}
+.aw-vorschlag.gross { min-width: 44px; height: 44px; font-size: 1.3rem; margin-top: 6px; }
+.note-1 { background: var(--note-1) !important; }
+.note-2 { background: var(--note-2) !important; }
+.note-3 { background: var(--note-3) !important; }
+.note-4 { background: var(--note-4) !important; }
+.note-5 { background: var(--note-5) !important; }
+.note-6 { background: var(--note-6) !important; }
+
+.aw-kopf { display: flex; justify-content: space-between; gap: 12px; padding: 14px; margin-bottom: 20px; }
+.aw-kopf-text { flex: 1 1 auto; min-width: 0; }
+.aw-kopf-werte { flex: 0 0 auto; text-align: center; }
+.aw-gesamt-gross { font-size: 2rem; font-weight: 700; line-height: 1; }
+.aw-kriterium { padding: 10px 14px; border-bottom: 1px solid var(--linie); }
+.aw-kriterium:last-child { border-bottom: none; }
+.aw-kriterium-kopf { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.aw-kriterium-name { font-weight: 600; min-width: 0; }
+.aw-kriterium-wert { flex: 0 0 auto; color: var(--text-schwach); white-space: nowrap; }
+.aw-verlauf-karte { padding: 10px 8px 4px; margin-bottom: 20px; }
+.aw-verlauf { width: 100%; height: auto; display: block; }
+.aw-gitter { stroke: var(--linie); stroke-width: 1; }
+.aw-achse { font-size: 9px; fill: var(--text-schwach); font-family: var(--schrift-familie); }
+.aw-linie { fill: none; stroke: var(--linie-stark); stroke-width: 1.5; }
+.aw-punkt { stroke: #fff; stroke-width: 1; fill: var(--linie-stark); }
+.aw-punkt.note-1 { fill: var(--note-1); } .aw-punkt.note-2 { fill: var(--note-2); } .aw-punkt.note-3 { fill: var(--note-3); }
+.aw-punkt.note-4 { fill: var(--note-4); } .aw-punkt.note-5 { fill: var(--note-5); } .aw-punkt.note-6 { fill: var(--note-6); }
+.aw-text-karte { padding: 14px; margin-bottom: 20px; }
+.aw-text-karte textarea { margin-bottom: 8px; }
+.aw-notiz { width: 100%; border-bottom: 1px solid var(--linie); border-radius: 0; }
+.aw-notiz .notiz-vorschau { -webkit-line-clamp: 2; }
+.einst-karte + .einst-gruppe-titel { margin-top: 20px; }
+.aw .einst-gruppe-titel { margin-top: 4px; }
+.aw .einst-karte { margin-bottom: 20px; }
+
+/* =====================================================================
+   Schritt 8: Feinschliff – Tippziele mindestens 44 px, kleine Bildschirme
+   ===================================================================== */
+
+.symbolknopf.klein { width: var(--tippziel); }
+.knopf.klein { min-height: var(--tippziel); }
+.bw-fach, .bw-filter button, .segment button, .kal-titel, .textknopf.klein { min-height: var(--tippziel); }
+.einst-zeile-kompakt select, .einst-zeitfelder input[type="time"] { min-height: var(--tippziel); }
+.aufgabe-chip { min-height: var(--tippziel); padding: 6px 12px; }
+.aufgabe-chips { gap: 6px 8px; }
+.aufgabe-hakenfeld {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tippziel);
+  height: var(--tippziel);
+  margin: 2px -4px 0 -6px;
+  cursor: pointer;
+}
+.aufgabe-haken { margin: 0; }
+
+@media (max-width: 360px) {
+  .kopf { padding-left: 4px; padding-right: 4px; }
+  .kopf-knopf { padding: 6px 4px; max-width: 36vw; }
+  .bw-kindname { font-size: 1.25rem; }
+  .bw-pfeil { width: 40px; }
+}
