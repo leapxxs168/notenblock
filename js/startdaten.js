@@ -191,6 +191,7 @@ NB.Startdaten = (function () {
       kinder: [],
       letztesSchuljahr: SD.aktuellesSchuljahr(),
       faecher: [],          // [{ fachId, abgeschaltet: [kompetenzId] }] in Reihenfolge
+      faecherFestgelegt: false, // true, sobald die Auswahl bewusst getroffen wurde (auch wenn leer)
       stundenplan: [],      // Einträge dieser Klasse (eigene und fremde Stunden)
       ausnahmen: [],        // [{ id, datum, stunde?, grund }] – Ausfalltermine dieser Klasse
       zusatz: []            // [{ id, datum, stunde, fachId, raum }] – Zusatztermine dieser Klasse

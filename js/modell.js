@@ -93,6 +93,15 @@ NB.Modell = (function () {
   /* ---------- Fächer einer Klasse ---------- */
 
   /**
+   * Hat die Klasse eine eigene Fächerauswahl? Ja, sobald sie bewusst festgelegt
+   * wurde (Merkmal faecherFestgelegt, auch bei leerer Liste) oder die Liste
+   * gefüllt ist. Ältere Klassen ohne beides: alle aktiven Fächer ihrer Stufe.
+   */
+  M.faecherFestgelegt = function (klasse) {
+    return !!klasse && (klasse.faecherFestgelegt === true || (Array.isArray(klasse.faecher) && klasse.faecher.length > 0));
+  };
+
+  /**
    * Fächer einer Klasse in ihrer Reihenfolge: nur gewählte, in der Stufe der
    * Klasse angebotene und nicht stillgelegte Katalogfächer. Hat die Klasse noch
    * keine Auswahl (ältere Klassen), gelten alle aktiven Fächer ihrer Stufe.
@@ -102,8 +111,8 @@ NB.Modell = (function () {
     if (!klasse) return [];
     const mitStillgelegten = !!(optionen && optionen.mitStillgelegten);
     const inStufe = f => !klasse.stufe || M.fachInStufe(f, klasse.stufe);
-    if (Array.isArray(klasse.faecher) && klasse.faecher.length) {
-      return klasse.faecher.map(z => M.fach(z.fachId)).filter(f => f && inStufe(f) && (mitStillgelegten || f.aktiv !== false));
+    if (M.faecherFestgelegt(klasse)) {
+      return (klasse.faecher || []).map(z => M.fach(z.fachId)).filter(f => f && inStufe(f) && (mitStillgelegten || f.aktiv !== false));
     }
     return M.faecherKatalog().filter(f => inStufe(f) && (mitStillgelegten || f.aktiv !== false));
   };
@@ -124,10 +133,18 @@ NB.Modell = (function () {
    * Liefert true, wenn etwas geschrieben wurde.
    */
   M.klassenFaecherFestlegen = function (klasse) {
-    if (!klasse || (Array.isArray(klasse.faecher) && klasse.faecher.length)) return false;
+    if (!klasse || M.faecherFestgelegt(klasse)) return false;
     klasse.faecher = M.faecherAktiv(klasse.stufe || null).map(f => ({ fachId: f.id, abgeschaltet: [] }));
+    klasse.faecherFestgelegt = true;
     M.klasseSpeichern(klasse);
     return true;
+  };
+
+  /** Leere Fächerauswahl festschreiben (neue Klasse: die Lehrerin wählt selbst). */
+  M.klassenFaecherLeerFestlegen = function (klasse) {
+    klasse.faecher = [];
+    klasse.faecherFestgelegt = true;
+    M.klasseSpeichern(klasse);
   };
 
   /** Ist ein Fach in der Auswahl der Klasse? */
@@ -138,6 +155,7 @@ NB.Modell = (function () {
   /** Fach in die Auswahl der Klasse aufnehmen (ans Ende) bzw. daraus entfernen – Daten bleiben erhalten. */
   M.klasseFachWaehlen = function (klasse, fachId, gewaehlt) {
     if (!Array.isArray(klasse.faecher)) klasse.faecher = [];
+    klasse.faecherFestgelegt = true;
     const vorhanden = klasse.faecher.some(z => z.fachId === fachId);
     if (gewaehlt && !vorhanden) klasse.faecher.push({ fachId: fachId, abgeschaltet: [] });
     if (!gewaehlt && vorhanden) klasse.faecher = klasse.faecher.filter(z => z.fachId !== fachId);

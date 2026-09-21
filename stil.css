@@ -974,7 +974,7 @@ input[type="time"] {
 .wo-tag.frei { background: repeating-linear-gradient(135deg, transparent 0 5px, var(--linie) 5px 6px); }
 .wo-zeile-kopf { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 4px 2px; }
 .wo-nr { font-weight: 700; font-size: 0.95rem; }
-.wo-zeit { font-size: 0.62rem; color: var(--text-schwach); }
+.wo-zeit { font-size: 0.58rem; color: var(--text-schwach); letter-spacing: -0.02em; }
 .wo-zelle { display: flex; flex-direction: column; gap: 3px; min-height: 52px; min-width: 0; }
 .wo-zelle.wo-leer { background: var(--flaeche); border-radius: 6px; opacity: 0.5; }
 .wo-zelle.wo-leer.frei { background: repeating-linear-gradient(135deg, var(--flaeche) 0 5px, var(--linie) 5px 6px); }
@@ -988,9 +988,9 @@ input[type="time"] {
   gap: 1px;
   min-height: 52px;
   min-width: 0;
-  padding: 4px 5px;
+  padding: 4px 3px;
   font: inherit;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   line-height: 1.2;
   color: var(--text);
   text-align: left;
@@ -1278,8 +1278,16 @@ input[type="time"] {
 .bw-einheiten button + button { border-left: 1px solid var(--linie); }
 .bw-einheiten button[aria-pressed="true"] { color: var(--akzent); background: var(--akzent-hell); font-weight: 600; }
 .einst-bereich { margin: 8px 14px 2px; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-schwach); }
-.wo-stunde.fortsetzung { border-top-style: dashed; }
-.wo-stunde.fortsetzung .wo-klasse, .wo-stunde.fortsetzung .wo-fach { opacity: 0.6; }
+/* Doppelstunde als ein zusammenhängender Block: erste Zelle unten offen, Fortsetzung oben offen, Lücke geschlossen */
+.wo-stunde.weiter { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
+.wo-stunde.fortsetzung { border-top-left-radius: 0; border-top-right-radius: 0; border-top-color: transparent; margin-top: -4px; min-height: 56px; }
+.wo-stunde.fortsetzung.bewertet::after { display: none; }
+/* Fremde Stunden: blass, ohne Haken, nicht antippbar */
+.wo-stunde.fremd { color: var(--text-schwach); background: var(--hintergrund); border-style: dashed; cursor: default; }
+.wo-stunde.fremd .wo-klasse { font-weight: 500; }
+.kal-stunde.fremd { color: var(--text-schwach); background: var(--hintergrund); border-left-color: var(--linie-stark); box-shadow: none; cursor: default; }
+.kal-stunde.fremd .kal-stunde-titel { font-weight: 500; }
+.kal-sicht { margin-bottom: 8px; }
 .umstellung-liste h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-schwach); margin: 10px 0 4px; }
 .umstellung-liste ul { margin: 0 0 8px; padding-left: 18px; font-size: var(--schrift-klein); }
 .overlay-inhalt.umstellung-bericht { max-width: 520px; }

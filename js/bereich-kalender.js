@@ -1,14 +1,19 @@
 /*
  * Notenblock – Bereich Kalender
  *
+ * Oben eine waagerecht scrollbare Sichtwahl: „Mein Plan“ (alle eigenen Stunden
+ * aller Klassen – die Summe der Klassenpläne), danach jede Klasse mit ihrem
+ * vollständigen Plan, fremde Stunden blass und ohne Haken. Beim Start gilt
+ * „Mein Plan“; die Wahl bleibt beim Tageswechsel und für Tag und Woche.
  * Tagesansicht: Kopfzeile mit Datum und Pfeilen (Tipp auf das Datum öffnet den
- * Monatskalender, Wischen wechselt den Tag), Stand des Tages, Stundenplan des
+ * Monatskalender, Wischen wechselt den Tag), Stand des Tages, Stunden des
  * Tages als Liste mit Haken „Planung fertig“ und Marke „bewertet“,
  * Freistunden als schmale Lücke, Ferien und Feiertage als Hinweis.
- * Wochenansicht: Raster Wochentage × Stunden, geplante Stunden ruhig hinterlegt.
- * Stundenplanung: Thema, Verlauf, Material, Hausaufgabe, „Planung fertig“,
- * „Stunde bewerten“, „Planung übernehmen von“. Alles speichert sofort.
- * Aufgaben mit Fälligkeit werden ab Schritt 6 unter dem Stundenplan gezeigt.
+ * Wochenansicht: Raster Wochentage × Stunden, Doppelstunden als ein Block,
+ * geplante Stunden ruhig hinterlegt.
+ * Stundenplanung (nur eigene Stunden): Thema, Verlauf, Material, Hausaufgabe,
+ * „Planung fertig“, „Stunde bewerten“, „Planung übernehmen von“. Alles
+ * speichert sofort. Aufgaben mit Fälligkeit stehen unter dem Stundenplan.
  */
 'use strict';
 NB.BereichKalender = (function () {
@@ -19,7 +24,7 @@ NB.BereichKalender = (function () {
   const N = NB.Navigation;
   const SP = NB.Stundenplan;
 
-  let z = { ansicht: 'tag', datum: null };   // Zustand des Bereichs
+  let z = { ansicht: 'tag', datum: null, sicht: 'mein' };   // sicht: 'mein' (Mein Plan) oder eine klasseId
   let heuteVerlassen = false;                // hat die Nutzerin bewusst einen anderen Tag gewählt?
   let zuletztHeute = null;
   let verdrahtet = false;
@@ -63,14 +68,54 @@ NB.BereichKalender = (function () {
     return M.bewertungHatInhalt(M.einheit(s.klasseId, s.fachId, datum, s.stunde));
   }
 
-  /** Eigene Bewertungseinheiten aller Klassen an einem Tag („Mein Plan“), nach Stunde. */
-  function einheitenAmTag(datum) {
+  /** Gewählte Klasse der Sicht (null bei „Mein Plan“ oder wenn die Klasse fehlt). */
+  function sichtKlasse() {
+    if (z.sicht === 'mein') return null;
+    const k = M.klasse(z.sicht);
+    if (!k) z.sicht = 'mein';
+    return k;
+  }
+
+  /**
+   * Stunden eines Tages in der gewählten Sicht, nach Stunde:
+   * „Mein Plan“ → eigene Bewertungseinheiten aller Klassen (art 'eigene');
+   * Klasse → ihre eigenen Einheiten plus fremde Stunden (art 'fremd', nur zur
+   * Übersicht), aufeinanderfolgende fremde Stunden gleicher Bezeichnung als ein Block.
+   */
+  function stundenAmTag(datum) {
     const liste = [];
-    M.klassen().forEach(function (k) {
-      SP.einheitenAmTag(k, datum).forEach(e => liste.push(e));
+    const klasse = sichtKlasse();
+    const klassen = klasse ? [klasse] : M.klassen();
+    klassen.forEach(function (k) {
+      SP.einheitenAmTag(k, datum).forEach(e => liste.push(Object.assign({ art: 'eigene' }, e)));
     });
-    liste.sort((a, b) => a.stunde - b.stunde);
+    if (klasse) {
+      let laufend = null;
+      SP.klassenStundenAmTag(klasse, datum).forEach(function (st) {
+        if (st.art !== 'fremd') { laufend = null; return; }
+        if (laufend && laufend.bezeichnung === st.bezeichnung && st.stunde === laufend.stundeBis + 1) { laufend.stundeBis = st.stunde; return; }
+        laufend = { art: 'fremd', klasseId: klasse.id, stunde: st.stunde, stundeBis: st.stunde, bezeichnung: st.bezeichnung, lehrkraft: st.lehrkraft, raum: st.raum };
+        liste.push(laufend);
+      });
+    }
+    liste.sort((a, b) => a.stunde - b.stunde || (a.art === 'eigene' ? -1 : 1));
     return liste;
+  }
+
+  /** Freier Tag in der gewählten Sicht: global (Ferien, Feiertag) bzw. samt Ausfall der Klasse. */
+  function freierTagSicht(iso) {
+    const klasse = sichtKlasse();
+    return klasse ? SP.freierTagFuer(klasse, iso) : SP.freierTag(iso);
+  }
+
+  function hatPlanSicht() {
+    const klasse = sichtKlasse();
+    return klasse ? SP.klassenplan(klasse).length > 0 : SP.hatStundenplan();
+  }
+
+  function stundenTitel(s) {
+    if (s.art === 'fremd') return (s.bezeichnung || 'Fremde Stunde') + (s.lehrkraft ? ' · ' + s.lehrkraft : '');
+    return sichtKlasse() ? fachName(s.fachId) : klassenName(s.klasseId) + ' · ' + fachName(s.fachId);
   }
 
   function wochenstart(iso) { return SP.montag(iso); }
@@ -138,14 +183,15 @@ NB.BereichKalender = (function () {
       const praefix = jahr + '-' + ((monat + 1 < 10) ? '0' : '') + (monat + 1) + '-';
       const tage = {};
       D.alle('bewertung').forEach(function (b) {
-        if (b.datum.indexOf(praefix) === 0 && M.bewertungHatInhalt(b)) tage[b.datum] = true;
+        if (b.datum.indexOf(praefix) === 0 && (z.sicht === 'mein' || b.klasseId === z.sicht) && M.bewertungHatInhalt(b)) tage[b.datum] = true;
       });
       return tage;
     }
+    const klasse = sichtKlasse();
     NB.Kalender.oeffnen({
       datum: z.datum,
       markierungen: function (jahr, monat) {
-        const m = SP.kalenderMarkierungen(jahr, monat);
+        const m = SP.kalenderMarkierungen(jahr, monat, klasse ? klasse.id : null);
         Object.keys(erfassteTage(jahr, monat)).forEach(function (iso) {
           if (!m[iso]) m[iso] = {};
           m[iso].punkt = true;
@@ -153,8 +199,8 @@ NB.BereichKalender = (function () {
         return m;
       },
       fusszeile: function (jahr, monat) {
-        if (!SP.hatStundenplan()) return '';
-        const tage = SP.unterrichtstageImMonat(jahr, monat);
+        if (!hatPlanSicht()) return '';
+        const tage = SP.unterrichtstageImMonat(jahr, monat, klasse ? klasse.id : null);
         const erfasst = erfassteTage(jahr, monat);
         const anzahl = tage.filter(iso => erfasst[iso]).length;
         return (tage.length === 1 ? '1 Unterrichtstag' : tage.length + ' Unterrichtstage') + ', ' + anzahl + ' erfasst';
@@ -168,6 +214,29 @@ NB.BereichKalender = (function () {
   function inhaltRendern() {
     const wurzel = H.$('#bereich-kalender');
     H.leeren(wurzel);
+
+    // Sichtwahl: Mein Plan, dann jede Klasse (waagerecht scrollbar)
+    const klassen = M.klassen();
+    if (klassen.length) {
+      sichtKlasse();
+      const leiste = H.el('div', { class: 'bw-faecher kal-sicht', role: 'group', 'aria-label': 'Plan' });
+      [{ id: 'mein', name: 'Mein Plan' }].concat(klassen).forEach(function (eintrag) {
+        const aktiv = z.sicht === eintrag.id;
+        const knopf = H.el('button', {
+          type: 'button', class: 'bw-fach', text: eintrag.name, 'aria-pressed': aktiv ? 'true' : 'false',
+          onclick: function () {
+            if (z.sicht === eintrag.id) return;
+            z.sicht = eintrag.id;
+            inhaltRendern();
+          }
+        });
+        leiste.appendChild(knopf);
+        if (aktiv) setTimeout(function () {
+          try { knopf.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* egal */ }
+        }, 0);
+      });
+      wurzel.appendChild(leiste);
+    }
 
     // Umschaltung Tag / Woche
     const umschalter = H.el('div', { class: 'bw-filter kal-umschalter', role: 'group', 'aria-label': 'Ansicht' });
@@ -190,34 +259,49 @@ NB.BereichKalender = (function () {
   }
 
   /* Tagesansicht */
-  function tagRendern(wurzel) {
-    const datum = z.datum;
-    const stunden = einheitenAmTag(datum);
-    const frei = SP.freierTag(datum);
-    const imSchuljahr = SP.imSchuljahr(datum);
-
-    // Stand des Tages
-    let geplant = 0, bewertet = 0;
-    stunden.forEach(function (s) {
-      if (M.planungFertig(datum, s.stunde, s.klasseId, s.fachId)) geplant++;
-      if (istBewertet(s, datum)) bewertet++;
-    });
-    const stand = stunden.length
-      ? (stunden.length === 1 ? '1 Stunde' : stunden.length + ' Stunden') + ', ' + geplant + ' geplant, ' + bewertet + ' bewertet'
-      : (frei ? frei.text + ' – kein Unterricht' : (!imSchuljahr && SP.hatStundenplan() ? 'Außerhalb des Schuljahres' : 'Keine Stunden an diesem Tag'));
-    wurzel.appendChild(H.el('p', { class: 'kal-stand text-schwach', text: stand }));
-
-    if (!SP.hatStundenplan()) {
+  /** Leerzustand ohne Stundenplan – je nach Sicht mit dem passenden Weg. */
+  function ohnePlanRendern(wurzel) {
+    const klasse = sichtKlasse();
+    if (klasse) {
       wurzel.appendChild(H.el('div', { class: 'leer' }, [
-        H.el('p', { class: 'leer-titel', text: 'Noch kein Stundenplan' }),
-        H.el('p', { text: 'Lege deine Stunden in den Einstellungen an – danach zeigt der Kalender jeden Tag deinen Unterricht.' }),
+        H.el('p', { class: 'leer-titel', text: 'Noch kein Stundenplan für ' + klasse.name }),
+        H.el('p', { text: 'Trage die Stunden der Klasse ein – eigene und fremde – dann zeigt der Kalender ihren Wochenplan.' }),
         H.el('button', { type: 'button', class: 'knopf primaer', text: 'Stundenplan anlegen', onclick: function () {
-          NB.Einstellungen.oeffnen();
-          N.bildschirmOeffnen('einstellungen-abschnitt', { abschnitt: 'stundenplan' });
+          N.zeigen('klassen');
+          NB.KlasseStundenplan.oeffnen(klasse.id);
         } })
       ]));
       return;
     }
+    wurzel.appendChild(H.el('div', { class: 'leer' }, [
+      H.el('p', { class: 'leer-titel', text: 'Noch kein Stundenplan' }),
+      H.el('p', { text: M.klassen().length
+        ? 'Dein Plan ist die Summe der Klassenpläne. Trage die Stunden je Klasse ein (Klassen → Stiftsymbol → Stundenplan) – danach zeigt der Kalender jeden Tag deinen Unterricht.'
+        : 'Lege zuerst eine Klasse an; ihr Stundenplan gehört zur Klassenanlage.' }),
+      H.el('button', { type: 'button', class: 'knopf primaer', text: 'Zu den Klassen', onclick: () => N.zeigen('klassen') })
+    ]));
+  }
+
+  function tagRendern(wurzel) {
+    const datum = z.datum;
+    const stunden = stundenAmTag(datum);
+    const eigene = stunden.filter(s => s.art === 'eigene');
+    const fremde = stunden.length - eigene.length;
+    const frei = freierTagSicht(datum);
+    const imSchuljahr = SP.imSchuljahr(datum);
+
+    // Stand des Tages (Planung und Bewertung nur für eigene Stunden)
+    let geplant = 0, bewertet = 0;
+    eigene.forEach(function (s) {
+      if (M.planungFertig(datum, s.stunde, s.klasseId, s.fachId)) geplant++;
+      if (istBewertet(s, datum)) bewertet++;
+    });
+    const stand = stunden.length
+      ? (stunden.length === 1 ? '1 Stunde' : stunden.length + ' Stunden') + (fremde ? ' (' + (fremde === 1 ? '1 fremde' : fremde + ' fremde') + ')' : '') + ', ' + geplant + ' geplant, ' + bewertet + ' bewertet'
+      : (frei ? frei.text + ' – kein Unterricht' : (!imSchuljahr && hatPlanSicht() ? 'Außerhalb des Schuljahres' : 'Keine Stunden an diesem Tag'));
+    wurzel.appendChild(H.el('p', { class: 'kal-stand text-schwach', text: stand }));
+
+    if (!hatPlanSicht()) { ohnePlanRendern(wurzel); return; }
 
     if (frei) {
       const zusatz = stunden.length ? ' Unten stehen Zusatztermine.' : '';
@@ -226,7 +310,7 @@ NB.BereichKalender = (function () {
         H.el('p', { class: 'text-schwach text-klein', text: (frei.art === 'ferien' ? 'Ferien – kein regulärer Unterricht.' : frei.art === 'feiertag' ? 'Feiertag – kein regulärer Unterricht.' : 'Der Unterricht fällt aus.') + zusatz })
       ]));
     } else if (!stunden.length) {
-      wurzel.appendChild(H.el('div', { class: 'leer kal-leer' }, H.el('p', { text: H.wochentag(datum) >= 6 ? 'Wochenende.' : 'Laut Stundenplan hast du an diesem Tag keine Stunden.' })));
+      wurzel.appendChild(H.el('div', { class: 'leer kal-leer' }, H.el('p', { text: H.wochentag(datum) >= 6 ? 'Wochenende.' : (sichtKlasse() ? 'Laut Stundenplan hat die ' + sichtKlasse().name + ' an diesem Tag keine Stunden.' : 'Laut Stundenplan hast du an diesem Tag keine Stunden.') })));
     }
 
     if (stunden.length) {
@@ -250,6 +334,21 @@ NB.BereichKalender = (function () {
   }
 
   function stundenKarte(s, datum) {
+    const zeitFremd = SP.uhrzeitTextBereich(s.stunde, s.stundeBis);
+    const nummerFremd = s.stundeBis > s.stunde ? s.stunde + '.–' + s.stundeBis + '.' : s.stunde + '.';
+    if (s.art === 'fremd') {
+      // Fremde Stunde: nur zur Übersicht – keine Planung, keine Bewertung
+      return H.el('div', { class: 'kal-stunde fremd', 'aria-label': SP.stundenText(s.stunde, s.stundeBis) + ', fremde Stunde: ' + stundenTitel(s) }, [
+        H.el('span', { class: 'kal-stunde-nr' }, [
+          H.el('span', { class: 'kal-nr', text: nummerFremd }),
+          zeitFremd ? H.el('span', { class: 'kal-zeit text-klein text-schwach', text: zeitFremd }) : null
+        ]),
+        H.el('span', { class: 'kal-stunde-text' }, [
+          H.el('span', { class: 'kal-stunde-titel', text: stundenTitel(s) }),
+          H.el('span', { class: 'text-klein text-schwach kal-stunde-zeile2', text: ['fremde Stunde', s.raum ? SP.raumText(s.raum) : null].filter(Boolean).join(' · ') })
+        ])
+      ]);
+    }
     const fertig = M.planungFertig(datum, s.stunde, s.klasseId, s.fachId);
     const bewertet = istBewertet(s, datum);
     const planung = M.planung(datum, s.stunde, s.klasseId, s.fachId);
@@ -266,7 +365,7 @@ NB.BereichKalender = (function () {
         zeit ? H.el('span', { class: 'kal-zeit text-klein text-schwach', text: zeit }) : null
       ]),
       H.el('span', { class: 'kal-stunde-text' }, [
-        H.el('span', { class: 'kal-stunde-titel', text: klassenName(s.klasseId) + ' · ' + fachName(s.fachId) }),
+        H.el('span', { class: 'kal-stunde-titel', text: stundenTitel(s) }),
         H.el('span', { class: 'text-klein text-schwach kal-stunde-zeile2' }, [
           bewertet ? H.el('span', { class: 'kal-bewertet', text: 'bewertet' }) : null,
           [s.raum ? SP.raumText(s.raum) : null, s.quelle === 'zusatz' ? 'Zusatztermin' : null, planung && planung.thema ? planung.thema : null].filter(Boolean).join(' · ')
@@ -280,30 +379,25 @@ NB.BereichKalender = (function () {
 
   /* Wochenansicht */
   function wocheRendern(wurzel) {
-    if (!SP.hatStundenplan()) {
-      wurzel.appendChild(H.el('div', { class: 'leer' }, [
-        H.el('p', { class: 'leer-titel', text: 'Noch kein Stundenplan' }),
-        H.el('p', { text: 'Lege deine Stunden in den Einstellungen an.' })
-      ]));
-      return;
-    }
+    if (!hatPlanSicht()) { ohnePlanRendern(wurzel); return; }
+    const klasse = sichtKlasse();
     const montag = wochenstart(z.datum);
     const tage = [];
     for (let i = 0; i < 7; i++) tage.push(H.tageAddieren(montag, i));
-    const stundenJeTag = tage.map(iso => einheitenAmTag(iso));
+    const stundenJeTag = tage.map(iso => stundenAmTag(iso));
     const wochenende = stundenJeTag[5].length > 0 || stundenJeTag[6].length > 0;
     const spalten = wochenende ? 7 : 5;
     let maxStunde = 0;
     stundenJeTag.forEach(liste => liste.forEach(s => { if (s.stundeBis > maxStunde) maxStunde = s.stundeBis; }));
-    SP.eintraege().forEach(e => { if (Number(e.stunde) > maxStunde) maxStunde = Number(e.stunde); });
+    (klasse ? SP.klassenplan(klasse) : SP.eintraege()).forEach(e => { if (Number(e.stunde) > maxStunde) maxStunde = Number(e.stunde); });
     if (maxStunde < 1) maxStunde = 1;
 
     const raster = H.el('div', { class: 'wo-raster', role: 'grid' });
-    raster.style.gridTemplateColumns = '40px repeat(' + spalten + ', minmax(0, 1fr))';
+    raster.style.gridTemplateColumns = '30px repeat(' + spalten + ', minmax(0, 1fr))';
     raster.appendChild(H.el('div', { class: 'wo-ecke' }));
     const heute = H.heute();
     tage.slice(0, spalten).forEach(function (iso, i) {
-      const frei = SP.freierTag(iso);
+      const frei = freierTagSicht(iso);
       raster.appendChild(H.el('button', {
         type: 'button', class: 'wo-tag' + (iso === heute ? ' heute' : '') + (frei ? ' frei' : ''), role: 'columnheader',
         'aria-label': H.datumLang(iso) + (frei ? ', ' + frei.text : ''), title: frei ? frei.text : '',
@@ -322,29 +416,38 @@ NB.BereichKalender = (function () {
       ]));
       tage.slice(0, spalten).forEach(function (iso, i) {
         const passende = stundenJeTag[i].filter(s => stunde >= s.stunde && stunde <= s.stundeBis);
-        const frei = SP.freierTag(iso);
+        const frei = freierTagSicht(iso);
         if (!passende.length) {
           raster.appendChild(H.el('div', { class: 'wo-zelle wo-leer' + (frei ? ' frei' : ''), role: 'gridcell' }));
           return;
         }
         const zelle = H.el('div', { class: 'wo-zelle', role: 'gridcell' });
         passende.forEach(function (s) {
+          if (s.art === 'fremd') {
+            zelle.appendChild(H.el('div', {
+              class: 'wo-stunde fremd' + (stunde > s.stunde ? ' fortsetzung' : '') + (stunde < s.stundeBis ? ' weiter' : ''),
+              'aria-label': H.WOCHENTAGE[i] + ', ' + stunde + '. Stunde, fremde Stunde: ' + stundenTitel(s)
+            }, stunde > s.stunde ? null : [
+              H.el('span', { class: 'wo-klasse', text: s.bezeichnung || 'Fremde Stunde' }),
+              s.lehrkraft ? H.el('span', { class: 'wo-fach', text: s.lehrkraft }) : null
+            ]));
+            return;
+          }
           const fertig = M.planungFertig(iso, s.stunde, s.klasseId, s.fachId);
           const bewertet = istBewertet(s, iso);
           zelle.appendChild(H.el('button', {
-            type: 'button', class: 'wo-stunde' + (fertig ? ' geplant' : '') + (bewertet ? ' bewertet' : '') + (stunde > s.stunde ? ' fortsetzung' : ''),
+            type: 'button', class: 'wo-stunde' + (fertig ? ' geplant' : '') + (bewertet ? ' bewertet' : '') + (stunde > s.stunde ? ' fortsetzung' : '') + (stunde < s.stundeBis ? ' weiter' : ''),
             'aria-label': H.WOCHENTAGE[i] + ', ' + stunde + '. Stunde, ' + klassenName(s.klasseId) + ' ' + fachName(s.fachId) + (fertig ? ', geplant' : ', ungeplant') + (bewertet ? ', bewertet' : ''),
             onclick: () => B.planungOeffnen({ datum: iso, stunde: s.stunde, klasseId: s.klasseId, fachId: s.fachId })
-          }, [
-            H.el('span', { class: 'wo-klasse', text: klassenName(s.klasseId) }),
-            H.el('span', { class: 'wo-fach', text: fachName(s.fachId) })
-          ]));
+          }, stunde > s.stunde ? null : (klasse
+            ? [H.el('span', { class: 'wo-klasse', text: fachName(s.fachId) }), s.raum ? H.el('span', { class: 'wo-fach', text: SP.raumText(s.raum) }) : null]
+            : [H.el('span', { class: 'wo-klasse', text: klassenName(s.klasseId) }), H.el('span', { class: 'wo-fach', text: fachName(s.fachId) })])));
         });
         raster.appendChild(zelle);
       });
     }
     wurzel.appendChild(raster);
-    wurzel.appendChild(H.el('p', { class: 'text-klein text-schwach kal-legende', text: 'Ruhig hinterlegt: Planung fertig. Punkt: Bewertung erfasst. Ein Tipp auf einen Wochentag öffnet die Tagesansicht.' }));
+    wurzel.appendChild(H.el('p', { class: 'text-klein text-schwach kal-legende', text: 'Ruhig hinterlegt: Planung fertig. Punkt: Bewertung erfasst.' + (klasse ? ' Blass: fremde Stunden.' : '') + ' Ein Tipp auf einen Wochentag öffnet die Tagesansicht.' }));
   }
 
   /* ---------- Wischen und Tastatur ---------- */

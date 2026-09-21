@@ -8,7 +8,9 @@
  * und Weiter – 1 Klasse (Name, Stufe als zwei große Flächen, Schuljahr für
  * die Löschfrist), 2 Fächer, 3 Stundenplan, 4 Schülerliste. Nach Schritt 1
  * ist die Klasse angelegt; die Schritte 2 bis 4 lassen sich überspringen und
- * später als Abschnitte der Klassenverwaltung nachholen.
+ * später als Abschnitte der Klassenverwaltung nachholen. Schritt 2 beginnt
+ * ohne vorgewählte Fächer; nur beim Überspringen werden alle aktiven Fächer
+ * der Stufe eingetragen.
  *
  * Fächer der Klasse: Jede Klasse hat ihre eigene Auswahl aus den aktiven
  * Fächern ihrer Stufe, in festlegbarer Reihenfolge – nur diese Fächer stehen
@@ -430,7 +432,7 @@ NB.KlasseVerwalten = (function () {
     function knoepfe(weiterText, beiWeiter, ueberspringbar) {
       return H.el('div', { class: 'knopfzeile anlage-knoepfe' }, [
         anlage.schritt > 1 ? H.el('button', { type: 'button', class: 'knopf', text: 'Zurück', onclick: () => { anlage.schritt--; anlageRendern(); H.$('#inhalt').scrollTop = 0; } }) : null,
-        ueberspringbar ? H.el('button', { type: 'button', class: 'knopf', text: 'Überspringen', onclick: () => weiterGehen() }) : null,
+        ueberspringbar ? H.el('button', { type: 'button', class: 'knopf', text: 'Überspringen', onclick: () => (typeof ueberspringbar === 'function' ? ueberspringbar() : weiterGehen()) }) : null,
         H.el('button', { type: 'button', class: 'knopf primaer', text: weiterText, onclick: beiWeiter })
       ]);
     }
@@ -467,19 +469,28 @@ NB.KlasseVerwalten = (function () {
           if (!klasse.stufe) klasse.stufe = werte.stufe;
           M.klasseSpeichern(klasse);
         } else {
+          // Ohne vorgewählte Fächer: Schritt 2 beginnt leer
           const neu = NB.Startdaten.leereKlasse(name, werte.stufe);
           neu.letztesSchuljahr = werte.letztesSchuljahr.trim();
           M.klasseSpeichern(neu);
+          M.klassenFaecherLeerFestlegen(neu);
           anlage.klasseId = neu.id;
         }
-        M.klassenFaecherFestlegen(M.klasse(anlage.klasseId));
         weiterGehen();
       }, false));
       if (!klasse) setTimeout(() => felder.nameFeld.focus(), 50);
     } else if (anlage.schritt === 2) {
-      inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Alle aktiven Fächer der Stufe sind vorgewählt. Abwählen, was die Klasse bei dir nicht hat, und die Reihenfolge festlegen.' }));
+      inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Welche Fächer unterrichtest du in dieser Klasse? Unten anschalten und die Reihenfolge festlegen. „Überspringen“ trägt alle aktiven Fächer der Stufe ein.' }));
       faecherEinfuegen(klasse, inhalt, anlageRendern);
-      inhalt.appendChild(knoepfe('Weiter', weiterGehen, true));
+      // Überspringen: nur bei leerer Auswahl alle aktiven Fächer der Stufe eintragen
+      inhalt.appendChild(knoepfe('Weiter', weiterGehen, function () {
+        if (!M.klassenFaecher(klasse).length) {
+          klasse.faecher = M.faecherAktiv(klasse.stufe).map(f => ({ fachId: f.id, abgeschaltet: [] }));
+          klasse.faecherFestgelegt = true;
+          M.klasseSpeichern(klasse);
+        }
+        weiterGehen();
+      }));
     } else if (anlage.schritt === 3) {
       inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Eigene Stunden (Fach, Raum, Turnus) und fremde Stunden anderer Lehrkräfte. Lässt sich jederzeit unter „Klasse verwalten“ ergänzen.' }));
       NB.KlasseStundenplan.rasterEinfuegen(klasse, inhalt, anlageRendern);
