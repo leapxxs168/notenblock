@@ -2,10 +2,11 @@
  * Notenblock – Bereich Klassen
  *
  * Einstieg: Liste der Klassen. Tipp auf eine Klasse → Bewertungsbildschirm.
- * Stiftsymbol → Kinder verwalten (Liste, ein Kind pro Zeile:
- * „Nachname, Vorname | Kürzel“) samt Klassenname und „Zuletzt unterrichtet
- * im Schuljahr“. Beim Speichern behalten bestehende Kinder ihre Id, damit
- * ihre Bewertungen erhalten bleiben (Abgleich über Name, sonst Kürzel).
+ * Stiftsymbol → Klasse verwalten (NB.KlasseVerwalten: Stufe, Fächer, Kinder).
+ * Kinder verwalten: Liste, ein Kind pro Zeile: „Nachname, Vorname | Kürzel“,
+ * samt Klassenname und „Zuletzt unterrichtet im Schuljahr“. Beim Speichern
+ * behalten bestehende Kinder ihre Id, damit ihre Bewertungen erhalten bleiben
+ * (Abgleich über Name, sonst Kürzel).
  */
 'use strict';
 NB.BereichKlassen = (function () {
@@ -84,8 +85,8 @@ NB.BereichKlassen = (function () {
           }, diagrammSymbol()),
           H.el('button', {
             type: 'button', class: 'symbolknopf klasse-stift',
-            'aria-label': 'Kinder von ' + klasse.name + ' verwalten', title: 'Kinder verwalten',
-            onclick: () => B.kinderVerwalten(klasse.id)
+            'aria-label': klasse.name + ' verwalten', title: 'Klasse verwalten',
+            onclick: () => NB.KlasseVerwalten.oeffnen(klasse.id)
           }, stiftSymbol())
         ]));
       });

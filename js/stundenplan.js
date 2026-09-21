@@ -195,10 +195,14 @@ NB.Stundenplan = (function () {
   /**
    * Alle Stunden einer Klasse an einem Tag (eigene und fremde), nach Stunde:
    * [{ klasseId, stunde, art, fachId, bezeichnung, lehrkraft, raum, turnus, quelle: 'plan'|'zusatz', eintragId }]
+   * Eigene Stunden eines Fachs, das die Klasse nicht (mehr) gewählt hat oder
+   * das stillgelegt ist, bleiben gespeichert, erscheinen aber nicht.
    */
   SP.klassenStundenAmTag = function (klasse, iso) {
     const liste = [];
     if (!klasse) return liste;
+    const sichtbareFaecher = M.klassenFaecher(klasse).map(f => f.id);
+    const fachSichtbar = fachId => sichtbareFaecher.indexOf(fachId) >= 0;
     if (SP.imSchuljahr(iso) && !SP.freierTagFuer(klasse, iso)) {
       const wt = H.wochentag(iso);
       const typ = SP.wochenTyp(iso);
@@ -206,6 +210,7 @@ NB.Stundenplan = (function () {
       SP.klassenplan(klasse).forEach(function (e) {
         if (Number(e.wochentag) !== wt || !turnusPasst(e, typ)) return;
         if (ausfaelle.some(a => Number(a.stunde) === Number(e.stunde))) return;
+        if (e.art !== 'fremd' && !fachSichtbar(e.fachId)) return;
         liste.push({
           klasseId: klasse.id, stunde: Number(e.stunde), art: e.art === 'fremd' ? 'fremd' : 'eigene',
           fachId: e.art === 'fremd' ? null : e.fachId, bezeichnung: e.bezeichnung || '', lehrkraft: e.lehrkraft || '',
@@ -214,7 +219,7 @@ NB.Stundenplan = (function () {
       });
     }
     (klasse.zusatz || []).forEach(function (z) {
-      if (z.datum !== iso) return;
+      if (z.datum !== iso || !fachSichtbar(z.fachId)) return;
       liste.push({ klasseId: klasse.id, stunde: Number(z.stunde), art: 'eigene', fachId: z.fachId, bezeichnung: '', lehrkraft: '', raum: z.raum || '', turnus: 'jede', quelle: 'zusatz', eintragId: z.id });
     });
     liste.sort((a, b) => a.stunde - b.stunde || (a.art === 'eigene' ? -1 : 1));

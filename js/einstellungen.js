@@ -574,7 +574,8 @@ NB.Einstellungen = (function () {
         feld
       ]));
     }
-    inhalt.appendChild(gruppe('Beschreibungstexte', [H.el('div', { class: 'einst-stufen' }, stufenFelder)]));
+    // Kompetenzen der Stufe 1–2: Notenmarken in der einfarbigen Stufenabstufung
+    inhalt.appendChild(gruppe('Beschreibungstexte', [H.el('div', { class: 'einst-stufen' + (benotet ? '' : ' ohne-noten') }, stufenFelder)]));
     inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Die Texte erscheinen unter der Skala und bilden die Grundlage für Textbausteine in der Auswertung.' }));
     wurzel.appendChild(inhalt);
   }

@@ -239,20 +239,22 @@ NB.Bewertung = (function () {
     if (!faecher.some(f => f.id === z.fachId)) z.fachId = faecher[0].id;
   }
 
-  /** Klasse ohne Stufe (aus einer früheren Fassung): einmalig nach der Stufe fragen. */
+  /**
+   * Klasse ohne Stufe (aus einer früheren Fassung): einmalig nach der Stufe
+   * fragen und danach die Fächer der Klasse anbieten.
+   */
   async function stufeSicherstellen() {
     const k = klasse();
     if (!k || k.stufe) return;
-    const stufen = M.stufen();
-    const wahl = await NB.Dialog.auswahl({
-      titel: 'Stufe der Klasse ' + k.name,
-      optionen: M.STUFEN.map(s => ({ text: stufen[s].bezeichnung, wert: s, untertitel: stufen[s].benotet ? 'Mit Noten' : 'Ohne Noten – Stufen beschreiben den Lernstand' }))
-    });
-    if (!wahl) return;
-    k.stufe = wahl;
-    M.klasseSpeichern(k);
-    NB.App.meldung('Stufe gesetzt: ' + stufen[wahl].bezeichnung + '. Fächer und Stundenplan der Klasse lassen sich unter „Kinder verwalten“ anpassen.');
+    if (!(await NB.KlasseVerwalten.stufeWaehlen(k))) return;
     if (N.istSichtbar('bewertung')) allesRendern();
+    const faecherWaehlen = await NB.Dialog.bestaetigen({
+      titel: 'Fächer der ' + k.name + ' festlegen?',
+      text: 'Vorerst gelten alle Fächer der Stufe. Du kannst jetzt auswählen, welche Fächer die Klasse hat, und ihre Reihenfolge festlegen – später jederzeit unter „Klasse verwalten“.',
+      abbrechen: 'Später',
+      bestaetigen: 'Fächer wählen'
+    });
+    if (faecherWaehlen) NB.KlasseVerwalten.faecher(k.id);
   }
 
   /* ---------- Aufbau ---------- */
@@ -436,6 +438,8 @@ NB.Bewertung = (function () {
     const fach = M.fach(z.fachId);
     const k = klasse();
     const e = einstellungen();
+    // Stufe 1–2: einfarbige Stufenabstufung statt Notenfarben (siehe stil.css .ohne-noten)
+    el.matrix.classList.toggle('ohne-noten', !benotet());
 
     if (!fach) {
       el.matrix.appendChild(H.el('p', { class: 'text-schwach bw-leer-hinweis', text: 'Diese Klasse hat noch kein Fach. Fächer lassen sich in der Klassenverwaltung zuordnen.' }));

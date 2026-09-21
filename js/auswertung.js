@@ -173,10 +173,10 @@ NB.Auswertung = (function () {
     return 'note-' + H.begrenzen(Math.round(wert), 1, 6);
   }
 
-  /** Waagerechter Balken: je besser die Note, desto länger. */
-  function balken(wert) {
+  /** Waagerechter Balken: je besser die Note, desto länger. farbStufe: Farbe abweichend vom gerundeten Wert (Stufe 1–2). */
+  function balken(wert, farbStufe) {
     const box = H.el('span', { class: 'aw-balken', 'aria-hidden': 'true' });
-    const fuellung = H.el('span', { class: 'aw-balken-fuellung ' + noteKlasse(wert) });
+    const fuellung = H.el('span', { class: 'aw-balken-fuellung ' + noteKlasse(farbStufe != null ? farbStufe : wert) });
     fuellung.style.width = wert == null ? '0%' : Math.round(((7 - H.begrenzen(wert, 1, 6)) / 6) * 100) + '%';
     box.appendChild(fuellung);
     return box;
@@ -219,16 +219,27 @@ NB.Auswertung = (function () {
     return grafik;
   }
 
-  /** Fächerleiste der Klasse (nur ihre Fächer, in ihrer Reihenfolge). */
-  function faecherLeiste(klasse, aktivId, beiWahl) {
+  /** Fächerleiste der Klasse (ihre Fächer in ihrer Reihenfolge, wahlweise samt stillgelegten). */
+  function faecherLeiste(faecher, aktivId, beiWahl) {
     const leiste = H.el('div', { class: 'bw-faecher aw-faecher', role: 'group', 'aria-label': 'Fach' });
-    M.klassenFaecher(klasse).forEach(function (fach) {
+    faecher.forEach(function (fach) {
       leiste.appendChild(H.el('button', {
-        type: 'button', class: 'bw-fach', text: fach.name, 'aria-pressed': fach.id === aktivId ? 'true' : 'false',
+        type: 'button', class: 'bw-fach' + (fach.aktiv === false ? ' ruht' : ''), text: fach.name + (fach.aktiv === false ? ' (stillgelegt)' : ''),
+        'aria-pressed': fach.id === aktivId ? 'true' : 'false',
         onclick: () => beiWahl(fach.id)
       }));
     });
     return leiste;
+  }
+
+  /**
+   * Fächer für die Auswertung einer Klasse: die gewählten Fächer und – auf
+   * Wunsch („auch stillgelegte Fächer zeigen“) – stillgelegte mit Daten.
+   */
+  function auswertungsFaecher(klasse, mitStillgelegten) {
+    const liste = M.klassenFaecher(klasse);
+    if (mitStillgelegten) M.klassenFaecherStillgelegt(klasse).forEach(f => { if (!liste.some(x => x.id === f.id)) liste.push(f); });
+    return liste;
   }
 
   function hinweisZaehlung(einrechnen) {
@@ -254,19 +265,35 @@ NB.Auswertung = (function () {
       return;
     }
     parameterKlasse.klasseId = klasse.id;
-    const faecher = M.klassenFaecher(klasse);
+    const stillgelegt = M.klassenFaecherStillgelegt(klasse);
+    // Ein stillgelegtes Fach wurde gezielt angesteuert (etwa vom Kind-Bildschirm): dann mit anzeigen
+    if (stillgelegt.some(f => f.id === parameterKlasse.fachId)) parameterKlasse.mitStillgelegten = true;
+    const faecher = auswertungsFaecher(klasse, parameterKlasse.mitStillgelegten);
     let fach = faecher.find(f => f.id === parameterKlasse.fachId) || faecher[0];
     if (!fach) {
-      wurzel.appendChild(H.el('div', { class: 'leer' }, H.el('p', { text: 'Es sind keine Fächer angelegt.' })));
+      wurzel.appendChild(H.el('div', { class: 'leer' }, H.el('p', { text: 'Diese Klasse hat noch kein Fach.' })));
       return;
     }
     parameterKlasse.fachId = fach.id;
 
-    const inhalt = H.el('div', { class: 'karte-inhalt aw' });
+    // .ohne-noten: Stufe 1–2 zeigt die einfarbige Stufenabstufung statt Notenfarben
+    const inhalt = H.el('div', { class: 'karte-inhalt aw' + (M.istBenotet(klasse) ? '' : ' ohne-noten') });
     inhalt.appendChild(H.el('h2', { class: 'aw-titel', text: klasse.name }));
-    inhalt.appendChild(faecherLeiste(klasse, fach.id, function (fachId) {
-      klasseRendern({ klasseId: klasse.id, fachId: fachId });
+    inhalt.appendChild(faecherLeiste(faecher, fach.id, function (fachId) {
+      klasseRendern({ klasseId: klasse.id, fachId: fachId, mitStillgelegten: parameterKlasse.mitStillgelegten });
     }));
+    if (stillgelegt.length) {
+      const an = !!parameterKlasse.mitStillgelegten;
+      inhalt.appendChild(H.el('div', { class: 'aw-stillgelegt' }, H.el('button', {
+        type: 'button', class: 'textknopf klein', 'aria-pressed': an ? 'true' : 'false',
+        text: an ? 'Stillgelegte Fächer ausblenden' : 'Auch stillgelegte Fächer zeigen (' + stillgelegt.length + ')',
+        onclick: function () {
+          const neu = !an;
+          const bleibt = neu || fach.aktiv !== false;
+          klasseRendern({ klasseId: klasse.id, fachId: bleibt ? fach.id : null, mitStillgelegten: neu });
+        }
+      })));
+    }
 
     const stunden = A.stunden(klasse.id, fach.id);
     if (!stunden.length) {
@@ -330,7 +357,7 @@ NB.Auswertung = (function () {
       return;
     }
     const a = A.kind(klasse, fach, kind.id);
-    const inhalt = H.el('div', { class: 'karte-inhalt aw' });
+    const inhalt = H.el('div', { class: 'karte-inhalt aw' + (a.benotet ? '' : ' ohne-noten') });
 
     // Kopf: Gesamtwert und Vorschlag
     inhalt.appendChild(H.el('div', { class: 'einst-karte aw-kopf' }, [
@@ -363,7 +390,7 @@ NB.Auswertung = (function () {
             H.el('span', { class: 'aw-kriterium-name', text: z.kriterium.name + (g !== 1 ? ' (×' + String(g).replace('.', ',') + ')' : '') }),
             H.el('span', { class: 'aw-kriterium-wert', text: z.anzahl ? A.zahlText(z.schnitt) + ' · ' + z.anzahl + '×' : '–' })
           ]),
-          balken(z.schnitt),
+          balken(z.schnitt, z.naechsteStufe),
           stufenText
         ]));
       });

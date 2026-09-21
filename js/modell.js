@@ -93,21 +93,90 @@ NB.Modell = (function () {
   /* ---------- Fächer einer Klasse ---------- */
 
   /**
-   * Fächer einer Klasse in ihrer Reihenfolge, nur aktive Katalogfächer.
-   * Hat die Klasse noch keine Auswahl, gelten alle aktiven Fächer ihrer Stufe.
+   * Fächer einer Klasse in ihrer Reihenfolge: nur gewählte, in der Stufe der
+   * Klasse angebotene und nicht stillgelegte Katalogfächer. Hat die Klasse noch
+   * keine Auswahl (ältere Klassen), gelten alle aktiven Fächer ihrer Stufe.
+   * optionen.mitStillgelegten: stillgelegte Fächer mit aufführen (Auswertung).
    */
-  M.klassenFaecher = function (klasse) {
+  M.klassenFaecher = function (klasse, optionen) {
     if (!klasse) return [];
+    const mitStillgelegten = !!(optionen && optionen.mitStillgelegten);
+    const inStufe = f => !klasse.stufe || M.fachInStufe(f, klasse.stufe);
     if (Array.isArray(klasse.faecher) && klasse.faecher.length) {
-      return klasse.faecher.map(z => M.fach(z.fachId)).filter(f => f && f.aktiv !== false);
+      return klasse.faecher.map(z => M.fach(z.fachId)).filter(f => f && inStufe(f) && (mitStillgelegten || f.aktiv !== false));
     }
-    return M.faecherAktiv(klasse.stufe || null);
+    return M.faecherKatalog().filter(f => inStufe(f) && (mitStillgelegten || f.aktiv !== false));
+  };
+
+  /** Stillgelegte Fächer, die eine Klasse gewählt hat oder in denen sie Einheiten besitzt. */
+  M.klassenFaecherStillgelegt = function (klasse) {
+    if (!klasse) return [];
+    const gewaehlt = M.klassenFaecher(klasse, { mitStillgelegten: true }).filter(f => f.aktiv === false);
+    M.faecherKatalog().forEach(function (f) {
+      if (f.aktiv === false && !gewaehlt.some(g => g.id === f.id) && M.anzahlEinheiten(klasse.id, f.id) > 0) gewaehlt.push(f);
+    });
+    return gewaehlt;
+  };
+
+  /**
+   * Fächerauswahl einer Klasse festschreiben: hat sie noch keine, werden alle
+   * aktiven Fächer ihrer Stufe eingetragen (Reihenfolge des Katalogs).
+   * Liefert true, wenn etwas geschrieben wurde.
+   */
+  M.klassenFaecherFestlegen = function (klasse) {
+    if (!klasse || (Array.isArray(klasse.faecher) && klasse.faecher.length)) return false;
+    klasse.faecher = M.faecherAktiv(klasse.stufe || null).map(f => ({ fachId: f.id, abgeschaltet: [] }));
+    M.klasseSpeichern(klasse);
+    return true;
+  };
+
+  /** Ist ein Fach in der Auswahl der Klasse? */
+  M.klasseHatFach = function (klasse, fachId) {
+    return !!(klasse && Array.isArray(klasse.faecher) && klasse.faecher.some(z => z.fachId === fachId));
+  };
+
+  /** Fach in die Auswahl der Klasse aufnehmen (ans Ende) bzw. daraus entfernen – Daten bleiben erhalten. */
+  M.klasseFachWaehlen = function (klasse, fachId, gewaehlt) {
+    if (!Array.isArray(klasse.faecher)) klasse.faecher = [];
+    const vorhanden = klasse.faecher.some(z => z.fachId === fachId);
+    if (gewaehlt && !vorhanden) klasse.faecher.push({ fachId: fachId, abgeschaltet: [] });
+    if (!gewaehlt && vorhanden) klasse.faecher = klasse.faecher.filter(z => z.fachId !== fachId);
+    M.klasseSpeichern(klasse);
+  };
+
+  /** Fach in der Reihenfolge der Klasse verschieben (richtung -1 nach oben, +1 nach unten). */
+  M.klasseFachVerschieben = function (klasse, fachId, richtung) {
+    const liste = klasse.faecher || [];
+    const i = liste.findIndex(z => z.fachId === fachId);
+    const j = i + richtung;
+    if (i < 0 || j < 0 || j >= liste.length) return false;
+    const [eintrag] = liste.splice(i, 1);
+    liste.splice(j, 0, eintrag);
+    M.klasseSpeichern(klasse);
+    return true;
   };
 
   /** Abgeschaltete Kompetenzen einer Klasse in einem Fach. */
   M.abgeschalteteKompetenzen = function (klasse, fachId) {
     const z = klasse && Array.isArray(klasse.faecher) ? klasse.faecher.find(x => x.fachId === fachId) : null;
     return (z && Array.isArray(z.abgeschaltet)) ? z.abgeschaltet : [];
+  };
+
+  /** Kompetenz für eine Klasse in einem Fach abschalten oder wieder einschalten – Daten bleiben erhalten. */
+  M.kompetenzAbschalten = function (klasse, fachId, kompetenzId, abgeschaltet) {
+    if (!Array.isArray(klasse.faecher)) klasse.faecher = [];
+    let z = klasse.faecher.find(x => x.fachId === fachId);
+    if (!z) { z = { fachId: fachId, abgeschaltet: [] }; klasse.faecher.push(z); }
+    if (!Array.isArray(z.abgeschaltet)) z.abgeschaltet = [];
+    const drin = z.abgeschaltet.indexOf(kompetenzId) >= 0;
+    if (abgeschaltet && !drin) z.abgeschaltet.push(kompetenzId);
+    if (!abgeschaltet && drin) z.abgeschaltet = z.abgeschaltet.filter(id => id !== kompetenzId);
+    M.klasseSpeichern(klasse);
+  };
+
+  /** Stundenplaneinträge einer Klasse zu einem Fach (für die Rückfrage beim Abwählen). */
+  M.anzahlPlanEintraege = function (klasse, fachId) {
+    return (klasse && Array.isArray(klasse.stundenplan) ? klasse.stundenplan : []).filter(e => e.art !== 'fremd' && e.fachId === fachId).length;
   };
 
   /* ---------- Kriterien ---------- */

@@ -29,6 +29,14 @@
   --note-5: #e8702a;
   --note-6: #d43d3d;
 
+  /* Stufen 1–2 ohne Noten: einfarbige Abstufung in der Akzentfarbe, kräftig (Stufe 1) bis hell (Stufe 6) */
+  --stufe-1: #2d5985;
+  --stufe-2: #3b6ea5;
+  --stufe-3: #6a92bf;
+  --stufe-4: #97b3d3;
+  --stufe-5: #bccde3;
+  --stufe-6: #dae4f0;
+
   --radius: 10px;
   --tippziel: 44px;
   --schrift: 17px;
@@ -453,6 +461,9 @@ input:disabled { background: var(--hintergrund); color: var(--text-schwach); }
   cursor: pointer;
 }
 .bw-fach[aria-pressed="true"] { color: #fff; background: var(--akzent); border-color: var(--akzent); font-weight: 600; }
+.bw-fach.ruht { color: var(--text-schwach); border-style: dashed; }
+.bw-fach.ruht[aria-pressed="true"] { color: #fff; }
+.aw-stillgelegt { margin: -4px 0 10px; }
 
 .bw-filter {
   display: flex;
@@ -818,6 +829,8 @@ button.einst-eintrag-text { cursor: pointer; }
 button.einst-eintrag-text:active { background: var(--akzent-hell); }
 .einst-eintrag-titel { font-weight: 600; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .einst-leer { padding: 12px 14px; margin: 0; }
+.einst-eintrag-schalter { display: flex; align-items: center; padding: 0 8px 0 6px; }
+.einst-gruppe-hinweis { margin: 6px 4px 0; }
 .symbolknopf.klein { width: 40px; height: 44px; font-size: 1.2rem; }
 .symbolknopf.gefaehrlich { color: var(--fehler); font-size: 1.5rem; }
 .symbolknopf:disabled { opacity: 0.3; cursor: default; }
@@ -1276,3 +1289,19 @@ input[type="time"] {
 .krit.ausgesetzt { opacity: 0.6; padding-bottom: 10px; }
 .krit.ausgesetzt .krit-name { color: var(--text-schwach); }
 .krit-ausgesetzt { margin-top: 2px; }
+
+/* Klassen der Stufe 1–2 (Container mit .ohne-noten): statt Notenfarben die einfarbige Stufenabstufung –
+   in Skala, Balken, Verlauf und Notenmarken gleichermaßen. Helle Stufen bekommen dunkle Schrift. */
+.ohne-noten .skala[data-note="1"] .skala-knopf, .ohne-noten .notenmarke[data-note="1"], .ohne-noten .note-1 { background: var(--stufe-1) !important; }
+.ohne-noten .skala[data-note="2"] .skala-knopf, .ohne-noten .notenmarke[data-note="2"], .ohne-noten .note-2 { background: var(--stufe-2) !important; }
+.ohne-noten .skala[data-note="3"] .skala-knopf, .ohne-noten .notenmarke[data-note="3"], .ohne-noten .note-3 { background: var(--stufe-3) !important; }
+.ohne-noten .skala[data-note="4"] .skala-knopf, .ohne-noten .notenmarke[data-note="4"], .ohne-noten .note-4 { background: var(--stufe-4) !important; }
+.ohne-noten .skala[data-note="5"] .skala-knopf, .ohne-noten .notenmarke[data-note="5"], .ohne-noten .note-5 { background: var(--stufe-5) !important; }
+.ohne-noten .skala[data-note="6"] .skala-knopf, .ohne-noten .notenmarke[data-note="6"], .ohne-noten .note-6 { background: var(--stufe-6) !important; }
+.ohne-noten .aw-punkt.note-1 { fill: var(--stufe-1); } .ohne-noten .aw-punkt.note-2 { fill: var(--stufe-2); } .ohne-noten .aw-punkt.note-3 { fill: var(--stufe-3); }
+.ohne-noten .aw-punkt.note-4 { fill: var(--stufe-4); } .ohne-noten .aw-punkt.note-5 { fill: var(--stufe-5); } .ohne-noten .aw-punkt.note-6 { fill: var(--stufe-6); }
+.ohne-noten .skala[data-note="3"] .stufe.aktiv, .ohne-noten .skala[data-note="4"] .stufe.aktiv,
+.ohne-noten .skala[data-note="5"] .stufe.aktiv, .ohne-noten .skala[data-note="6"] .stufe.aktiv,
+.ohne-noten .notenmarke[data-note="3"], .ohne-noten .notenmarke[data-note="4"],
+.ohne-noten .notenmarke[data-note="5"], .ohne-noten .notenmarke[data-note="6"] { color: var(--text); }
+.ohne-noten .skala.standard .stufe.aktiv { color: var(--text); }
