@@ -1,16 +1,21 @@
 /*
  * Notenblock – Bewertungsbildschirm
  *
- * Aufbau (von oben): Kopfzeile mit Klasse (links, antippbar), Datum und
- * Einheit (rechts, antippbar) · Name des Kindes mit Pfeilen und Position ·
- * Fächerleiste der Klasse · Umschaltung Stunde | Kompetenzen · Matrix
- * (Kriterium, Skala 1–6, Beschreibungstext) · Fußleiste mit Fortschritt,
- * „Fehlt“ und „Weiter“.
+ * Aufbau (von oben): Kopfzeile mit Klasse (links, antippbar), Datum
+ * (antippbar) und Einheit („1.–2. Std.“) rechts · bei mehreren Einheiten des
+ * Fachs am Tag eine kleine Auswahl darunter · Name des Kindes mit Pfeilen und
+ * Position · Fächerleiste der Klasse · Umschaltung Stunde | Kompetenzen ·
+ * Matrix (Kriterium, Skala 1–6, Beschreibungstext; Kompetenzen nach
+ * Lehrplanbereich gruppiert, Fachhinweis einklappbar) · Fußleiste mit
+ * Fortschritt, „Fehlt“ und „Weiter“.
  *
  * Bewertet wird jede Unterrichtsstunde einzeln: Eine Bewertungseinheit gehört
  * zu Klasse, Fach, Datum und Stundennummer (Doppelstunde = eine Einheit,
- * Schlüssel ist die erste Stunde). Hat die Klasse am Tag mehrere getrennte
- * Einheiten desselben Fachs, erscheint neben dem Datum eine Auswahl.
+ * Schlüssel ist die erste Stunde). Der Sprung aus dem Kalender setzt die
+ * Einheit direkt; ohne Stundenplan gibt es je Klasse, Fach und Tag eine Einheit.
+ *
+ * Klassen der Stufe 1–2 werden nicht benotet: die Skala heißt „Stufe“, ohne
+ * Wortform („sehr gut“ …) und ohne Notenvorschlag.
  *
  * Stunde: die sechs Kriterien zu Mitarbeit, Arbeits- und Sozialverhalten,
  * vorbelegt mit der Standardnote (blass). Jedes lässt sich für die aktuelle
@@ -257,6 +262,7 @@ NB.Bewertung = (function () {
     H.leeren(wurzel);
     el = {};
 
+    el.einheiten = H.el('div', { class: 'bw-einheiten-zeile', hidden: true });
     el.hinweis = H.el('div', { class: 'bw-hinweis', hidden: true });
 
     el.kindname = H.el('div', { class: 'bw-kindname' });
@@ -292,7 +298,7 @@ NB.Bewertung = (function () {
 
     el.leer = H.el('div', { class: 'leer', hidden: true });
 
-    H.anhaengen(wurzel, [el.hinweis, el.kindzeile, el.faecher, el.ansicht, el.fehltHinweis, el.fachHinweis, el.matrix, el.notizzeile, el.leer]);
+    H.anhaengen(wurzel, [el.einheiten, el.hinweis, el.kindzeile, el.faecher, el.ansicht, el.fehltHinweis, el.fachHinweis, el.matrix, el.notizzeile, el.leer]);
 
     // Fußleiste
     el.balken = H.el('span');
@@ -320,11 +326,36 @@ NB.Bewertung = (function () {
     if (z.kindIndex >= kinder.length) z.kindIndex = Math.max(0, kinder.length - 1);
     fachPruefen();
     N.kopfAktualisieren();
+    einheitenRendern();
     hinweisAktualisieren();
     faecherRendern();
     ansichtRendern();
     kindRendern();
     N.fussAktualisieren();
+  }
+
+  /**
+   * Kleine Auswahl der Einheiten des Tages („1.–2. Std.“ | „5. Std.“), nur wenn
+   * die Klasse am Tag mehrere getrennte Einheiten desselben Fachs hat.
+   */
+  function einheitenRendern() {
+    if (!el) return;
+    const SP = NB.Stundenplan;
+    const liste = einheitenDesTages();
+    H.leeren(el.einheiten);
+    el.einheiten.hidden = liste.length < 2 || !kinder.length;
+    if (el.einheiten.hidden) return;
+    const auswahl = H.el('div', { class: 'bw-einheiten', role: 'group', 'aria-label': 'Einheit am ' + H.datumKurzOhneJahr(z.datum) });
+    liste.forEach(function (e) {
+      const aktiv = Number(e.stunde) === Number(z.stunde);
+      const uhrzeit = e.stunde ? SP.uhrzeitTextBereich(e.stunde, e.stundeBis) : 'ohne Stundenplan';
+      auswahl.appendChild(H.el('button', {
+        type: 'button', text: SP.stundenText(e.stunde, e.stundeBis), 'aria-pressed': aktiv ? 'true' : 'false',
+        'aria-label': SP.stundenText(e.stunde, e.stundeBis) + (uhrzeit ? ', ' + uhrzeit : ''), title: uhrzeit,
+        onclick: () => einheitSetzen(e.stunde)
+      }));
+    });
+    H.anhaengen(el.einheiten, [H.el('span', { class: 'bw-einheiten-titel text-klein text-schwach', text: 'Einheit' }), auswahl]);
   }
 
   function faecherRendern() {
@@ -490,7 +521,7 @@ NB.Bewertung = (function () {
       skala.dataset.note = n == null ? '' : String(n);
       skala.classList.toggle('standard', a === 'vorbelegt');
       skala.classList.toggle('uebernommen', a === 'uebernommen');
-      skala.classList.toggle('leer', n == null);
+      skala.classList.toggle('ohne-wert', n == null);
       knopf.style.transform = n == null ? '' : 'translateX(' + ((n - 1) * 100) + '%)';
       stufen.forEach(s => s.classList.toggle('aktiv', Number(s.dataset.wert) === n));
       skala.setAttribute('aria-valuenow', n == null ? '' : String(n));
@@ -667,6 +698,7 @@ NB.Bewertung = (function () {
       allesRendern();
     } else {
       N.kopfAktualisieren();
+      einheitenRendern();
       hinweisAktualisieren();
       faecherRendern();
       kindRendern();
@@ -687,6 +719,7 @@ NB.Bewertung = (function () {
     einheitBestimmen(stunde);
     zustandMerken();
     N.kopfAktualisieren();
+    einheitenRendern();
     kindRendern();
   }
 
@@ -700,22 +733,6 @@ NB.Bewertung = (function () {
     if (wahl === z.klasseId) return;
     kindVerlassen();
     Bw.oeffnen({ klasseId: wahl });
-  }
-
-  async function einheitWaehlen() {
-    const liste = einheitenDesTages();
-    if (liste.length < 2) return;
-    const SP = NB.Stundenplan;
-    const wahl = await NB.Dialog.auswahl({
-      titel: 'Einheit am ' + H.datumKurzOhneJahr(z.datum),
-      optionen: liste.map(e => ({
-        text: SP.stundenText(e.stunde, e.stundeBis),
-        untertitel: e.stunde ? SP.uhrzeitTextBereich(e.stunde, e.stundeBis) : 'Ohne Stundenplan',
-        wert: String(e.stunde), aktiv: Number(e.stunde) === Number(z.stunde)
-      }))
-    });
-    if (wahl == null) return;
-    einheitSetzen(Number(wahl));
   }
 
   function datumWaehlen() {
@@ -826,24 +843,25 @@ NB.Bewertung = (function () {
     ]);
   }
 
+  /**
+   * Rechts in der Kopfzeile: Datum und daneben die Einheit („1.–2. Std.“).
+   * Gibt es mehrere getrennte Einheiten, steht die Auswahl in der Zeile
+   * direkt darunter (siehe einheitenRendern) – in der Kopfzeile wäre auf einem
+   * Telefon kein Platz.
+   */
   function kopfRechts() {
+    const SP = NB.Stundenplan;
     const heute = H.heute();
     const datumText = (z.datum === heute ? 'Heute, ' : H.WOCHENTAGE_KURZ[H.wochentag(z.datum) - 1] + ', ') + H.datumKurz(z.datum).slice(0, 6);
-    const liste = einheitenDesTages();
-    const mehrere = liste.length > 1;
-    const einheitText = (z.stunde === M.OHNE_STUNDE && !mehrere) ? '' : einheitTextAktuell();
-    return [
+    const teile = [
       H.el('button', { type: 'button', class: 'kopf-knopf', 'aria-label': 'Datum wählen: ' + H.datumLang(z.datum), onclick: datumWaehlen },
-        H.el('span', { class: 'kopf-knopf-text', text: datumText })),
-      einheitText ? H.el('button', {
-        type: 'button', class: 'kopf-knopf bw-einheit' + (mehrere ? '' : ' passiv'),
-        'aria-label': mehrere ? 'Einheit wählen: ' + einheitText : 'Einheit: ' + einheitText,
-        onclick: mehrere ? einheitWaehlen : null
-      }, [
-        H.el('span', { class: 'kopf-knopf-text', text: einheitText }),
-        mehrere ? H.el('span', { class: 'kopf-knopf-pfeil', 'aria-hidden': 'true', text: '⌄' }) : null
-      ]) : null
+        H.el('span', { class: 'kopf-knopf-text', text: datumText }))
     ];
+    if (z.stunde !== M.OHNE_STUNDE || einheitenDesTages().length > 1) {
+      const uhrzeit = z.stunde ? SP.uhrzeitTextBereich(z.stunde, z.stundeBis) : '';
+      teile.push(H.el('span', { class: 'bw-einheit', 'aria-label': 'Einheit: ' + einheitTextAktuell() + (uhrzeit ? ', ' + uhrzeit : ''), title: uhrzeit, text: einheitTextAktuell() }));
+    }
+    return teile;
   }
 
   /* ---------- Registrierung ---------- */

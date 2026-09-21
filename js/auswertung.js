@@ -9,9 +9,13 @@
  *   Notizen mit Zuordnung zu diesem Kind.
  *   Je Klasse und Fach: alle Kinder untereinander mit ihrem Gesamtwert.
  *
- * Standardnoten zählen nur, wenn die Einstellung „Standardnoten in die
- * Auswertung einrechnen“ eingeschaltet ist; sonst nur bewusst gesetzte Werte.
+ * Übernommene Standardnoten zählen nur, wenn die Einstellung „Übernommene
+ * Standardnoten mitzählen“ eingeschaltet ist; sonst nur bewusst gesetzte Werte.
  * Fehlende Kinder werden aus der Stunde herausgenommen.
+ *
+ * Klassen der Stufe 1–2 werden nicht benotet: kein Notenvorschlag (auch nicht
+ * im CSV), Werte heißen „Stufe“, und je Kompetenz erscheint der
+ * Beschreibungstext der Stufe, die dem Durchschnitt am nächsten liegt.
  */
 'use strict';
 NB.Auswertung = (function () {
@@ -72,6 +76,7 @@ NB.Auswertung = (function () {
   A.kind = function (klasse, fach, kindId) {
     const e = M.einstellungen();
     const einrechnen = e.uebernommeneZaehlen !== false;   // übernommene Standardnoten mitzählen
+    const benotet = M.istBenotet(klasse);                 // Stufe 1–2: kein Notenvorschlag
     const stundenkriterien = M.stundenkriterien();
     const kriterien = stundenkriterien.concat(M.kompetenzenAlle(fach, klasse.stufe || null));
     const zaehltZurFachnote = k => !stundenkriterien.some(s => s.id === k.id) || M.istFachnote(k);
@@ -113,14 +118,24 @@ NB.Auswertung = (function () {
         if (fachnote) { gs += schnitt * gewichtIn(k); gg += gewichtIn(k); }
         else { vs += schnitt * gewicht(k); vg += gewicht(k); }
       }
-      return { kriterium: k, schnitt: schnitt, anzahl: n, verteilung: d.verteilung, ueberwiegend: n ? ueberwiegend(d.verteilung, schnitt) : null, fachnote: fachnote, stundenkriterium: stundenkriterien.some(s => s.id === k.id) };
+      // Ohne Noten: die Stufe, die dem Durchschnitt am nächsten liegt (mit ihrem
+      // Beschreibungstext); bei genau ,5 die bessere Stufe
+      const naechsteStufe = (!benotet && schnitt != null) ? H.begrenzen(Math.ceil(schnitt - 0.5), 1, 6) : null;
+      return {
+        kriterium: k, schnitt: schnitt, anzahl: n, verteilung: d.verteilung,
+        ueberwiegend: n ? ueberwiegend(d.verteilung, schnitt) : null,
+        fachnote: fachnote, stundenkriterium: stundenkriterien.some(s => s.id === k.id),
+        naechsteStufe: naechsteStufe,
+        stufenText: naechsteStufe ? ((k.stufen && k.stufen[naechsteStufe - 1]) || '') : ''
+      };
     });
     const gesamt = gg > 0 ? gs / gg : null;
     return {
       kriterien: zeilen,
       gesamt: gesamt,
       verhalten: vg > 0 ? vs / vg : null,
-      vorschlag: A.notenvorschlag(gesamt, e.rundung),
+      vorschlag: benotet ? A.notenvorschlag(gesamt, e.rundung) : null,
+      benotet: benotet,
       anwesend: anwesend,
       gefehlt: gefehlt,
       stundenGesamt: stunden.length,
@@ -133,7 +148,7 @@ NB.Auswertung = (function () {
   A.klasse = function (klasse, fach) {
     return M.kinderSortiert(klasse).map(function (kind) {
       const a = A.kind(klasse, fach, kind.id);
-      return { kind: kind, gesamt: a.gesamt, vorschlag: a.vorschlag, anwesend: a.anwesend, gefehlt: a.gefehlt };
+      return { kind: kind, gesamt: a.gesamt, vorschlag: a.vorschlag, benotet: a.benotet, anwesend: a.anwesend, gefehlt: a.gefehlt };
     });
   };
 
@@ -204,9 +219,10 @@ NB.Auswertung = (function () {
     return grafik;
   }
 
-  function faecherLeiste(aktivId, beiWahl) {
+  /** Fächerleiste der Klasse (nur ihre Fächer, in ihrer Reihenfolge). */
+  function faecherLeiste(klasse, aktivId, beiWahl) {
     const leiste = H.el('div', { class: 'bw-faecher aw-faecher', role: 'group', 'aria-label': 'Fach' });
-    M.faecher().forEach(function (fach) {
+    M.klassenFaecher(klasse).forEach(function (fach) {
       leiste.appendChild(H.el('button', {
         type: 'button', class: 'bw-fach', text: fach.name, 'aria-pressed': fach.id === aktivId ? 'true' : 'false',
         onclick: () => beiWahl(fach.id)
@@ -238,7 +254,8 @@ NB.Auswertung = (function () {
       return;
     }
     parameterKlasse.klasseId = klasse.id;
-    let fach = M.fach(parameterKlasse.fachId) || M.faecher()[0];
+    const faecher = M.klassenFaecher(klasse);
+    let fach = faecher.find(f => f.id === parameterKlasse.fachId) || faecher[0];
     if (!fach) {
       wurzel.appendChild(H.el('div', { class: 'leer' }, H.el('p', { text: 'Es sind keine Fächer angelegt.' })));
       return;
@@ -247,7 +264,7 @@ NB.Auswertung = (function () {
 
     const inhalt = H.el('div', { class: 'karte-inhalt aw' });
     inhalt.appendChild(H.el('h2', { class: 'aw-titel', text: klasse.name }));
-    inhalt.appendChild(faecherLeiste(fach.id, function (fachId) {
+    inhalt.appendChild(faecherLeiste(klasse, fach.id, function (fachId) {
       klasseRendern({ klasseId: klasse.id, fachId: fachId });
     }));
 
@@ -263,13 +280,14 @@ NB.Auswertung = (function () {
 
     const zeilen = A.klasse(klasse, fach);
     const einstellungen = M.einstellungen();
+    const benotet = M.istBenotet(klasse);
     inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach aw-stand', text: (stunden.length === 1 ? '1 bewertete Stunde' : stunden.length + ' bewertete Stunden') + ' · ' + H.datumKurz(stunden[0].datum) + ' bis ' + H.datumKurz(stunden[stunden.length - 1].datum) }));
 
     const liste = H.el('div', { class: 'aw-liste' });
     zeilen.forEach(function (z) {
       liste.appendChild(H.el('button', {
         type: 'button', class: 'aw-zeile',
-        'aria-label': M.kindName(z.kind) + ': Gesamtwert ' + A.zahlText(z.gesamt) + ', Vorschlag ' + A.vorschlagText(z.vorschlag),
+        'aria-label': M.kindName(z.kind) + ': Gesamtwert ' + A.zahlText(z.gesamt) + (benotet ? ', Vorschlag ' + A.vorschlagText(z.vorschlag) : ''),
         onclick: () => N.bildschirmOeffnen('auswertung-kind', { klasseId: klasse.id, fachId: fach.id, kindId: z.kind.id })
       }, [
         H.el('span', { class: 'aw-zeile-name' }, [
@@ -279,12 +297,15 @@ NB.Auswertung = (function () {
         balken(z.gesamt),
         H.el('span', { class: 'aw-werte' }, [
           H.el('span', { class: 'aw-gesamt', text: A.zahlText(z.gesamt) }),
-          H.el('span', { class: 'aw-vorschlag ' + noteKlasse(z.vorschlag), text: A.vorschlagText(z.vorschlag), title: 'Notenvorschlag' })
+          benotet ? H.el('span', { class: 'aw-vorschlag ' + noteKlasse(z.vorschlag), text: A.vorschlagText(z.vorschlag), title: 'Notenvorschlag' }) : null
         ])
       ]));
     });
     inhalt.appendChild(liste);
-    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach aw-hinweis', text: 'Gesamtwert und Notenvorschlag (' + rundungText(einstellungen.rundung) + '). Ein Tipp auf ein Kind zeigt Kriterien, Verlauf, Textbaustein und Notizen.' }));
+    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach aw-hinweis', text: (benotet
+      ? 'Gesamtwert und Notenvorschlag (' + rundungText(einstellungen.rundung) + ').'
+      : 'Gesamtwert als Durchschnitt der Stufen 1–6; Klasse 1 und 2 wird nicht benotet, daher kein Notenvorschlag.')
+      + ' Ein Tipp auf ein Kind zeigt Kriterien, Verlauf, Textbaustein und Notizen.' }));
     inhalt.appendChild(hinweisZaehlung(einstellungen.uebernommeneZaehlen !== false));
     wurzel.appendChild(inhalt);
   }
@@ -323,8 +344,8 @@ NB.Auswertung = (function () {
       H.el('div', { class: 'aw-kopf-werte' }, [
         H.el('div', { class: 'aw-gesamt-gross', text: A.zahlText(a.gesamt) }),
         H.el('div', { class: 'text-klein text-schwach', text: 'Gesamtwert' }),
-        H.el('div', { class: 'aw-vorschlag gross ' + noteKlasse(a.vorschlag), text: A.vorschlagText(a.vorschlag) }),
-        H.el('div', { class: 'text-klein text-schwach', text: 'Vorschlag' })
+        a.benotet ? H.el('div', { class: 'aw-vorschlag gross ' + noteKlasse(a.vorschlag), text: A.vorschlagText(a.vorschlag) }) : null,
+        a.benotet ? H.el('div', { class: 'text-klein text-schwach', text: 'Vorschlag' }) : null
       ])
     ]));
 
@@ -333,12 +354,17 @@ NB.Auswertung = (function () {
       const karte = H.el('div', { class: 'einst-karte' });
       zeilen.forEach(function (z) {
         const g = (z.stundenkriterium && z.fachnote) ? M.mitarbeitGewicht(fach.id, z.kriterium) : gewicht(z.kriterium);
+        // Ohne Noten (Stufe 1–2): je Kompetenz der Beschreibungstext der nächstliegenden Stufe
+        const stufenText = (!a.benotet && !z.stundenkriterium && z.stufenText)
+          ? H.el('p', { class: 'text-klein text-schwach aw-stufentext', text: 'Stufe ' + z.naechsteStufe + ': ' + z.stufenText })
+          : null;
         karte.appendChild(H.el('div', { class: 'aw-kriterium' }, [
           H.el('div', { class: 'aw-kriterium-kopf' }, [
             H.el('span', { class: 'aw-kriterium-name', text: z.kriterium.name + (g !== 1 ? ' (×' + String(g).replace('.', ',') + ')' : '') }),
             H.el('span', { class: 'aw-kriterium-wert', text: z.anzahl ? A.zahlText(z.schnitt) + ' · ' + z.anzahl + '×' : '–' })
           ]),
-          balken(z.schnitt)
+          balken(z.schnitt),
+          stufenText
         ]));
       });
       return karte;
@@ -375,11 +401,11 @@ NB.Auswertung = (function () {
       } });
       inhalt.appendChild(H.el('div', { class: 'einst-karte aw-text-karte' }, [
         feld,
-        H.el('p', { class: 'text-klein text-schwach', text: 'Aus den Beschreibungstexten der überwiegend vergebenen Noten. Vor dem Kopieren frei anpassbar; Änderungen werden nicht gespeichert.' }),
+        H.el('p', { class: 'text-klein text-schwach', text: 'Aus den Beschreibungstexten der überwiegend vergebenen ' + (a.benotet ? 'Noten' : 'Stufen') + '. Vor dem Kopieren frei anpassbar; Änderungen werden nicht gespeichert.' }),
         H.el('div', { class: 'knopfzeile' }, kopieren)
       ]));
     } else {
-      inhalt.appendChild(H.el('div', { class: 'einst-karte' }, H.el('p', { class: 'text-schwach einst-leer', text: 'Ein Textbaustein entsteht, sobald Noten erfasst sind.' })));
+      inhalt.appendChild(H.el('div', { class: 'einst-karte' }, H.el('p', { class: 'text-schwach einst-leer', text: 'Ein Textbaustein entsteht, sobald ' + (a.benotet ? 'Noten' : 'Stufen') + ' erfasst sind.' })));
     }
 
     // Notizen zum Kind
