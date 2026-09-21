@@ -297,19 +297,22 @@ NB.Export = (function () {
     return '\ufeff' + zeilen.join('\r\n');
   };
 
-  /** Auswertung: eine Zeile je Kind und Fach mit Gesamtwert und Vorschlag. */
+  /**
+   * Auswertung: eine Zeile je Kind und Fach mit Gesamtwert (Fachleistung),
+   * Notenvorschlag (leer in Stufe 1–2) und Arbeits- und Sozialverhalten (Ø).
+   */
   X.csvAuswertung = async function () {
     if (!(await csvBestaetigen('Auswertung'))) return;
     await dateiAbgeben('notenblock-auswertung-' + datumFuerDatei() + '.csv', X.csvAuswertungText(), 'text/csv;charset=utf-8');
   };
 
   X.csvAuswertungText = function () {
-    const zeilen = [csvZeile(['Klasse', 'Fach', 'Kind', 'Kürzel', 'Erfasste Stunden', 'Gefehlt', 'Gesamtwert', 'Notenvorschlag'])];
+    const zeilen = [csvZeile(['Klasse', 'Fach', 'Kind', 'Kürzel', 'Erfasste Stunden', 'Gefehlt', 'Gesamtwert', 'Notenvorschlag', 'Arbeits- und Sozialverhalten'])];
     M.klassen().forEach(function (klasse) {
-      M.faecher().forEach(function (fach) {
+      M.klassenFaecher(klasse, { mitStillgelegten: true }).forEach(function (fach) {
         if (!NB.Auswertung.stunden(klasse.id, fach.id).length) return;
         NB.Auswertung.klasse(klasse, fach).forEach(function (z) {
-          zeilen.push(csvZeile([klasse.name, fach.name, z.kind.name || '', z.kind.kuerzel || '', z.anwesend, z.gefehlt, csvZahl(z.gesamt), z.vorschlag == null ? '' : csvZahl(z.vorschlag)]));
+          zeilen.push(csvZeile([klasse.name, fach.name, z.kind.name || '', z.kind.kuerzel || '', z.anwesend, z.gefehlt, csvZahl(z.gesamt), z.vorschlag == null ? '' : csvZahl(z.vorschlag), csvZahl(z.verhalten)]));
         });
       });
     });

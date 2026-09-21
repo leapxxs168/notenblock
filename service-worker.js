@@ -9,7 +9,7 @@
  */
 'use strict';
 
-const CACHE_NAME = 'notenblock-v29';
+const CACHE_NAME = 'notenblock-v30';
 const DATEIEN = [
   './',
   './index.html',

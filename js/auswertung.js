@@ -1,13 +1,19 @@
 /*
  * Notenblock – Auswertung
  *
- * Die Note entsteht erst hier, aus den einzelnen datierten Einträgen:
- *   Je Kind und Fach: Durchschnitt pro Kriterium, gewichteter Gesamtwert mit
- *   einer Nachkommastelle, daraus ein Notenvorschlag (Rundung laut
- *   Einstellung), Anzahl der erfassten Stunden, Verlauf über die Zeit,
- *   Textbaustein aus den Beschreibungstexten der überwiegend vergebenen Noten,
- *   Notizen mit Zuordnung zu diesem Kind.
+ * Die Note entsteht erst hier, aus den einzelnen datierten Einheiten:
+ *   Je Kind und Fach: Fachleistung aus den Kompetenzen (nach Lehrplanbereich,
+ *   Schnitt je Kompetenz und je Bereich) und der Mündlichen Mitarbeit,
+ *   gewichteter Gesamtwert mit einer Nachkommastelle, daraus ein
+ *   Notenvorschlag (Rundung laut Einstellung, nicht in Stufe 1–2); Arbeits-
+ *   und Sozialverhalten getrennt je Fach mit Schnitt je Kriterium und Verlauf
+ *   über die Einheiten, dazu eine fachübergreifende Übersicht (etwa für die
+ *   Klassenlehrerin); es fließt nie in die Fachnote ein. Getrennte
+ *   Textbausteine für Fachleistung und Verhalten aus den Beschreibungstexten
+ *   der überwiegend vergebenen Noten; Notizen mit Zuordnung zu diesem Kind.
  *   Je Klasse und Fach: alle Kinder untereinander mit ihrem Gesamtwert.
+ *   Statistik am Kind (Bewertungsbildschirm): dieselbe Rechnung ohne die
+ *   laufende Einheit (optionen.ausser).
  *
  * Übernommene Standardnoten zählen nur, wenn die Einstellung „Übernommene
  * Standardnoten mitzählen“ eingeschaltet ist; sonst nur bewusst gesetzte Werte.
@@ -73,7 +79,8 @@ NB.Auswertung = (function () {
    * wird getrennt gemittelt und fließt nie in die Fachnote ein. Für eine Einheit
    * ausgesetzte Kriterien zählen dort nicht.
    */
-  A.kind = function (klasse, fach, kindId) {
+  A.kind = function (klasse, fach, kindId, optionen) {
+    optionen = optionen || {};
     const e = M.einstellungen();
     const einrechnen = e.uebernommeneZaehlen !== false;   // übernommene Standardnoten mitzählen
     const benotet = M.istBenotet(klasse);                 // Stufe 1–2: kein Notenvorschlag
@@ -81,16 +88,18 @@ NB.Auswertung = (function () {
     const kriterien = stundenkriterien.concat(M.kompetenzenAlle(fach, klasse.stufe || null));
     const zaehltZurFachnote = k => !stundenkriterien.some(s => s.id === k.id) || M.istFachnote(k);
     const gewichtIn = k => (stundenkriterien.some(s => s.id === k.id) && M.istFachnote(k)) ? M.mitarbeitGewicht(fach.id, k) : gewicht(k);
-    const stunden = A.stunden(klasse.id, fach.id);
+    // optionen.ausser: Schlüssel der laufenden Einheit – sie zählt nicht (Statistik am Kind)
+    const stunden = A.stunden(klasse.id, fach.id).filter(b => !optionen.ausser || M.einheitSchluesselVon(b) !== optionen.ausser);
     const sammlung = {};
     kriterien.forEach(k => { sammlung[k.id] = { werte: [], verteilung: [0, 0, 0, 0, 0, 0, 0] }; });
     const verlauf = [];
+    const verlaufVerhalten = [];
     let anwesend = 0, gefehlt = 0;
 
     stunden.forEach(function (b) {
       const eintrag = b.kinder ? b.kinder[kindId] : null;
       if (eintrag && eintrag.fehlt) { gefehlt++; return; }
-      let summe = 0, gesamtGewicht = 0;
+      let summe = 0, gesamtGewicht = 0, vSumme = 0, vGewicht = 0;
       kriterien.forEach(function (k) {
         if (M.ausgesetzt(b, k.id)) return;
         const n = M.notenWert(eintrag, k.id);
@@ -98,14 +107,13 @@ NB.Auswertung = (function () {
         const note = n.wert;
         sammlung[k.id].werte.push({ datum: b.datum, note: note });
         sammlung[k.id].verteilung[note]++;
-        if (!zaehltZurFachnote(k)) return;
+        if (!zaehltZurFachnote(k)) { vSumme += note * gewicht(k); vGewicht += gewicht(k); return; }
         summe += note * gewichtIn(k);
         gesamtGewicht += gewichtIn(k);
       });
-      if (gesamtGewicht > 0) {
-        anwesend++;
-        verlauf.push({ datum: b.datum, wert: summe / gesamtGewicht });
-      }
+      if (gesamtGewicht > 0 || vGewicht > 0) anwesend++;
+      if (gesamtGewicht > 0) verlauf.push({ datum: b.datum, stunde: b.stunde, wert: summe / gesamtGewicht });
+      if (vGewicht > 0) verlaufVerhalten.push({ datum: b.datum, stunde: b.stunde, wert: vSumme / vGewicht });
     });
 
     let gs = 0, gg = 0, vs = 0, vg = 0;
@@ -132,14 +140,88 @@ NB.Auswertung = (function () {
     const gesamt = gg > 0 ? gs / gg : null;
     return {
       kriterien: zeilen,
+      bereiche: bereicheBilden(zeilen.filter(z => z.fachnote), fach),
       gesamt: gesamt,
       verhalten: vg > 0 ? vs / vg : null,
+      verhaltenAnzahl: verlaufVerhalten.length,
       vorschlag: benotet ? A.notenvorschlag(gesamt, e.rundung) : null,
       benotet: benotet,
       anwesend: anwesend,
       gefehlt: gefehlt,
       stundenGesamt: stunden.length,
       verlauf: verlauf,
+      verlaufVerhalten: verlaufVerhalten,
+      einrechnen: einrechnen
+    };
+  };
+
+  /** Zeilen der Fachleistung nach Lehrplanbereich bündeln, mit gewichtetem Schnitt je Bereich. */
+  function bereicheBilden(zeilen, fach) {
+    const gruppen = [];
+    zeilen.forEach(function (z) {
+      const name = z.stundenkriterium ? (z.kriterium.bereich || 'Mitarbeit') : (z.kriterium.bereich || 'Allgemein');
+      let g = gruppen.find(x => x.bereich === name);
+      if (!g) { g = { bereich: name, zeilen: [], summe: 0, gewicht: 0, schnitt: null }; gruppen.push(g); }
+      g.zeilen.push(z);
+      if (z.schnitt != null) {
+        const w = (z.stundenkriterium && z.fachnote) ? M.mitarbeitGewicht(fach.id, z.kriterium) : gewicht(z.kriterium);
+        g.summe += z.schnitt * w;
+        g.gewicht += w;
+      }
+    });
+    gruppen.forEach(g => { g.schnitt = g.gewicht > 0 ? g.summe / g.gewicht : null; });
+    return gruppen;
+  }
+
+  /**
+   * Arbeits- und Sozialverhalten eines Kindes über alle Fächer der Klasse
+   * (fachübergreifende Übersicht): Schnitt je Kriterium, Gesamtschnitt,
+   * Verlauf über alle Einheiten, beteiligte Fächer.
+   */
+  A.verhaltenUebergreifend = function (klasse, kindId, optionen) {
+    optionen = optionen || {};
+    const e = M.einstellungen();
+    const einrechnen = e.uebernommeneZaehlen !== false;
+    const kriterien = M.stundenkriterien().filter(k => !M.istFachnote(k));
+    const stunden = M.einheiten(klasse.id).filter(M.bewertungHatInhalt)
+      .filter(b => !optionen.ausser || M.einheitSchluesselVon(b) !== optionen.ausser)
+      .sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : (Number(a.stunde) || 0) - (Number(b.stunde) || 0)));
+    const sammlung = {};
+    kriterien.forEach(k => { sammlung[k.id] = { werte: [], verteilung: [0, 0, 0, 0, 0, 0, 0] }; });
+    const verlauf = [];
+    const faecher = {};
+    stunden.forEach(function (b) {
+      const eintrag = b.kinder ? b.kinder[kindId] : null;
+      if (!eintrag || eintrag.fehlt) return;
+      let summe = 0, gesamtGewicht = 0;
+      kriterien.forEach(function (k) {
+        if (M.ausgesetzt(b, k.id)) return;
+        const n = M.notenWert(eintrag, k.id);
+        if (!n || (n.art === 'uebernommen' && !einrechnen)) return;
+        sammlung[k.id].werte.push({ datum: b.datum, note: n.wert });
+        sammlung[k.id].verteilung[n.wert]++;
+        summe += n.wert * gewicht(k);
+        gesamtGewicht += gewicht(k);
+      });
+      if (gesamtGewicht > 0) {
+        verlauf.push({ datum: b.datum, stunde: b.stunde, fachId: b.fachId, wert: summe / gesamtGewicht });
+        faecher[b.fachId] = true;
+      }
+    });
+    let vs = 0, vg = 0;
+    const zeilen = kriterien.map(function (k) {
+      const d = sammlung[k.id];
+      const n = d.werte.length;
+      const schnitt = n ? d.werte.reduce((s, w) => s + w.note, 0) / n : null;
+      if (schnitt != null) { vs += schnitt * gewicht(k); vg += gewicht(k); }
+      return { kriterium: k, schnitt: schnitt, anzahl: n, verteilung: d.verteilung, ueberwiegend: n ? ueberwiegend(d.verteilung, schnitt) : null, fachnote: false, stundenkriterium: true };
+    });
+    return {
+      kriterien: zeilen,
+      verhalten: vg > 0 ? vs / vg : null,
+      verhaltenAnzahl: verlauf.length,
+      verlauf: verlauf,
+      faecher: Object.keys(faecher).map(id => M.fach(id)).filter(Boolean),
       einrechnen: einrechnen
     };
   };
@@ -148,14 +230,19 @@ NB.Auswertung = (function () {
   A.klasse = function (klasse, fach) {
     return M.kinderSortiert(klasse).map(function (kind) {
       const a = A.kind(klasse, fach, kind.id);
-      return { kind: kind, gesamt: a.gesamt, vorschlag: a.vorschlag, benotet: a.benotet, anwesend: a.anwesend, gefehlt: a.gefehlt };
+      return { kind: kind, gesamt: a.gesamt, vorschlag: a.vorschlag, benotet: a.benotet, verhalten: a.verhalten, anwesend: a.anwesend, gefehlt: a.gefehlt };
     });
   };
 
-  /** Textbaustein aus den Beschreibungstexten der überwiegend vergebenen Noten. */
-  A.textbaustein = function (kind, fach, auswertung) {
+  /**
+   * Textbaustein aus den Beschreibungstexten der überwiegend vergebenen Noten.
+   * art 'fachleistung' (Kompetenzen und Mündliche Mitarbeit) oder 'verhalten'
+   * (Arbeits- und Sozialverhalten); fach darf bei 'verhalten' fehlen (alle Fächer).
+   */
+  A.textbaustein = function (kind, fach, auswertung, art) {
+    const verhalten = art === 'verhalten';
     const saetze = auswertung.kriterien
-      .filter(z => z.ueberwiegend != null && z.fachnote !== false)
+      .filter(z => z.ueberwiegend != null && (verhalten ? z.fachnote === false : z.fachnote !== false))
       .map(function (z) {
         const text = (z.kriterium.stufen && z.kriterium.stufen[z.ueberwiegend - 1] || '').trim();
         if (!text) return null;
@@ -163,7 +250,8 @@ NB.Auswertung = (function () {
       })
       .filter(Boolean);
     if (!saetze.length) return '';
-    return M.kindName(kind) + ' – ' + fach.name + '\n' + saetze.join(' ');
+    const titel = verhalten ? 'Arbeits- und Sozialverhalten' + (fach ? ' in ' + fach.name : '') : fach.name;
+    return M.kindName(kind) + ' – ' + titel + '\n' + saetze.join(' ');
   };
 
   /* ---------- Darstellung: Bausteine ---------- */
@@ -376,43 +464,73 @@ NB.Auswertung = (function () {
       ])
     ]));
 
-    // Kriterien: Fachleistung (Kompetenzen und Mündliche Mitarbeit) getrennt vom Arbeits- und Sozialverhalten
-    function kriterienKarte(zeilen) {
-      const karte = H.el('div', { class: 'einst-karte' });
-      zeilen.forEach(function (z) {
-        const g = (z.stundenkriterium && z.fachnote) ? M.mitarbeitGewicht(fach.id, z.kriterium) : gewicht(z.kriterium);
-        // Ohne Noten (Stufe 1–2): je Kompetenz der Beschreibungstext der nächstliegenden Stufe
-        const stufenText = (!a.benotet && !z.stundenkriterium && z.stufenText)
-          ? H.el('p', { class: 'text-klein text-schwach aw-stufentext', text: 'Stufe ' + z.naechsteStufe + ': ' + z.stufenText })
-          : null;
-        karte.appendChild(H.el('div', { class: 'aw-kriterium' }, [
-          H.el('div', { class: 'aw-kriterium-kopf' }, [
-            H.el('span', { class: 'aw-kriterium-name', text: z.kriterium.name + (g !== 1 ? ' (×' + String(g).replace('.', ',') + ')' : '') }),
-            H.el('span', { class: 'aw-kriterium-wert', text: z.anzahl ? A.zahlText(z.schnitt) + ' · ' + z.anzahl + '×' : '–' })
-          ]),
-          balken(z.schnitt, z.naechsteStufe),
-          stufenText
-        ]));
-      });
-      return karte;
+    // Zeile eines Kriteriums: Name (mit Gewicht), Schnitt · Anzahl, Balken, in Stufe 1–2 der Stufentext
+    function kriteriumZeile(z, g) {
+      const stufenText = (!a.benotet && !z.stundenkriterium && z.stufenText)
+        ? H.el('p', { class: 'text-klein text-schwach aw-stufentext', text: 'Stufe ' + z.naechsteStufe + ': ' + z.stufenText })
+        : null;
+      return H.el('div', { class: 'aw-kriterium' }, [
+        H.el('div', { class: 'aw-kriterium-kopf' }, [
+          H.el('span', { class: 'aw-kriterium-name', text: z.kriterium.name + (g !== 1 ? ' (×' + String(g).replace('.', ',') + ')' : '') }),
+          H.el('span', { class: 'aw-kriterium-wert', text: z.anzahl ? A.zahlText(z.schnitt) + ' · ' + z.anzahl + '×' : '–' })
+        ]),
+        balken(z.schnitt, z.naechsteStufe),
+        stufenText
+      ]);
     }
-    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Fachleistung' }));
-    inhalt.appendChild(kriterienKarte(a.kriterien.filter(z => z.fachnote)));
-    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Arbeits- und Sozialverhalten · Ø ' + A.zahlText(a.verhalten) }));
-    inhalt.appendChild(kriterienKarte(a.kriterien.filter(z => !z.fachnote)));
 
-    // Verlauf
-    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Verlauf' }));
+    // Fachleistung: Kompetenzen nach Lehrplanbereich (Schnitt je Bereich) und Mündliche Mitarbeit
+    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Fachleistung' }));
+    const fachKarte = H.el('div', { class: 'einst-karte' });
+    a.bereiche.forEach(function (b) {
+      fachKarte.appendChild(H.el('div', { class: 'aw-bereich' }, [
+        H.el('span', { class: 'aw-bereich-name', text: b.bereich }),
+        H.el('span', { class: 'aw-bereich-wert', text: b.schnitt == null ? '–' : 'Ø ' + A.zahlText(b.schnitt) })
+      ]));
+      b.zeilen.forEach(z => fachKarte.appendChild(kriteriumZeile(z, (z.stundenkriterium && z.fachnote) ? M.mitarbeitGewicht(fach.id, z.kriterium) : gewicht(z.kriterium))));
+    });
+    if (!a.bereiche.length) fachKarte.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Keine Kompetenzen für diese Stufe.' }));
+    inhalt.appendChild(fachKarte);
+
+    // Verlauf der Fachleistung
+    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Verlauf Fachleistung' }));
     if (a.verlauf.length) {
       inhalt.appendChild(H.el('div', { class: 'einst-karte aw-verlauf-karte' }, verlaufGrafik(a.verlauf)));
     } else {
-      inhalt.appendChild(H.el('div', { class: 'einst-karte' }, H.el('p', { class: 'text-schwach einst-leer', text: 'Noch kein Verlauf – es liegen keine Einträge vor.' })));
+      inhalt.appendChild(H.el('div', { class: 'einst-karte' }, H.el('p', { class: 'text-schwach einst-leer', text: 'Noch kein Verlauf – es liegen keine Werte zur Fachleistung vor.' })));
     }
 
-    // Textbaustein
-    const text = A.textbaustein(kind, fach, a);
-    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Textbaustein' }));
-    if (text) {
+    // Arbeits- und Sozialverhalten: standardmäßig dieses Fach, auf Wunsch alle Fächer der Klasse
+    const alleFaecher = !!parameterKind.verhaltenAlleFaecher;
+    const v = alleFaecher ? A.verhaltenUebergreifend(klasse, kind.id) : a;
+    const vZeilen = v.kriterien.filter(z => z.fachnote === false);
+    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Arbeits- und Sozialverhalten' + (v.verhalten != null ? ' · Ø ' + A.zahlText(v.verhalten) : '') }));
+    const umschalter = H.el('div', { class: 'segment aw-verhalten-sicht', role: 'group', 'aria-label': 'Arbeits- und Sozialverhalten' });
+    [[false, fach.name], [true, 'Alle Fächer']].forEach(function (o) {
+      umschalter.appendChild(H.el('button', {
+        type: 'button', text: o[1], 'aria-pressed': alleFaecher === o[0] ? 'true' : 'false',
+        onclick: function () {
+          if (alleFaecher === o[0]) return;
+          kindRendern(Object.assign({}, parameterKind, { verhaltenAlleFaecher: o[0] }));
+        }
+      }));
+    });
+    const vKarte = H.el('div', { class: 'einst-karte' });
+    vKarte.appendChild(H.el('div', { class: 'aw-verhalten-kopf' }, [
+      umschalter,
+      H.el('p', { class: 'text-klein text-schwach', text: alleFaecher
+        ? (v.verhaltenAnzahl ? (v.verhaltenAnzahl === 1 ? '1 Einheit' : v.verhaltenAnzahl + ' Einheiten') + ' in ' + (v.faecher.length === 1 ? '1 Fach' : v.faecher.length + ' Fächern') + ' – Übersicht für Zeugnisbemerkungen; fließt nie in die Fachnote ein.' : 'Noch keine Werte in dieser Klasse.')
+        : (v.verhaltenAnzahl ? (v.verhaltenAnzahl === 1 ? '1 Einheit' : v.verhaltenAnzahl + ' Einheiten') + ' in ' + fach.name + ' – fließt nie in die Fachnote ein.' : 'Noch keine Werte in ' + fach.name + '.') })
+    ]));
+    vZeilen.forEach(z => vKarte.appendChild(kriteriumZeile(z, gewicht(z.kriterium))));
+    if (!vZeilen.length) vKarte.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Keine Kriterien zum Arbeits- und Sozialverhalten.' }));
+    inhalt.appendChild(vKarte);
+    const vVerlauf = alleFaecher ? v.verlauf : a.verlaufVerhalten;
+    if (vVerlauf.length) inhalt.appendChild(H.el('div', { class: 'einst-karte aw-verlauf-karte' }, verlaufGrafik(vVerlauf)));
+
+    // Textbausteine: Fachleistung und Arbeits- und Sozialverhalten getrennt
+    function textKarte(text, leerText, hinweis) {
+      if (!text) return H.el('div', { class: 'einst-karte' }, H.el('p', { class: 'text-schwach einst-leer', text: leerText }));
       const feld = H.el('textarea', { rows: 6, class: 'aw-textfeld', 'aria-label': 'Textbaustein' });
       feld.value = text;
       const kopieren = H.el('button', { type: 'button', class: 'knopf primaer', text: 'Text kopieren', onclick: async function () {
@@ -426,14 +544,21 @@ NB.Auswertung = (function () {
           NB.App.meldung('Kopieren nicht möglich – der Text ist markiert, bitte mit Kopieren übernehmen.', 'fehler');
         }
       } });
-      inhalt.appendChild(H.el('div', { class: 'einst-karte aw-text-karte' }, [
+      return H.el('div', { class: 'einst-karte aw-text-karte' }, [
         feld,
-        H.el('p', { class: 'text-klein text-schwach', text: 'Aus den Beschreibungstexten der überwiegend vergebenen ' + (a.benotet ? 'Noten' : 'Stufen') + '. Vor dem Kopieren frei anpassbar; Änderungen werden nicht gespeichert.' }),
+        H.el('p', { class: 'text-klein text-schwach', text: hinweis }),
         H.el('div', { class: 'knopfzeile' }, kopieren)
-      ]));
-    } else {
-      inhalt.appendChild(H.el('div', { class: 'einst-karte' }, H.el('p', { class: 'text-schwach einst-leer', text: 'Ein Textbaustein entsteht, sobald ' + (a.benotet ? 'Noten' : 'Stufen') + ' erfasst sind.' })));
+      ]);
     }
+    const wortStufe = a.benotet ? 'Noten' : 'Stufen';
+    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Textbaustein Fachleistung' }));
+    inhalt.appendChild(textKarte(A.textbaustein(kind, fach, a, 'fachleistung'),
+      'Ein Textbaustein entsteht, sobald ' + wortStufe + ' zu Kompetenzen oder Mündlicher Mitarbeit erfasst sind.',
+      'Aus den Beschreibungstexten der überwiegend vergebenen ' + wortStufe + ' in ' + fach.name + '. Vor dem Kopieren frei anpassbar; Änderungen werden nicht gespeichert.'));
+    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Textbaustein Arbeits- und Sozialverhalten' }));
+    inhalt.appendChild(textKarte(A.textbaustein(kind, alleFaecher ? null : fach, v, 'verhalten'),
+      'Ein Textbaustein entsteht, sobald Werte zum Arbeits- und Sozialverhalten erfasst sind.',
+      'Aus den Beschreibungstexten der überwiegend vergebenen ' + wortStufe + (alleFaecher ? ' über alle Fächer' : ' in ' + fach.name) + '. Vor dem Kopieren frei anpassbar; Änderungen werden nicht gespeichert.'));
 
     // Notizen zum Kind
     const notizen = NB.BereichNotizen ? NB.BereichNotizen.notizenZuKind(kind.id) : [];

@@ -1185,6 +1185,12 @@ input[type="time"] {
 .aw-kriterium-name { font-weight: 600; min-width: 0; }
 .aw-kriterium-wert { flex: 0 0 auto; color: var(--text-schwach); white-space: nowrap; }
 .aw-stufentext { margin: 6px 0 0; }
+.aw-bereich { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 10px 14px 4px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-schwach); border-bottom: 1px solid var(--linie); }
+.aw-bereich + .aw-kriterium { border-top: none; }
+.aw-bereich-wert { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--text); }
+.aw-verhalten-kopf { padding: 10px 14px; border-bottom: 1px solid var(--linie); }
+.aw-verhalten-kopf p { margin: 8px 0 0; }
+.aw-verhalten-sicht { width: 100%; }
 .aw-verlauf-karte { padding: 10px 8px 4px; margin-bottom: 20px; }
 .aw-verlauf { width: 100%; height: auto; display: block; }
 .aw-gitter { stroke: var(--linie); stroke-width: 1; }

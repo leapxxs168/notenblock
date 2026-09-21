@@ -17,6 +17,15 @@
  * Klassen der Stufe 1–2 werden nicht benotet: die Skala heißt „Stufe“, ohne
  * Wortform („sehr gut“ …) und ohne Notenvorschlag.
  *
+ * Statistik am Kind: unter Name und Position eine ruhige Zeile mit dem
+ * bisherigen Stand passend zur Ansicht (Stunde: Arbeits- und Sozialverhalten
+ * in diesem Fach, Kompetenzen: Fachleistung, jeweils mit Anzahl der Einheiten
+ * und in Stufe 3–4 dem Notenvorschlag), je Kriterium ein blasses „Ø“ rechts.
+ * Berechnet nur aus anderen Einheiten der Klasse im Fach, nie aus der
+ * laufenden Eingabe – so bewegt sich die Zahl beim Schieben nicht; gebündelt
+ * für alle Kinder beim Betreten und beim Wechsel von Fach oder Einheit.
+ * Abschaltbar unter Darstellung („Bisherigen Durchschnitt anzeigen“).
+ *
  * Stunde: die sechs Kriterien zu Mitarbeit, Arbeits- und Sozialverhalten,
  * vorbelegt mit der Standardnote (blass). Jedes lässt sich für die aktuelle
  * Einheit aussetzen – einmal für die ganze Klasse, eingeklappt und blass,
@@ -51,6 +60,7 @@ NB.Bewertung = (function () {
   let verdrahtet = false;
   let datumManuell = false; // in dieser Sitzung bewusst über den Kalender gewählt
   let bereitsGeoeffnet = false;
+  let statistik = {};       // bisheriger Stand je Kind (kindId → { fachleistung, verhalten, kriterien, … })
 
   /* ---------- Zustand ---------- */
 
@@ -257,6 +267,50 @@ NB.Bewertung = (function () {
     if (faecherWaehlen) NB.KlasseVerwalten.faecher(k.id);
   }
 
+  /* ---------- Statistik am Kind ---------- */
+
+  /** Bisherigen Stand aller Kinder der Klasse im Fach berechnen – ohne die laufende Einheit. */
+  function statistikBerechnen() {
+    statistik = {};
+    if (einstellungen().durchschnittAnzeigen === false) return;
+    const k = klasse();
+    const fach = M.fach(z.fachId);
+    if (!k || !fach || !z.datum) return;
+    const ausser = M.einheitSchluessel(z.klasseId, z.fachId, z.datum, z.stunde);
+    kinder.forEach(function (kind) {
+      const a = NB.Auswertung.kind(k, fach, kind.id, { ausser: ausser });
+      const je = {};
+      a.kriterien.forEach(function (zeile) { je[zeile.kriterium.id] = zeile.schnitt; });
+      statistik[kind.id] = {
+        fachleistung: a.gesamt, fachAnzahl: a.verlauf.length, vorschlag: a.vorschlag,
+        verhalten: a.verhalten, verhaltenAnzahl: a.verhaltenAnzahl, kriterien: je, benotet: a.benotet
+      };
+    });
+  }
+
+  /** Zeile unter Name und Position: Stand passend zur Ansicht. */
+  function statistikRendern(kind) {
+    const st = kind ? statistik[kind.id] : null;
+    if (!st || einstellungen().durchschnittAnzeigen === false) { el.statistik.hidden = true; return; }
+    const A = NB.Auswertung;
+    const fach = M.fach(z.fachId);
+    // Geschützte Leerzeichen halten die Teile zusammen; umgebrochen wird nur an den Punkten
+    const NBSP = '\u00a0';
+    const einheiten = n => (n === 1 ? '1' + NBSP + 'Einheit' : n + NBSP + 'Einheiten');
+    let text;
+    if (z.ansicht === 'stunde') {
+      text = st.verhaltenAnzahl
+        ? 'Verhalten bisher Ø' + NBSP + A.zahlText(st.verhalten) + ' · ' + einheiten(st.verhaltenAnzahl)
+        : 'Noch keine frühere Einheit in ' + (fach ? fach.name : 'diesem Fach');
+    } else {
+      text = st.fachAnzahl
+        ? 'Fachleistung bisher Ø' + NBSP + A.zahlText(st.fachleistung) + ' · ' + einheiten(st.fachAnzahl) + (st.benotet && st.vorschlag != null ? ' · Vorschlag' + NBSP + A.vorschlagText(st.vorschlag) : '')
+        : 'Noch keine früheren Werte zur Fachleistung in ' + (fach ? fach.name : 'diesem Fach');
+    }
+    el.statistik.textContent = text;
+    el.statistik.hidden = false;
+  }
+
   /* ---------- Aufbau ---------- */
 
   function aufbauen() {
@@ -327,6 +381,7 @@ NB.Bewertung = (function () {
     kinder = M.kinderSortiert(k);
     if (z.kindIndex >= kinder.length) z.kindIndex = Math.max(0, kinder.length - 1);
     fachPruefen();
+    statistikBerechnen();
     N.kopfAktualisieren();
     einheitenRendern();
     hinweisAktualisieren();
@@ -408,6 +463,7 @@ NB.Bewertung = (function () {
 
     el.kindname.textContent = M.kindName(kind);
     el.position.textContent = (z.kindIndex + 1) + ' von ' + kinder.length;
+    statistikRendern(kind);
 
     const b = M.einheit(z.klasseId, z.fachId, z.datum, z.stunde);
     const eintrag = b && b.kinder ? b.kinder[kind.id] : null;
@@ -463,6 +519,7 @@ NB.Bewertung = (function () {
     }
 
     const einheit = M.einheit(z.klasseId, z.fachId, z.datum, z.stunde);
+    const st = statistik[kind.id];
     const gruppen = z.ansicht === 'kompetenzen' ? M.nachBereich(kriterien) : [{ bereich: null, kriterien: kriterien }];
     gruppen.forEach(function (g) {
       if (g.bereich) el.matrix.appendChild(H.el('h3', { class: 'bw-bereich', text: g.bereich }));
@@ -470,7 +527,8 @@ NB.Bewertung = (function () {
         const anzeige = M.anzeigeNote(z.klasseId, z.fachId, z.datum, kind.id, krit.id, eintrag, z.stunde, einheit);
         el.matrix.appendChild(zeileBauen(krit, anzeige.wert, anzeige.art, fehlt, e, {
           aussetzbar: z.ansicht === 'stunde',
-          ausgesetzt: anzeige.art === 'ausgesetzt'
+          ausgesetzt: anzeige.art === 'ausgesetzt',
+          schnitt: (st && e.durchschnittAnzeigen !== false && st.kriterien[krit.id] != null) ? st.kriterien[krit.id] : null
         }));
       });
     });
@@ -496,7 +554,8 @@ NB.Bewertung = (function () {
 
   /**
    * Eine Kriterienzeile mit Skala. art: 'gesetzt' | 'uebernommen' | 'vorbelegt' | 'offen' | 'ausgesetzt'.
-   * optionen.aussetzbar zeigt den Schalter zum Aussetzen (nur Stundenkriterien).
+   * optionen.aussetzbar zeigt den Schalter zum Aussetzen (nur Stundenkriterien),
+   * optionen.schnitt den bisherigen Durchschnitt des Kindes (blasses „Ø“ rechts).
    */
   function zeileBauen(krit, wert, art, fehlt, e, optionen) {
     optionen = optionen || {};
@@ -550,7 +609,7 @@ NB.Bewertung = (function () {
     return H.el('div', { class: 'krit' + (fehlt ? ' gesperrt' : '') + (ausgesetzt ? ' ausgesetzt' : ''), dataset: { krit: krit.id } }, [
       H.el('div', { class: 'krit-kopf' }, [
         H.el('div', { class: 'krit-name', text: krit.name }),
-        H.el('div', { class: 'krit-schnitt text-klein text-schwach', hidden: true }),
+        H.el('div', { class: 'krit-schnitt text-klein text-schwach', hidden: optionen.schnitt == null, text: optionen.schnitt == null ? '' : 'Ø ' + NB.Auswertung.zahlText(optionen.schnitt), title: 'Bisheriger Durchschnitt' }),
         schalter
       ]),
       ausgesetzt ? H.el('div', { class: 'krit-ausgesetzt text-klein text-schwach', text: 'Für diese Einheit ausgesetzt – keine Vorbelegung, zählt nicht.' + (wert != null ? ' Ein gesetzter Wert (' + wert + ') bleibt gespeichert.' : '') }) : null,
@@ -701,6 +760,7 @@ NB.Bewertung = (function () {
     if (datumGeaendert) {
       allesRendern();
     } else {
+      statistikBerechnen();
       N.kopfAktualisieren();
       einheitenRendern();
       hinweisAktualisieren();
@@ -722,6 +782,7 @@ NB.Bewertung = (function () {
     kindVerlassen();
     einheitBestimmen(stunde);
     zustandMerken();
+    statistikBerechnen();
     N.kopfAktualisieren();
     einheitenRendern();
     kindRendern();

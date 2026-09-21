@@ -738,7 +738,7 @@ NB.Einstellungen = (function () {
         H.el('button', { type: 'button', class: 'knopf klein', text: 'Sicherung laden', onclick: () => NB.Export.sicherungLaden() }), { klasse: 'einst-zeile-knopf' }),
       zeile('Noten als CSV', 'Einzelne Noten je Kind, Stunde und Kriterium – unverschlüsselt, für Tabellenprogramme.',
         H.el('button', { type: 'button', class: 'knopf klein', text: 'Noten als CSV', onclick: () => NB.Export.csvNoten() }), { klasse: 'einst-zeile-knopf' }),
-      zeile('Auswertung als CSV', 'Gesamtwert und Notenvorschlag je Kind und Fach – unverschlüsselt.',
+      zeile('Auswertung als CSV', 'Gesamtwert, Notenvorschlag und Arbeits- und Sozialverhalten je Kind und Fach – unverschlüsselt.',
         H.el('button', { type: 'button', class: 'knopf klein', text: 'Auswertung als CSV', onclick: () => NB.Export.csvAuswertung() }), { klasse: 'einst-zeile-knopf' })
     ]));
 
