@@ -9,7 +9,7 @@
  */
 'use strict';
 
-const CACHE_NAME = 'notenblock-v15';
+const CACHE_NAME = 'notenblock-v18';
 const DATEIEN = [
   './',
   './index.html',
@@ -37,6 +37,7 @@ const DATEIEN = [
   './js/auswertung.js',
   './js/export.js',
   './js/loeschfristen.js',
+  './js/umstellung.js',
   './js/bewertung.js',
   './js/einstellungen.js',
   './js/einstellungen-stundenplan.js',

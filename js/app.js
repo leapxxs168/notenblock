@@ -100,11 +100,16 @@ NB.App = (function () {
 
   let hinweisGezeigt = false;
 
-  function nachEntsperren() {
+  async function nachEntsperren() {
     A.darstellungAnwenden();
     if (NB.Navigation.aktiverBereich()) {
       NB.Navigation.fortsetzen();   // gleiche Sitzung: an derselben Stelle weitermachen
     } else {
+      // Bestand aus einer früheren Fassung? Einmalige Umstellung vor dem Start.
+      if (NB.Umstellung && NB.Umstellung.noetig()) {
+        NB.Sperre.bildschirmZeigen('app');
+        try { await NB.Umstellung.durchfuehren(); } catch (fehler) { console.error(fehler); A.meldung('Umstellung fehlgeschlagen: ' + (fehler.message || fehler), 'fehler'); }
+      }
       NB.Navigation.start();        // Seitenstart oder Neuanfang
       if (NB.Speicher.backend === 'localstorage' && !hinweisGezeigt) {
         hinweisGezeigt = true;

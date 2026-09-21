@@ -62,11 +62,11 @@ NB.Auswertung = (function () {
     return beste;
   }
 
-  /** Auswertung eines Kindes in einem Fach. */
+  /** Auswertung eines Kindes in einem Fach (Übergangsfassung: Stundenkriterien und Kompetenzen gemeinsam). */
   A.kind = function (klasse, fach, kindId) {
     const e = M.einstellungen();
-    const einrechnen = !!e.standardnotenEinrechnen;
-    const kriterien = M.kriterien(fach, 'alle');
+    const einrechnen = e.uebernommeneZaehlen !== false;   // übernommene Standardnoten mitzählen
+    const kriterien = M.stundenkriterien().concat(M.kompetenzenAlle(fach, klasse.stufe || null));
     const stunden = A.stunden(klasse.id, fach.id);
     const sammlung = {};
     kriterien.forEach(k => { sammlung[k.id] = { werte: [], verteilung: [0, 0, 0, 0, 0, 0, 0] }; });
@@ -78,9 +78,9 @@ NB.Auswertung = (function () {
       if (eintrag && eintrag.fehlt) { gefehlt++; return; }
       let summe = 0, gesamtGewicht = 0;
       kriterien.forEach(function (k) {
-        let note = (eintrag && eintrag.noten && eintrag.noten[k.id] >= 1) ? eintrag.noten[k.id] : null;
-        if (note == null && einrechnen) note = M.anzeigeNote(klasse.id, fach.id, b.datum, kindId, k.id, eintrag).note;
-        if (note == null) return;
+        const n = M.notenWert(eintrag, k.id);
+        if (!n || (n.art === 'uebernommen' && !einrechnen)) return;
+        const note = n.wert;
         sammlung[k.id].werte.push({ datum: b.datum, note: note });
         sammlung[k.id].verteilung[note]++;
         summe += note * gewicht(k);
@@ -201,8 +201,8 @@ NB.Auswertung = (function () {
 
   function hinweisZaehlung(einrechnen) {
     return H.el('p', { class: 'text-klein text-schwach aw-hinweis', text: einrechnen
-      ? 'Standardnoten werden eingerechnet (Einstellung „Bewertung“).'
-      : 'Nur bewusst gesetzte Noten zählen; unangetastete Standardnoten bleiben außen vor (Einstellung „Bewertung“).' });
+      ? 'Gesetzte und beim Verlassen übernommene Werte zählen (Einstellung „Bewertung“).'
+      : 'Nur selbst gesetzte Werte zählen; übernommene Standardnoten bleiben außen vor (Einstellung „Bewertung“).' });
   }
 
   /* ---------- Bildschirm: Klasse und Fach ---------- */
@@ -269,7 +269,7 @@ NB.Auswertung = (function () {
     });
     inhalt.appendChild(liste);
     inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach aw-hinweis', text: 'Gesamtwert und Notenvorschlag (' + rundungText(einstellungen.rundung) + '). Ein Tipp auf ein Kind zeigt Kriterien, Verlauf, Textbaustein und Notizen.' }));
-    inhalt.appendChild(hinweisZaehlung(!!einstellungen.standardnotenEinrechnen));
+    inhalt.appendChild(hinweisZaehlung(einstellungen.uebernommeneZaehlen !== false));
     wurzel.appendChild(inhalt);
   }
 

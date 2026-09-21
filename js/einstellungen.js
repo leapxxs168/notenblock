@@ -165,9 +165,9 @@ NB.Einstellungen = (function () {
       { wert: 'keine', text: 'Keine Vorbelegung (Skala startet leer)' }
     ]);
 
-    inhalt.appendChild(gruppe('Standardnote', [
+    inhalt.appendChild(gruppe('Standardnote für Arbeits- und Sozialverhalten', [
       auswahl('standardNote', 'Standardnote beim Öffnen einer Stunde',
-        'Jedes Kind startet mit dieser Note in allen Kriterien. Angetippt wird nur, was davon abweicht.',
+        'Gilt nur für die vier Stundenkriterien: Jedes Kind startet damit vorbelegt, angetippt wird nur, was abweicht. Beim Verlassen des Kindes wird die Vorbelegung festgeschrieben. Kompetenzen starten immer leer.',
         optionen, standardNoteWandeln)
     ]));
 
@@ -203,12 +203,15 @@ NB.Einstellungen = (function () {
     ]));
 
     inhalt.appendChild(gruppe('Auswertung', [
-      schalter('standardnotenEinrechnen', 'Standardnoten in die Auswertung einrechnen',
-        'Aus: Nur bewusst gesetzte Noten zählen (empfohlen). Eine automatisch gesetzte Note ist keine Beobachtung und zieht sonst über viele Stunden hinweg jeden Durchschnitt zur Standardnote hin.')
+      schalter('uebernommeneZaehlen', 'Übernommene Standardnoten mitzählen',
+        'An: Beim Verlassen eines Kindes festgeschriebene Standardnoten des Arbeits- und Sozialverhaltens zählen in der Auswertung mit. Aus: Nur selbst angetippte Werte zählen.')
     ]));
   }
 
   /* ---------- Fächer und Kriterien ---------- */
+
+  const ASV_ID = '__asv__';
+  let gewaehlteStufe = '3-4';
 
   function pfeilKnopf(text, richtung, aktiv, beiKlick) {
     return H.el('button', {
@@ -230,21 +233,48 @@ NB.Einstellungen = (function () {
     return true;
   }
 
+  /** Abschnitt: Arbeits- und Sozialverhalten, Stufenwahl, Fächer der Stufe. */
   function faecherRendern(inhalt) {
-    const faecher = M.faecher();
+    const asv = M.arbeitsverhalten();
+    inhalt.appendChild(gruppe('Arbeits- und Sozialverhalten', [
+      H.el('div', { class: 'einst-eintrag' }, [
+        H.el('button', { type: 'button', class: 'einst-eintrag-text', onclick: () => N.bildschirmOeffnen('einstellungen-fach', { fachId: ASV_ID }) }, [
+          H.el('span', { class: 'einst-eintrag-titel', text: asv.name || 'Arbeits- und Sozialverhalten' }),
+          H.el('span', { class: 'text-klein text-schwach', text: (asv.kriterien || []).length + ' Kriterien · in jeder Stunde, jedem Fach und jeder Stufe' })
+        ]),
+        H.el('span', { class: 'einst-pfeil', 'aria-hidden': 'true', text: '›' })
+      ])
+    ], asv.hinweis || ''));
+
+    inhalt.appendChild(gruppe('Stufe', [
+      zeile('Kompetenzen der Stufe', 'Fächer und Kompetenzen unterscheiden sich zwischen Schuleingangsphase und Klasse 3 und 4.',
+        (function () {
+          const box = H.el('div', { class: 'segment', role: 'group', 'aria-label': 'Stufe' });
+          M.STUFEN.forEach(function (st) {
+            box.appendChild(H.el('button', { type: 'button', text: M.stufe(st).kurz, 'aria-pressed': gewaehlteStufe === st ? 'true' : 'false', onclick: function () {
+              gewaehlteStufe = st;
+              abschnittRendern({ abschnitt: 'faecher' });
+            } }));
+          });
+          return box;
+        })(), { klasse: 'einst-zeile-segment' })
+    ]));
+
+    const faecher = M.faecherKatalog();
     const liste = H.el('div', { class: 'einst-liste' });
-    if (!faecher.length) {
-      liste.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Noch kein Fach angelegt.' }));
-    }
-    faecher.forEach(function (fach, i) {
-      const anzahl = (fach.kriterien || []).length;
-      liste.appendChild(H.el('div', { class: 'einst-eintrag' }, [
+    const inStufe = faecher.filter(f => M.fachInStufe(f, gewaehlteStufe));
+    if (!inStufe.length) liste.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Kein Fach in dieser Stufe.' }));
+    inStufe.forEach(function (fach) {
+      const i = faecher.indexOf(fach);
+      const anzahl = M.kompetenzenAlle(fach, gewaehlteStufe).length;
+      const ruht = fach.aktiv === false;
+      liste.appendChild(H.el('div', { class: 'einst-eintrag' + (ruht ? ' ausgeblendet' : '') }, [
         H.el('button', {
           type: 'button', class: 'einst-eintrag-text',
-          onclick: () => N.bildschirmOeffnen('einstellungen-fach', { fachId: fach.id })
+          onclick: () => N.bildschirmOeffnen('einstellungen-fach', { fachId: fach.id, stufe: gewaehlteStufe })
         }, [
-          H.el('span', { class: 'einst-eintrag-titel', text: fach.name }),
-          H.el('span', { class: 'text-klein text-schwach', text: anzahl === 1 ? '1 Kriterium' : anzahl + ' Kriterien' })
+          H.el('span', { class: 'einst-eintrag-titel', text: fach.name + (ruht ? ' (stillgelegt)' : '') }),
+          H.el('span', { class: 'text-klein text-schwach', text: (anzahl === 1 ? '1 Kompetenz' : anzahl + ' Kompetenzen') + (fach.eigen ? ' · selbst angelegt' : '') })
         ]),
         pfeilKnopf(fach.name + ' nach oben', -1, i > 0, function () {
           if (verschieben(faecher, i, -1)) { M.faecherSpeichern(faecher); abschnittRendern({ abschnitt: 'faecher' }); }
@@ -255,30 +285,41 @@ NB.Einstellungen = (function () {
         loeschKnopf(fach.name + ' löschen', () => fachLoeschen(fach))
       ]));
     });
-    inhalt.appendChild(gruppe('Fächer', [liste]));
+    const nichtVerfuegbar = faecher.filter(f => !M.fachInStufe(f, gewaehlteStufe) && M.fachNichtVerfuegbar(f, gewaehlteStufe));
+    inhalt.appendChild(gruppe('Fächer ' + M.stufe(gewaehlteStufe).kurz, [liste],
+      nichtVerfuegbar.length ? nichtVerfuegbar.map(f => f.name + ': ' + M.fachNichtVerfuegbar(f, gewaehlteStufe)).join(' ') : null));
     inhalt.appendChild(H.el('div', { class: 'knopfzeile' }, H.el('button', {
       type: 'button', class: 'knopf primaer', text: 'Fach anlegen', onclick: fachAnlegen
     })));
-    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Ein Tipp auf ein Fach öffnet seine Kriterien. Die Reihenfolge hier ist auch die Reihenfolge in der Fächerleiste der Bewertung.' }));
+    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Ein Tipp auf ein Fach öffnet seine Kompetenzen nach Lehrplanbereich. Die Reihenfolge hier ist die Vorgabe für neue Klassen; jede Klasse hat ihre eigene Fächerauswahl.' }));
   }
 
   async function fachAnlegen() {
-    const name = await NB.Dialog.eingabe({ titel: 'Neues Fach', label: 'Name des Fachs', platzhalter: 'zum Beispiel Werken', bestaetigen: 'Fach anlegen' });
+    const name = await NB.Dialog.eingabe({ titel: 'Neues Fach', label: 'Name des Fachs', platzhalter: 'zum Beispiel Werken', bestaetigen: 'Weiter' });
     if (!name) return;
-    const faecher = M.faecher();
-    const fach = { id: 'fach-' + H.neueId(), name: name, kriterien: [] };
+    const wahl = await NB.Dialog.auswahl({
+      titel: 'Für welche Stufe?',
+      optionen: [
+        { text: 'Beide Stufen', wert: 'beide' },
+        { text: M.stufe('1-2').kurz, wert: '1-2' },
+        { text: M.stufe('3-4').kurz, wert: '3-4' }
+      ]
+    });
+    if (!wahl) return;
+    const faecher = M.faecherKatalog();
+    const fach = { id: 'fach-' + H.neueId(), name: name, aktiv: true, eigen: true, stufen: wahl === 'beide' ? M.STUFEN.slice() : [wahl], hinweise: {}, nichtVerfuegbar: {}, kompetenzen: [] };
     faecher.push(fach);
     M.faecherSpeichern(faecher);
-    N.bildschirmOeffnen('einstellungen-fach', { fachId: fach.id });
+    N.bildschirmOeffnen('einstellungen-fach', { fachId: fach.id, stufe: wahl === 'beide' ? gewaehlteStufe : wahl });
   }
 
   async function fachLoeschen(fach) {
-    const anzahl = M.anzahlBewertungen(null, fach.id);
+    const anzahl = M.anzahlEinheiten(null, fach.id);
     const ok = await NB.Dialog.bestaetigen({
-      titel: '„' + fach.name + '“ löschen?',
-      text: (anzahl ? anzahl + (anzahl === 1 ? ' erfasste Stunde' : ' erfasste Stunden') + ' in diesem Fach werden ebenfalls gelöscht. ' : 'In diesem Fach wurden noch keine Stunden erfasst. ')
-        + 'Auch Stundenplaneinträge mit diesem Fach werden entfernt.',
-      bestaetigen: 'Fach löschen',
+      titel: '„' + fach.name + '“ endgültig löschen?',
+      text: (anzahl ? anzahl + (anzahl === 1 ? ' bewertete Einheit' : ' bewertete Einheiten') + ' in diesem Fach werden ebenfalls gelöscht. ' : 'In diesem Fach wurden noch keine Einheiten bewertet. ')
+        + 'Auch Planungen, Stundenplaneinträge und Klassenzuordnungen des Fachs werden entfernt. Soll das Fach nur ruhen, nutze stattdessen den Schalter „Aktiv“ im Fach – dann bleibt alles erhalten.',
+      bestaetigen: 'Endgültig löschen',
       gefaehrlich: true
     });
     if (!ok) return;
@@ -286,101 +327,177 @@ NB.Einstellungen = (function () {
     abschnittRendern({ abschnitt: 'faecher' });
   }
 
-  /** Bildschirm eines Fachs: Name, Kriterienliste. */
+  /** Fach stilllegen oder wieder aktivieren, mit Rückfrage, was ruht. */
+  async function fachAktivSetzen(fach, aktiv, feld) {
+    if (aktiv) {
+      fach.aktiv = true;
+      M.faecherSpeichern(M.faecherKatalog());
+      NB.App.meldung('„' + fach.name + '“ ist wieder aktiv.');
+      return;
+    }
+    const klassen = M.klassen().filter(k => Array.isArray(k.faecher) && k.faecher.some(z => z.fachId === fach.id));
+    const stunden = M.klassen().reduce((s, k) => s + (k.stundenplan || []).filter(e => e.fachId === fach.id).length, 0);
+    const einheiten = M.anzahlEinheiten(null, fach.id);
+    const ok = await NB.Dialog.bestaetigen({
+      titel: '„' + fach.name + '“ stilllegen?',
+      text: 'Das Fach erscheint dann nirgends in der Erfassung: nicht in der Fächerleiste, nicht im Stundenplan, nicht im Kalender, nicht beim Anlegen einer Klasse. Es ruhen: ' + einheiten + (einheiten === 1 ? ' bewertete Einheit, ' : ' bewertete Einheiten, ') + stunden + (stunden === 1 ? ' Stundenplaneintrag, ' : ' Stundenplaneinträge, ') + klassen.length + (klassen.length === 1 ? ' Klassenzuordnung' : ' Klassenzuordnungen') + '. Alles bleibt erhalten und in der Auswertung über „auch stillgelegte Fächer zeigen“ erreichbar.',
+      bestaetigen: 'Stilllegen'
+    });
+    if (!ok) { feld.checked = true; feld.setAttribute('aria-checked', 'true'); return; }
+    fach.aktiv = false;
+    M.faecherSpeichern(M.faecherKatalog());
+    NB.App.meldung('„' + fach.name + '“ ruht.');
+  }
+
+  /** Bildschirm eines Fachs (oder des Arbeits- und Sozialverhaltens): Name, Aktiv, Kriterien nach Bereich. */
   function fachRendern(parameter) {
     const wurzel = H.$('#bildschirm-einstellungen-fach');
     H.leeren(wurzel);
-    const faecher = M.faecher();
-    const fach = faecher.find(f => f.id === (parameter && parameter.fachId));
-    aktuellesFach = fach || null;
+    const istAsv = parameter && parameter.fachId === ASV_ID;
+    const faecher = M.faecherKatalog();
+    const fach = istAsv ? M.arbeitsverhalten() : faecher.find(f => f.id === (parameter && parameter.fachId));
+    const stufe = istAsv ? null : ((parameter && parameter.stufe) || gewaehlteStufe);
+    aktuellesFach = fach ? { name: fach.name } : null;
     if (!fach) {
       wurzel.appendChild(H.el('div', { class: 'leer' }, H.el('p', { text: 'Dieses Fach gibt es nicht mehr.' })));
       return;
     }
     const inhalt = H.el('div', { class: 'karte-inhalt einst' });
+    const speichern = () => (istAsv ? M.arbeitsverhaltenSpeichern(fach) : M.faecherSpeichern(faecher));
 
-    const nameFeld = H.el('input', { type: 'text', value: fach.name, autocomplete: 'off', 'aria-label': 'Name des Fachs' });
+    const nameFeld = H.el('input', { type: 'text', value: fach.name, autocomplete: 'off', 'aria-label': 'Name' });
     nameFeld.addEventListener('input', H.entprellen(function () {
       const wert = nameFeld.value.trim();
       if (!wert) return;
       fach.name = wert;
-      M.faecherSpeichern(faecher);
+      aktuellesFach.name = wert;
+      speichern();
       N.kopfAktualisieren();
     }, 400));
-    inhalt.appendChild(gruppe('Fach', [zeile('Name', null, nameFeld, { alsLabel: true, klasse: 'einst-zeile-feld' })]));
+    const kopfZeilen = [zeile('Name', null, nameFeld, { alsLabel: true, klasse: 'einst-zeile-feld' })];
+    if (!istAsv) {
+      const aktivFeld = H.el('input', { type: 'checkbox', class: 'schalter', role: 'switch' });
+      aktivFeld.checked = fach.aktiv !== false;
+      aktivFeld.setAttribute('aria-checked', aktivFeld.checked ? 'true' : 'false');
+      aktivFeld.addEventListener('change', function () { aktivFeld.setAttribute('aria-checked', aktivFeld.checked ? 'true' : 'false'); fachAktivSetzen(fach, aktivFeld.checked, aktivFeld); });
+      kopfZeilen.push(zeile('Aktiv', 'Aus: Das Fach ruht – es erscheint nicht mehr in der Erfassung, alle Daten bleiben.', aktivFeld, { alsLabel: true }));
+      if (M.fachHinweis(fach, stufe)) kopfZeilen.push(zeile('Hinweis aus dem Lehrplan', M.fachHinweis(fach, stufe), null));
+    } else if (fach.hinweis) {
+      kopfZeilen.push(zeile('Hinweis', fach.hinweis, null));
+    }
+    inhalt.appendChild(gruppe(istAsv ? 'Arbeits- und Sozialverhalten' : 'Fach', kopfZeilen));
 
-    const kriterien = fach.kriterien || [];
+    // Kriterien / Kompetenzen der Stufe nach Bereich
+    const alleKriterien = istAsv ? (fach.kriterien || (fach.kriterien = [])) : (fach.kompetenzen || (fach.kompetenzen = []));
+    const sichtbar = istAsv ? alleKriterien : alleKriterien.filter(k => k.stufe === stufe);
+    const gruppen = M.nachBereich(sichtbar);
     const liste = H.el('div', { class: 'einst-liste' });
-    if (!kriterien.length) liste.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Noch kein Kriterium. Lege eines an, damit sich das Fach bewerten lässt.' }));
-    kriterien.forEach(function (krit, i) {
-      const gewicht = (typeof krit.gewicht === 'number') ? krit.gewicht : 1;
-      const info = (krit.typ === 'projekt' ? 'Projekt' : 'Stunde') + ' · Gewicht ' + String(gewicht).replace('.', ',') + (gewicht === 0 ? ' (ausgeblendet)' : '');
-      liste.appendChild(H.el('div', { class: 'einst-eintrag' + (gewicht === 0 ? ' ausgeblendet' : '') }, [
-        H.el('button', {
-          type: 'button', class: 'einst-eintrag-text',
-          onclick: () => N.bildschirmOeffnen('einstellungen-kriterium', { fachId: fach.id, kriteriumId: krit.id })
-        }, [
-          H.el('span', { class: 'einst-eintrag-titel', text: krit.name }),
-          H.el('span', { class: 'text-klein text-schwach', text: info })
-        ]),
-        pfeilKnopf(krit.name + ' nach oben', -1, i > 0, function () {
-          if (verschieben(kriterien, i, -1)) { M.faecherSpeichern(faecher); fachRendern(parameter); }
-        }),
-        pfeilKnopf(krit.name + ' nach unten', 1, i < kriterien.length - 1, function () {
-          if (verschieben(kriterien, i, 1)) { M.faecherSpeichern(faecher); fachRendern(parameter); }
-        }),
-        loeschKnopf(krit.name + ' löschen', () => kriteriumLoeschen(fach, krit, parameter))
-      ]));
+    if (!sichtbar.length) liste.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: istAsv ? 'Noch kein Kriterium.' : 'Noch keine Kompetenz in dieser Stufe. Lege eine an, damit sich das Fach bewerten lässt.' }));
+    gruppen.forEach(function (g) {
+      liste.appendChild(H.el('p', { class: 'einst-bereich', text: g.bereich }));
+      g.kriterien.forEach(function (krit) {
+        const i = alleKriterien.indexOf(krit);
+        const gewicht = M.gewicht(krit);
+        const ruht = krit.aktiv === false || gewicht === 0;
+        const info = 'Gewicht ' + String(gewicht).replace('.', ',') + (krit.aktiv === false ? ' · ausgeschaltet' : gewicht === 0 ? ' (ausgeblendet)' : '');
+        liste.appendChild(H.el('div', { class: 'einst-eintrag' + (ruht ? ' ausgeblendet' : '') }, [
+          H.el('button', {
+            type: 'button', class: 'einst-eintrag-text',
+            onclick: () => N.bildschirmOeffnen('einstellungen-kriterium', { fachId: istAsv ? ASV_ID : fach.id, kriteriumId: krit.id, stufe: stufe })
+          }, [
+            H.el('span', { class: 'einst-eintrag-titel', text: krit.name }),
+            H.el('span', { class: 'text-klein text-schwach', text: info })
+          ]),
+          pfeilKnopf(krit.name + ' nach oben', -1, i > 0, function () {
+            if (verschieben(alleKriterien, i, -1)) { speichern(); fachRendern(parameter); }
+          }),
+          pfeilKnopf(krit.name + ' nach unten', 1, i < alleKriterien.length - 1, function () {
+            if (verschieben(alleKriterien, i, 1)) { speichern(); fachRendern(parameter); }
+          }),
+          loeschKnopf(krit.name + ' löschen', () => kriteriumLoeschen(fach, krit, istAsv, parameter))
+        ]));
+      });
     });
-    inhalt.appendChild(gruppe('Kriterien', [liste]));
+    inhalt.appendChild(gruppe(istAsv ? 'Kriterien' : 'Kompetenzen ' + M.stufe(stufe).kurz, [liste]));
     inhalt.appendChild(H.el('div', { class: 'knopfzeile' }, H.el('button', {
-      type: 'button', class: 'knopf primaer', text: 'Kriterium anlegen', onclick: () => kriteriumAnlegen(fach)
+      type: 'button', class: 'knopf primaer', text: istAsv ? 'Kriterium anlegen' : 'Kompetenz anlegen', onclick: () => kriteriumAnlegen(fach, istAsv, stufe, parameter)
     })));
-    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Ein Tipp auf ein Kriterium öffnet Typ, Gewicht und die sechs Beschreibungstexte. Gewicht 0 blendet ein Kriterium aus, ohne Daten zu löschen.' }));
+    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Ein Tipp öffnet Bereich, Gewicht, Aktiv und die sechs Beschreibungstexte. Ausschalten oder Gewicht 0 blendet aus, ohne Daten zu löschen.' }));
     wurzel.appendChild(inhalt);
   }
 
-  async function kriteriumAnlegen(fach) {
-    const name = await NB.Dialog.eingabe({ titel: 'Neues Kriterium', label: 'Name des Kriteriums', platzhalter: 'zum Beispiel Mündliche Mitarbeit', bestaetigen: 'Kriterium anlegen' });
+  /** Neue Kompetenz oder neues Kriterium: Name, dann Bereich (Pflicht) mit Vorschlägen aus dem Fach. */
+  async function kriteriumAnlegen(fach, istAsv, stufe, parameter) {
+    const name = await NB.Dialog.eingabe({ titel: istAsv ? 'Neues Kriterium' : 'Neue Kompetenz', label: 'Name', platzhalter: istAsv ? 'zum Beispiel Zuverlässigkeit' : 'zum Beispiel Texte überarbeiten', bestaetigen: 'Weiter' });
     if (!name) return;
-    const faecher = M.faecher();
-    const f = faecher.find(x => x.id === fach.id);
-    if (!f) return;
-    const krit = { id: f.id + '-' + H.neueId(), name: name, typ: 'stunde', gewicht: 1, stufen: ['', '', '', '', '', ''] };
-    if (!f.kriterien) f.kriterien = [];
-    f.kriterien.push(krit);
-    M.faecherSpeichern(faecher);
-    N.bildschirmOeffnen('einstellungen-kriterium', { fachId: f.id, kriteriumId: krit.id });
+    const liste = istAsv ? (fach.kriterien || []) : M.kompetenzenAlle(fach, stufe);
+    const vorschlaege = [];
+    liste.forEach(k => { if (k.bereich && vorschlaege.indexOf(k.bereich) < 0) vorschlaege.push(k.bereich); });
+    if (istAsv) ['Arbeitsverhalten', 'Sozialverhalten'].forEach(b => { if (vorschlaege.indexOf(b) < 0) vorschlaege.push(b); });
+    let bereich = null;
+    if (vorschlaege.length) {
+      const wahl = await NB.Dialog.auswahl({
+        titel: 'Lehrplanbereich',
+        optionen: vorschlaege.map(b => ({ text: b, wert: b })).concat([{ text: 'Neuer Bereich …', wert: '__neu__', klasse: 'auswahl-sekundaer' }])
+      });
+      if (!wahl) return;
+      bereich = wahl === '__neu__' ? null : wahl;
+    }
+    if (!bereich) {
+      bereich = await NB.Dialog.eingabe({ titel: 'Lehrplanbereich', label: 'Bereich (Pflicht)', platzhalter: 'zum Beispiel Schreiben', bestaetigen: 'Anlegen' });
+      if (!bereich) return;
+    }
+    const krit = { id: (istAsv ? 'aus' : fach.id) + '-' + H.neueId(), name: name, bereich: bereich, gewicht: 1, stufen: ['', '', '', '', '', ''], aktiv: true };
+    if (!istAsv) krit.stufe = stufe;
+    if (istAsv) { fach.kriterien.push(krit); M.arbeitsverhaltenSpeichern(fach); }
+    else { fach.kompetenzen.push(krit); M.faecherSpeichern(M.faecherKatalog()); }
+    N.bildschirmOeffnen('einstellungen-kriterium', { fachId: istAsv ? ASV_ID : fach.id, kriteriumId: krit.id, stufe: stufe });
   }
 
-  async function kriteriumLoeschen(fach, krit, parameter) {
+  async function kriteriumLoeschen(fach, krit, istAsv, parameter) {
     const ok = await NB.Dialog.bestaetigen({
       titel: '„' + krit.name + '“ löschen?',
-      text: 'Bereits erfasste Noten in diesem Kriterium werden gelöscht. Soll es nur nicht mehr angezeigt werden, setze stattdessen das Gewicht auf 0 – dann bleiben die Daten erhalten.',
-      bestaetigen: 'Kriterium löschen',
+      text: 'Bereits erfasste Werte in diesem Kriterium werden gelöscht. Soll es nur nicht mehr angezeigt werden, schalte es stattdessen aus – dann bleiben die Daten erhalten.',
+      bestaetigen: 'Löschen',
       gefaehrlich: true
     });
     if (!ok) return;
-    M.kriteriumLoeschen(fach.id, krit.id);
+    if (istAsv) {
+      fach.kriterien = fach.kriterien.filter(k => k.id !== krit.id);
+      M.arbeitsverhaltenSpeichern(fach);
+      M.einheiten().forEach(function (b) {
+        let geaendert = false;
+        Object.keys(b.kinder || {}).forEach(function (kindId) {
+          const e = b.kinder[kindId];
+          if (e && e.noten && e.noten[krit.id] !== undefined) { delete e.noten[krit.id]; geaendert = true; }
+        });
+        if (geaendert) M.einheitSpeichern(b);
+      });
+    } else {
+      M.kompetenzLoeschen(fach.id, krit.id);
+    }
     fachRendern(parameter);
   }
 
-  /** Bildschirm eines Kriteriums: Name, Typ, Gewicht, sechs Beschreibungstexte. */
+  /** Bildschirm eines Kriteriums: Name, Bereich, Gewicht, Aktiv, sechs Beschreibungstexte. */
   function kriteriumRendern(parameter) {
     const wurzel = H.$('#bildschirm-einstellungen-kriterium');
     H.leeren(wurzel);
-    const faecher = M.faecher();
-    const fach = faecher.find(f => f.id === (parameter && parameter.fachId));
-    const krit = fach && (fach.kriterien || []).find(k => k.id === parameter.kriteriumId);
+    const istAsv = parameter && parameter.fachId === ASV_ID;
+    const faecher = M.faecherKatalog();
+    const fach = istAsv ? M.arbeitsverhalten() : faecher.find(f => f.id === (parameter && parameter.fachId));
+    const liste = fach ? (istAsv ? fach.kriterien : fach.kompetenzen) || [] : [];
+    const krit = liste.find(k => k.id === parameter.kriteriumId);
     aktuellesKriterium = krit || null;
     if (!krit) {
       wurzel.appendChild(H.el('div', { class: 'leer' }, H.el('p', { text: 'Dieses Kriterium gibt es nicht mehr.' })));
       return;
     }
     const inhalt = H.el('div', { class: 'karte-inhalt einst' });
-    const speichern = () => M.faecherSpeichern(faecher);
+    const speichern = () => (istAsv ? M.arbeitsverhaltenSpeichern(fach) : M.faecherSpeichern(faecher));
+    const benotet = istAsv ? true : (krit.stufe !== '1-2');
 
-    const nameFeld = H.el('input', { type: 'text', value: krit.name, autocomplete: 'off', 'aria-label': 'Name des Kriteriums' });
+    const nameFeld = H.el('input', { type: 'text', value: krit.name, autocomplete: 'off', 'aria-label': 'Name' });
     nameFeld.addEventListener('input', H.entprellen(function () {
       const wert = nameFeld.value.trim();
       if (!wert) return;
@@ -389,39 +506,42 @@ NB.Einstellungen = (function () {
       N.kopfAktualisieren();
     }, 400));
 
-    const typ = H.el('div', { class: 'segment', role: 'group', 'aria-label': 'Typ' });
-    [['stunde', 'Stunde'], ['projekt', 'Projekt']].forEach(function (t) {
-      typ.appendChild(H.el('button', {
-        type: 'button', dataset: { wert: t[0] }, text: t[1], 'aria-pressed': krit.typ === t[0] ? 'true' : 'false',
-        onclick: function () {
-          krit.typ = t[0];
-          H.$$('button', typ).forEach(k => k.setAttribute('aria-pressed', k.dataset.wert === t[0] ? 'true' : 'false'));
-          speichern();
-        }
-      }));
-    });
+    const bereichFeld = H.el('input', { type: 'text', value: krit.bereich || '', autocomplete: 'off', 'aria-label': 'Bereich', list: 'bereich-vorschlaege' });
+    const datalist = H.el('datalist', { id: 'bereich-vorschlaege' });
+    const vorschlaege = [];
+    liste.forEach(k => { if (k.bereich && vorschlaege.indexOf(k.bereich) < 0) vorschlaege.push(k.bereich); });
+    vorschlaege.forEach(b => datalist.appendChild(H.el('option', { value: b })));
+    bereichFeld.addEventListener('input', H.entprellen(function () {
+      const wert = bereichFeld.value.trim();
+      if (!wert) return;
+      krit.bereich = wert;
+      speichern();
+    }, 400));
 
     const gewichtFeld = H.el('select', { 'aria-label': 'Gewicht' });
     [0, 0.5, 1, 1.5, 2, 2.5, 3].forEach(function (g) {
       gewichtFeld.appendChild(H.el('option', { value: String(g), text: String(g).replace('.', ',') + (g === 0 ? ' – ausgeblendet' : g === 1 ? ' – normal' : '') }));
     });
-    gewichtFeld.value = String((typeof krit.gewicht === 'number') ? krit.gewicht : 1);
-    gewichtFeld.addEventListener('change', function () {
-      krit.gewicht = Number(gewichtFeld.value);
-      speichern();
-    });
+    gewichtFeld.value = String(M.gewicht(krit));
+    gewichtFeld.addEventListener('change', function () { krit.gewicht = Number(gewichtFeld.value); speichern(); });
 
-    inhalt.appendChild(gruppe('Kriterium', [
+    const aktivFeld = H.el('input', { type: 'checkbox', class: 'schalter', role: 'switch' });
+    aktivFeld.checked = krit.aktiv !== false;
+    aktivFeld.setAttribute('aria-checked', aktivFeld.checked ? 'true' : 'false');
+    aktivFeld.addEventListener('change', function () { krit.aktiv = aktivFeld.checked; aktivFeld.setAttribute('aria-checked', krit.aktiv ? 'true' : 'false'); speichern(); });
+
+    inhalt.appendChild(gruppe(istAsv ? 'Kriterium' : 'Kompetenz' + (krit.stufe ? ' · ' + M.stufe(krit.stufe).kurz : ''), [
       zeile('Name', null, nameFeld, { alsLabel: true, klasse: 'einst-zeile-feld' }),
-      zeile('Typ', 'Stundenkriterien erscheinen im Alltag, Projektkriterien bei größeren Arbeiten.', typ, { klasse: 'einst-zeile-segment' }),
-      zeile('Gewicht', 'Zwischen 0 und 3. Gewicht 0 blendet das Kriterium aus, ohne bisherige Daten zu löschen.', gewichtFeld, { alsLabel: true, klasse: 'einst-zeile-auswahl' })
+      zeile('Lehrplanbereich', 'Kompetenzen werden nach Bereich gruppiert angezeigt.', H.el('div', {}, [bereichFeld, datalist]), { alsLabel: true, klasse: 'einst-zeile-feld' }),
+      zeile('Gewicht', 'Zwischen 0 und 3. Gewicht 0 blendet aus, ohne bisherige Daten zu löschen.', gewichtFeld, { alsLabel: true, klasse: 'einst-zeile-auswahl' }),
+      zeile('Aktiv', 'Aus: wird in der Erfassung nicht angezeigt, Daten bleiben erhalten.', aktivFeld, { alsLabel: true })
     ]));
 
     const woerter = M.notenwoerter();
     const stufenFelder = [];
     if (!Array.isArray(krit.stufen) || krit.stufen.length !== 6) krit.stufen = ['', '', '', '', '', ''];
     for (let n = 1; n <= 6; n++) {
-      const feld = H.el('textarea', { rows: 3, 'aria-label': 'Beschreibung für Note ' + n });
+      const feld = H.el('textarea', { rows: 3, 'aria-label': 'Beschreibung für ' + (benotet ? 'Note ' : 'Stufe ') + n });
       feld.value = krit.stufen[n - 1] || '';
       feld.addEventListener('input', H.entprellen(function () {
         krit.stufen[n - 1] = feld.value;
@@ -430,7 +550,7 @@ NB.Einstellungen = (function () {
       stufenFelder.push(H.el('label', { class: 'feld einst-stufe' }, [
         H.el('span', { class: 'feld-name' }, [
           H.el('span', { class: 'notenmarke', dataset: { note: String(n) }, text: String(n) }),
-          ' ' + woerter[n - 1]
+          ' ' + (benotet ? woerter[n - 1] : 'Stufe ' + n)
         ]),
         feld
       ]));
@@ -446,6 +566,7 @@ NB.Einstellungen = (function () {
     inhalt.appendChild(gruppe('Bewertungsbildschirm', [
       schalter('beschreibungenAnzeigen', 'Beschreibungstexte anzeigen', 'Der Text zur eingestellten Note unter jedem Kriterium.'),
       schalter('notizfeldAnzeigen', 'Notizfeld anzeigen', 'Ein Feld für eine kurze Notiz je Kind und Stunde unter der Matrix.'),
+      schalter('durchschnittAnzeigen', 'Bisherigen Durchschnitt anzeigen', 'Unter dem Namen der Stand des Kindes aus früheren Einheiten und je Kriterium ein blasses „Ø“.'),
       segment('schriftgroesse', 'Schriftgröße', null,
         [{ wert: 'klein', text: 'Klein' }, { wert: 'mittel', text: 'Mittel' }, { wert: 'gross', text: 'Groß' }])
     ]));

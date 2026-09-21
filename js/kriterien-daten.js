@@ -1,18 +1,26 @@
 /*
- * Notenblock – Startbestand der Fächer und Kriterien
+ * Notenblock – Startbestand der Fächer, Kompetenzen und des Arbeits- und
+ * Sozialverhaltens (Version 2, nach den NRW-Lehrplänen für die Primarstufe)
  *
  * Diese Datei ist eine 1:1-Einbettung von notenblock-kriterien.json, damit die
  * App ohne Server (und ohne fetch) geladen werden kann. Beide Dateien müssen
  * deckungsgleich bleiben. Änderungen bitte in der JSON vornehmen und diese Datei
  * daraus neu erzeugen (siehe START.md, Abschnitt „Kriterien aktualisieren“).
  *
- * Die Daten werden nur beim ersten Start in die Fächerverwaltung übernommen.
- * Danach gelten die in der App gespeicherten (bearbeitbaren) Fächer.
+ * Aufbau: stufen['1-2'|'3-4'] mit bezeichnung, benotet, hinweis, nicht_verfuegbar
+ * und faecher (je Fach id, name, hinweis, kompetenzen mit id, name, bereich und
+ * sechs Beschreibungstexten unter stufen). arbeits_und_sozialverhalten enthält
+ * vier Kriterien im selben Aufbau, gültig für beide Stufen.
+ *
+ * Die Daten werden beim ersten Start und bei der Umstellung auf Version 2 in
+ * die Fächerverwaltung übernommen. Danach gelten die in der App gespeicherten
+ * (bearbeitbaren) Fächer und Kriterien.
  */
 'use strict';
 window.NB = window.NB || {};
 NB.KRITERIEN_START = {
-  "version": 1,
+  "version": 2,
+  "quelle": "Lehrpläne für die Primarstufe in Nordrhein-Westfalen, Heft 2012, 1. Auflage 2021. Formulierungen sind Vorschläge; verbindlich sind die Kompetenzerwartungen des Lehrplans.",
   "skala": [
     1,
     2,
@@ -29,795 +37,1650 @@ NB.KRITERIEN_START = {
     "mangelhaft",
     "ungenügend"
   ],
-  "faecher": [
-    {
-      "id": "kunst",
-      "name": "Kunst",
-      "kriterien": [
+  "stufen": {
+    "1-2": {
+      "bezeichnung": "Klasse 1 und 2 (Schuleingangsphase)",
+      "benotet": false,
+      "hinweis": "In der Schuleingangsphase werden Leistungen im Lernprozess beobachtet und ohne Noten bewertet. Die Stufen beschreiben den Lernstand, sie sind keine Noten.",
+      "nicht_verfuegbar": [
         {
-          "id": "kunst-1",
-          "name": "Erfüllen der Aufgabenstellung",
-          "typ": "projekt",
-          "stufen": [
-            "Alle Kriterien vollständig und sehr genau umgesetzt, Aufgabe kreativ erweitert",
-            "Alle wichtigen Kriterien erfüllt",
-            "Die meisten Kriterien erfüllt, kleinere Abweichungen",
-            "Einige Kriterien fehlen oder sind nur teilweise umgesetzt",
-            "Viele Kriterien nicht erfüllt",
-            "Aufgabe kaum oder gar nicht umgesetzt"
+          "name": "Englisch",
+          "grund": "Englisch beginnt in Klasse 3. Der Lehrplan weist Kompetenzerwartungen nur für das Ende der Klasse 4 aus, daher gibt es keine Fassung für die Schuleingangsphase."
+        }
+      ],
+      "faecher": [
+        {
+          "id": "deutsch",
+          "name": "Deutsch",
+          "hinweis": "",
+          "kompetenzen": [
+            {
+              "id": "s12-deutsch-1",
+              "name": "Mit anderen und vor anderen sprechen",
+              "bereich": "Sprechen und Zuhören",
+              "stufen": [
+                "Spricht verständlich, hält vereinbarte Gesprächsregeln ein und erzählt zusammenhängend von Erlebnissen",
+                "Spricht verständlich und hält die Gesprächsregeln ein",
+                "Beteiligt sich an Gesprächen, braucht Erinnerung an die Regeln",
+                "Spricht in einzelnen Wörtern und kurzen Sätzen",
+                "Spricht kaum, auch nach Aufforderung",
+                "Keine Gesprächsbeiträge"
+              ]
+            },
+            {
+              "id": "s12-deutsch-2",
+              "name": "Verstehend zuhören",
+              "bereich": "Sprechen und Zuhören",
+              "stufen": [
+                "Hört konzentriert zu, gibt Gehörtes wieder und fragt bei Unklarheiten nach",
+                "Entnimmt Gehörtem einzelne Informationen und gibt sie wieder",
+                "Hört zu und gibt Gehörtes mit Impulsen wieder",
+                "Hört nur kurz zu, versteht mit Wiederholung",
+                "Erfasst Gehörtes auch mit Hilfen kaum",
+                "Kein Zuhörverständnis erkennbar"
+              ]
+            },
+            {
+              "id": "s12-deutsch-3",
+              "name": "Texte verfassen",
+              "bereich": "Schreiben",
+              "stufen": [
+                "Schreibt zu eigenen Ideen zusammenhängende kurze Texte und überarbeitet sie mit Hilfe",
+                "Schreibt kurze, verständliche Texte zu Vorgaben",
+                "Schreibt einzelne Sätze zu einem Thema",
+                "Schreibt Wörter und Sätze nur mit Vorlage",
+                "Schreibt einzelne Wörter",
+                "Verfasst keinen eigenen Text"
+              ]
+            },
+            {
+              "id": "s12-deutsch-4",
+              "name": "Richtig schreiben",
+              "bereich": "Schreiben",
+              "stufen": [
+                "Beherrscht das Lautprinzip sicher und nutzt erste Rechtschreibstrategien selbstständig",
+                "Schreibt lautgetreu richtig und nutzt geübte Strategien",
+                "Schreibt lautgetreu überwiegend richtig",
+                "Schreibt Wörter nur mit Hilfe lautgetreu",
+                "Verschriftet Wörter kaum lesbar",
+                "Keine Anwendung von Rechtschreibwissen erkennbar"
+              ]
+            },
+            {
+              "id": "s12-deutsch-5",
+              "name": "Schreibfertigkeiten und Heftführung",
+              "bereich": "Schreiben",
+              "stufen": [
+                "Schreibt flüssig und formklar in Druckschrift, Heft sehr ordentlich geführt",
+                "Schreibt formklar in Druckschrift, Heft ordentlich geführt",
+                "Schreibt meist lesbar, Heft überwiegend vollständig",
+                "Schrift häufig schwer lesbar, Heft lückenhaft",
+                "Schrift kaum lesbar, Heft sehr unvollständig",
+                "Kein Heft geführt"
+              ]
+            },
+            {
+              "id": "s12-deutsch-6",
+              "name": "Lesefähigkeit und Lesestrategien",
+              "bereich": "Lesen – mit Texten und Medien umgehen",
+              "stufen": [
+                "Liest einfache Texte flüssig und nutzt erste Lesestrategien",
+                "Erliest Wörter und Sätze sicher und versteht einfache Texte",
+                "Erliest Wörter, Textverständnis mit Unterstützung",
+                "Erliest einzelne Wörter lautierend",
+                "Erliest einzelne Buchstaben und Silben",
+                "Kein Leseverständnis erkennbar"
+              ]
+            },
+            {
+              "id": "s12-deutsch-7",
+              "name": "Mit Texten und Medien umgehen",
+              "bereich": "Lesen – mit Texten und Medien umgehen",
+              "stufen": [
+                "Gibt Figuren und Handlung wieder und äußert Gedanken und Gefühle zum Text",
+                "Gibt den Inhalt einfacher Texte wieder",
+                "Beantwortet Fragen zum Text mit Impulsen",
+                "Beantwortet Fragen nur mit Hilfe",
+                "Erfasst Inhalte auch mit Hilfe kaum",
+                "Keine Auseinandersetzung mit Texten"
+              ]
+            },
+            {
+              "id": "s12-deutsch-8",
+              "name": "Sprache untersuchen und Fachbegriffe nutzen",
+              "bereich": "Sprache und Sprachgebrauch untersuchen",
+              "stufen": [
+                "Ordnet Wortarten sicher zu und nutzt Sprachproben wie Umstellen und Ersetzen selbstständig",
+                "Unterscheidet Buchstabe, Silbe, Wort und Satz und ordnet Wortarten zu",
+                "Erkennt die Grundlagen mit Unterstützung",
+                "Erkennt Wortarten nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            }
           ]
         },
         {
-          "id": "kunst-2",
-          "name": "Kreativität und Ideenreichtum",
-          "typ": "projekt",
-          "stufen": [
-            "Sehr kreative, eigenständige und originelle Idee",
-            "Gute eigene Ideen erkennbar",
-            "Teilweise eigene Ideen",
-            "Wenig eigene Ideen, eher einfache Umsetzung",
-            "Kaum eigene Ideen",
-            "Keine eigene Gestaltung erkennbar"
+          "id": "mathe",
+          "name": "Mathematik",
+          "hinweis": "Die Lehrplanbereiche Kommunizieren und Darstellen sind hier zu einem Kriterium zusammengefasst.",
+          "kompetenzen": [
+            {
+              "id": "s12-mathe-1",
+              "name": "Rechnen und Zahlverständnis",
+              "bereich": "Zahlen und Operationen",
+              "stufen": [
+                "Rechnet im Zahlenraum bis 100 sicher und nutzt Zahlbeziehungen zum vorteilhaften Rechnen",
+                "Rechnet im Zahlenraum bis 100 sicher, Einspluseins automatisiert",
+                "Rechnet im Zahlenraum bis 20 sicher, bis 100 noch unsicher",
+                "Rechnet einfache Aufgaben nur mit Material",
+                "Rechnet auch mit Material kaum richtig",
+                "Löst keine Rechenaufgaben"
+              ]
+            },
+            {
+              "id": "s12-mathe-2",
+              "name": "Figuren, Körper und Zeichnen",
+              "bereich": "Raum und Form",
+              "stufen": [
+                "Erkennt Grundformen und Körper sicher und zeichnet genau mit Lineal und Schablone",
+                "Benennt Grundformen und Körper und zeichnet mit Hilfsmitteln",
+                "Erkennt Grundformen, Zeichnen noch ungenau",
+                "Erkennt Formen nur mit Hilfe",
+                "Kommt kaum zu richtigen Ergebnissen",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s12-mathe-3",
+              "name": "Größen schätzen, messen und umwandeln",
+              "bereich": "Größen und Messen",
+              "stufen": [
+                "Misst Längen genau, schätzt mit Stützpunkten und liest einfache Uhrzeiten sicher",
+                "Misst Längen und ordnet Geldbeträge und einfache Uhrzeiten",
+                "Misst mit Unterstützung, Uhrzeiten teilweise sicher",
+                "Braucht beim Messen und Schätzen Hilfe",
+                "Größenvorstellungen kaum vorhanden",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s12-mathe-4",
+              "name": "Daten erfassen und darstellen",
+              "bereich": "Daten, Häufigkeiten, Wahrscheinlichkeiten",
+              "stufen": [
+                "Erhebt Daten und stellt sie in Tabellen und einfachen Diagrammen dar",
+                "Trägt Daten in Tabellen ein und liest sie ab",
+                "Liest einfache Darstellungen mit Unterstützung",
+                "Liest Darstellungen nur mit Hilfe",
+                "Erfasst Darstellungen kaum",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s12-mathe-5",
+              "name": "Aufgaben erkunden und lösen",
+              "bereich": "Problemlösen",
+              "stufen": [
+                "Probiert bei neuen Aufgaben eigene Wege und erklärt sie",
+                "Bearbeitet neue Aufgaben nach kurzer Hilfe selbstständig",
+                "Bearbeitet bekannte Aufgabentypen selbstständig",
+                "Beginnt erst nach Hilfestellung",
+                "Findet auch mit Hilfe kaum einen Zugang",
+                "Bearbeitet Aufgaben nicht"
+              ]
+            },
+            {
+              "id": "s12-mathe-6",
+              "name": "Sachsituationen bearbeiten",
+              "bereich": "Modellieren",
+              "stufen": [
+                "Findet zu Bildern und Rechengeschichten passende Aufgaben und löst sie",
+                "Löst einfache Sachaufgaben mit passender Rechnung",
+                "Löst einfache Sachaufgaben mit Unterstützung",
+                "Braucht Hilfe beim Verstehen der Aufgabe",
+                "Erfasst Sachaufgaben kaum",
+                "Bearbeitet Sachaufgaben nicht"
+              ]
+            },
+            {
+              "id": "s12-mathe-7",
+              "name": "Vermuten, begründen, überprüfen",
+              "bereich": "Argumentieren",
+              "stufen": [
+                "Beschreibt entdeckte Muster und begründet Vermutungen an Beispielen",
+                "Begründet eigene Wege an Beispielen",
+                "Begründet mit Impulsen",
+                "Begründet nur auf Nachfrage",
+                "Begründet kaum",
+                "Keine Begründungen"
+              ]
+            },
+            {
+              "id": "s12-mathe-8",
+              "name": "Rechenwege erklären und darstellen",
+              "bereich": "Kommunizieren und Darstellen",
+              "stufen": [
+                "Beschreibt eigene Rechenwege nachvollziehbar und nutzt Material zur Darstellung",
+                "Beschreibt den eigenen Rechenweg mit Material",
+                "Beschreibt das Vorgehen in Ansätzen",
+                "Beschreibt nur auf Nachfrage",
+                "Kann das eigene Vorgehen kaum darstellen",
+                "Keine Darstellung oder Erklärung"
+              ]
+            }
           ]
         },
         {
-          "id": "kunst-3",
-          "name": "Technische Umsetzung und Gestaltung",
-          "typ": "projekt",
-          "stufen": [
-            "Sehr sichere und saubere Anwendung der Techniken",
-            "Gute Umsetzung der Technik",
-            "Technik meist richtig angewendet",
-            "Unsicherer Umgang mit der Technik",
-            "Technik kaum angewendet",
-            "Technik nicht angewendet"
+          "id": "kunst",
+          "name": "Kunst",
+          "hinweis": "",
+          "kompetenzen": [
+            {
+              "id": "s12-kunst-1",
+              "name": "Bilder wahrnehmen, beschreiben und deuten",
+              "bereich": "Bilder betrachten und verstehen",
+              "stufen": [
+                "Beschreibt Sinneseindrücke genau und benennt eigene Assoziationen zu Bildern",
+                "Beschreibt Bilder und benennt, was auffällt",
+                "Beschreibt, was zu sehen ist",
+                "Äußert sich nur auf Nachfrage",
+                "Äußert sich kaum zu Bildern",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s12-kunst-2",
+              "name": "Farbe und malerische Mittel",
+              "bereich": "Malen",
+              "stufen": [
+                "Erprobt Malwerkzeuge und Farbmischungen und setzt sie für eigene Bildideen ein",
+                "Setzt Malwerkzeuge und Farben passend ein",
+                "Malt mit bekannten Werkzeugen einfach",
+                "Nutzt Farben und Werkzeuge unsicher",
+                "Malerische Gestaltung kaum erkennbar",
+                "Keine Gestaltung"
+              ]
+            },
+            {
+              "id": "s12-kunst-3",
+              "name": "Grafische Mittel und Druckverfahren",
+              "bereich": "Zeichnen und Drucken",
+              "stufen": [
+                "Erprobt zeichnerische und druckgrafische Verfahren und nutzt sie für eigene Bildideen",
+                "Wendet geübte Verfahren sicher an",
+                "Wendet Verfahren meist richtig an",
+                "Unsicher im Umgang mit Werkzeugen und Verfahren",
+                "Verfahren kaum angewendet",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s12-kunst-4",
+              "name": "Dreidimensionales Gestalten",
+              "bereich": "Plastizieren und Montieren",
+              "stufen": [
+                "Erprobt Material und Verbindungen und setzt eigene Ideen dreidimensional um",
+                "Formt und verbindet Material sicher",
+                "Formt Material mit einfachen Techniken",
+                "Unsicher beim Formen und Verbinden",
+                "Kaum plastische Gestaltung erkennbar",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s12-kunst-5",
+              "name": "Spiel, Szene und Körperausdruck",
+              "bereich": "Agieren und Inszenieren",
+              "stufen": [
+                "Erprobt Mimik, Gestik und Bewegung und spielt eigene kleine Szenen",
+                "Spielt Szenen mit passenden Ausdrucksmitteln",
+                "Macht in Spielszenen mit",
+                "Macht zurückhaltend mit",
+                "Macht kaum mit",
+                "Macht nicht mit"
+              ]
+            },
+            {
+              "id": "s12-kunst-6",
+              "name": "Bildmittel in Foto und Film",
+              "bereich": "Fotografieren und Filmen",
+              "stufen": [
+                "Fotografiert zu eigenen Ideen und beschreibt die Wirkung von Ausschnitt und Perspektive",
+                "Fotografiert nach Vorgabe passend",
+                "Nutzt die Kamera nach Anleitung",
+                "Nutzt Geräte nur mit Hilfe",
+                "Beteiligt sich kaum",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s12-kunst-7",
+              "name": "Textile Materialien und Verfahren",
+              "bereich": "Textiles Gestalten",
+              "stufen": [
+                "Erprobt textiles Material und setzt daraus eigene Gestaltungsideen um",
+                "Verarbeitet textiles Material sicher, etwa durch Knoten und Flechten",
+                "Verarbeitet Material mit einfachen Techniken",
+                "Unsicher im Umgang mit textilem Material",
+                "Kaum Verarbeitung erkennbar",
+                "Keine Bearbeitung"
+              ]
+            }
           ]
         },
         {
-          "id": "kunst-4",
-          "name": "Sorgfalt der Arbeit",
-          "typ": "stunde",
-          "stufen": [
-            "Sehr sauber und sorgfältig gearbeitet",
-            "Meist sauber und sorgfältig gearbeitet",
-            "Teilweise sauber gearbeitet",
-            "Häufig unsauber gearbeitet",
-            "Sehr unsauber gearbeitet",
-            "Arbeit kaum erkennbar oder beschädigt"
+          "id": "musik",
+          "name": "Musik",
+          "hinweis": "",
+          "kompetenzen": [
+            {
+              "id": "s12-musik-1",
+              "name": "Singen",
+              "bereich": "Musik machen und gestalten",
+              "stufen": [
+                "Singt Lieder sicher mit, auch auswendig, und setzt die Stimme bewusst ein",
+                "Singt sicher mit",
+                "Singt mit, Melodie überwiegend richtig",
+                "Singt leise und unsicher mit",
+                "Singt kaum mit",
+                "Singt nicht mit"
+              ]
+            },
+            {
+              "id": "s12-musik-2",
+              "name": "Musizieren und Klanggestaltung",
+              "bereich": "Musik machen und gestalten",
+              "stufen": [
+                "Spielt einfache Begleitungen sicher und erfindet eigene Klangspiele",
+                "Spielt einfache Musikstücke mit und hält den Grundschlag",
+                "Hält den Grundschlag meist",
+                "Unsicher im Rhythmus und im Umgang mit Instrumenten",
+                "Kaum rhythmisches Spiel erkennbar",
+                "Keine Beteiligung am Musizieren"
+              ]
+            },
+            {
+              "id": "s12-musik-3",
+              "name": "Musik hören und beschreiben",
+              "bereich": "Musik hören und verstehen",
+              "stufen": [
+                "Beschreibt Musik mit einfachen Fachbegriffen und benennt eigene Höreindrücke",
+                "Benennt Instrumente und einfache Formteile wie Strophe und Refrain",
+                "Beschreibt Musik in einfachen Worten",
+                "Beschreibt Musik nur auf Nachfrage",
+                "Bringt kaum Beiträge ein",
+                "Keine Beiträge"
+              ]
+            },
+            {
+              "id": "s12-musik-4",
+              "name": "Notation und Fachbegriffe",
+              "bereich": "Musik hören und verstehen",
+              "stufen": [
+                "Liest und schreibt elementare grafische Notation sicher",
+                "Liest elementare grafische Notation",
+                "Kennt einzelne Zeichen",
+                "Erkennt Zeichen nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s12-musik-5",
+              "name": "Bewegung und Tanz",
+              "bereich": "Musik umsetzen und darstellen",
+              "stufen": [
+                "Bewegt sich experimentierfreudig zu Musik und bringt eigene Ideen ein",
+                "Setzt Musik in Bewegung um und tanzt einfache Tänze mit",
+                "Macht die Bewegungen meist richtig mit",
+                "Macht zurückhaltend mit",
+                "Macht kaum mit",
+                "Macht nicht mit"
+              ]
+            },
+            {
+              "id": "s12-musik-6",
+              "name": "Musik szenisch und bildnerisch umsetzen",
+              "bereich": "Musik umsetzen und darstellen",
+              "stufen": [
+                "Setzt Musik in Bild oder Szene um und beschreibt die eigene Auswahl",
+                "Setzt Musik passend in Bild oder Szene um",
+                "Setzt Musik einfach um",
+                "Setzt Musik nur nach Vorgaben um",
+                "Kaum eigene Umsetzung erkennbar",
+                "Keine Umsetzung"
+              ]
+            }
           ]
         },
         {
-          "id": "kunst-5",
-          "name": "Arbeitsplatz und Aufräumen",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitsplatz immer geordnet, räumt selbstständig vollständig auf",
-            "Arbeitsplatz geordnet, räumt zuverlässig auf",
-            "Arbeitsplatz etwas unordentlich, räumt nach Aufforderung auf",
-            "Arbeitsplatz häufig unordentlich, räumt nur teilweise auf",
-            "Arbeitsplatz sehr unordentlich, räumt nicht auf",
-            "Arbeitsplatz bleibt unaufgeräumt, Material bleibt liegen"
+          "id": "sachunterricht",
+          "name": "Sachunterricht",
+          "hinweis": "",
+          "kompetenzen": [
+            {
+              "id": "s12-sachunterricht-1",
+              "name": "Zusammenleben, Medien und Vielfalt",
+              "bereich": "Demokratie und Gesellschaft",
+              "stufen": [
+                "Benennt eigene und fremde Bedürfnisse und gestaltet Regeln für die Klasse aktiv mit",
+                "Beschreibt Regeln des Zusammenlebens und hält sie ein",
+                "Nennt die wichtigsten Regeln",
+                "Nennt Regeln nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s12-sachunterricht-2",
+              "name": "Körper, Entwicklung und gesunde Lebensführung",
+              "bereich": "Körper und Gesundheit",
+              "stufen": [
+                "Beschreibt Körperteile und Sinne genau und begründet Regeln der Körperpflege",
+                "Beschreibt Körperteile, Sinne und gesunde Lebensführung",
+                "Nennt die wichtigsten Inhalte",
+                "Nennt Einzelheiten nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s12-sachunterricht-3",
+              "name": "Tiere, Pflanzen, Stoffe und Energie",
+              "bereich": "Natur und Umwelt",
+              "stufen": [
+                "Unterscheidet Tiere und Pflanzen genau und erklärt Zusammenhänge zum Lebensraum",
+                "Beschreibt typische Tiere, Pflanzen und Materialien",
+                "Nennt die wichtigsten Inhalte",
+                "Nennt Inhalte nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s12-sachunterricht-4",
+              "name": "Orientierung, Räume und Verkehr",
+              "bereich": "Raum und Mobilität",
+              "stufen": [
+                "Zeichnet einfache Pläne vertrauter Räume und beachtet Verkehrsregeln zuverlässig",
+                "Liest einfache Pläne und beachtet Verkehrsregeln",
+                "Orientiert sich in vertrauten Räumen",
+                "Orientiert sich nur mit Hilfe",
+                "Orientierung kaum möglich",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s12-sachunterricht-5",
+              "name": "Bauen, Konstruieren und Arbeitswelt",
+              "bereich": "Technik, digitale Technologien und Arbeit",
+              "stufen": [
+                "Baut eigene Modelle, prüft ihre Stabilität und beschreibt die Bauweise",
+                "Baut Modelle nach Anleitung sicher",
+                "Baut Modelle mit",
+                "Baut nur mit durchgehender Hilfe mit",
+                "Beteiligt sich kaum",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s12-sachunterricht-6",
+              "name": "Orientierung in der Zeit und Wandel",
+              "bereich": "Zeit und Wandel",
+              "stufen": [
+                "Ordnet Zeiteinteilungen sicher und stellt die eigene Lebensgeschichte auf einer Zeitleiste dar",
+                "Benennt Zeiteinteilungen und ordnet Beispiele früher und heute zu",
+                "Nennt einzelne Beispiele",
+                "Ordnet nur mit Hilfe ein",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s12-sachunterricht-7",
+              "name": "Beobachten, Untersuchen und Dokumentieren",
+              "bereich": "Fachliche Arbeitsweisen",
+              "stufen": [
+                "Beobachtet genau, führt Versuche nach Anleitung durch und hält Ergebnisse fest",
+                "Führt Versuche nach Anleitung durch und hält Ergebnisse fest",
+                "Führt Versuche mit und hält Einzelnes fest",
+                "Braucht bei Versuchen häufig Hilfe",
+                "Beteiligt sich kaum",
+                "Keine Beteiligung"
+              ]
+            }
           ]
         },
         {
-          "id": "kunst-6",
-          "name": "Fertigstellung und Zeitnutzung",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet sehr konzentriert und wird vollständig fertig",
-            "Arbeit vollständig fertiggestellt",
-            "Arbeit weitgehend fertig",
-            "Arbeit nur teilweise fertig, arbeitet langsam",
-            "Arbeit kaum fertiggestellt",
-            "Arbeit nicht begonnen oder nicht abgegeben"
+          "id": "sport",
+          "name": "Sport",
+          "hinweis": "Der Bereich Schwimmen wird nur im Schwimmjahr bewertet. Außerunterrichtliche Wettkämpfe zählen nicht zur Sportnote.",
+          "kompetenzen": [
+            {
+              "id": "s12-sport-1",
+              "name": "Wahrnehmung, Koordination und Kondition",
+              "bereich": "Den Körper wahrnehmen und Bewegungsfähigkeiten ausprägen",
+              "stufen": [
+                "Steuert Bewegungen mit allen Sinnen und stellt Spannung und Entspannung gezielt her",
+                "Bewegt sich koordiniert und erfasst das eigene Körperschema",
+                "Führt Übungen meist sicher aus",
+                "Führt Übungen unsicher und nur mit Hilfe aus",
+                "Führt Übungen kaum aus",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s12-sport-2",
+              "name": "Spielideen entwickeln und Vereinbarungen einhalten",
+              "bereich": "Das Spielen entdecken und Spielräume nutzen",
+              "stufen": [
+                "Entwickelt eigene Spielideen und trifft Vereinbarungen für ein gelingendes Spiel",
+                "Setzt vorgegebene Spielideen und Regeln um",
+                "Spielt nach Vorgabe mit",
+                "Braucht Erinnerung an Spielidee und Regeln",
+                "Beteiligt sich kaum am Spiel",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s12-sport-3",
+              "name": "Lauf-, Sprung- und Wurftechnik",
+              "bereich": "Laufen, Springen, Werfen – Leichtathletik",
+              "stufen": [
+                "Bewältigt Lauf-, Sprung- und Wurfaufgaben sicher und beschreibt eigene Erfahrungen",
+                "Bewältigt unterschiedliche Lauf-, Sprung- und Wurfsituationen",
+                "Bewältigt einfache Aufgaben",
+                "Führt die Bewegungen unsicher aus",
+                "Führt die Bewegungen kaum aus",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s12-sport-4",
+              "name": "Schwimmen, Tauchen, Baderegeln",
+              "bereich": "Bewegen im Wasser – Schwimmen",
+              "stufen": [
+                "Bewegt sich sicher im Wasser, springt, taucht und gleitet regelgerecht",
+                "Nutzt den Auftrieb zum Gleiten und hält Bade- und Sicherheitsregeln ein",
+                "Bewegt sich mit Hilfsmitteln sicher im Wasser",
+                "Bewegt sich nur in Beckenrandnähe sicher",
+                "Bewegt sich im Wasser sehr unsicher",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s12-sport-5",
+              "name": "Turnerisches Bewegen, Sichern und Helfen",
+              "bereich": "Bewegen an Geräten – Turnen",
+              "stufen": [
+                "Balanciert, schwingt und rollt sicher an Geräten und zeigt eigene Kunststücke",
+                "Bewältigt einfache turnerische Aufgaben an Geräten",
+                "Bewältigt Aufgaben mit Unterstützung",
+                "Turnt unsicher und nur mit Hilfestellung",
+                "Führt turnerische Bewegungen kaum aus",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s12-sport-6",
+              "name": "Bewegungsgestaltung und Tanz",
+              "bereich": "Gestalten, Tanzen, Darstellen",
+              "stufen": [
+                "Gestaltet Bewegungsformen nach und präsentiert sie sicher",
+                "Setzt vorgegebene Rhythmen und einfache Tänze um",
+                "Macht Bewegungsfolgen meist richtig mit",
+                "Macht zurückhaltend mit",
+                "Macht kaum mit",
+                "Macht nicht mit"
+              ]
+            },
+            {
+              "id": "s12-sport-7",
+              "name": "Spielfertigkeiten, Taktik und Fairness",
+              "bereich": "Spielen in und mit Regelstrukturen – Sportspiele",
+              "stufen": [
+                "Spielt Kleine Spiele regelgeleitet und rollengerecht und verhält sich fair",
+                "Spielt Kleine Spiele regelgerecht mit",
+                "Spielt mit, Regeln noch unsicher",
+                "Braucht Erinnerung an die Regeln",
+                "Beteiligt sich kaum am Spiel",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s12-sport-8",
+              "name": "Fahren und Rollen, Sicherheit und Wagnis",
+              "bereich": "Gleiten, Fahren, Rollen",
+              "stufen": [
+                "Erprobt Rollgeräte sicher, beachtet Sicherheitsregeln und beschreibt Erfahrungen",
+                "Erprobt Gleit-, Fahr- oder Rollgeräte sicher",
+                "Bewältigt einfache Aufgaben",
+                "Bewegt sich unsicher und braucht Hilfe",
+                "Beteiligt sich kaum",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s12-sport-9",
+              "name": "Kampfformen, Regeln und Achtsamkeit",
+              "bereich": "Ringen und Kämpfen – Zweikampfsport",
+              "stufen": [
+                "Führt spielerische Kampfformen regelgerecht durch und geht achtsam miteinander um",
+                "Führt einfache Kampfformen regelgerecht durch",
+                "Macht bei Kampfformen mit",
+                "Braucht Erinnerung an Regeln und Achtsamkeit",
+                "Beteiligt sich kaum",
+                "Hält Regeln nicht ein und gefährdet damit andere"
+              ]
+            }
           ]
         },
         {
-          "id": "kunst-7",
-          "name": "Arbeitsbereitschaft und Motivation",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet sehr motiviert und selbstständig und hilft anderen",
-            "Arbeitet motiviert und meist selbstständig",
-            "Arbeitet zuverlässig mit, braucht gelegentlich einen Anstoß",
-            "Arbeitet wenig und ist kaum motiviert",
-            "Arbeitet kaum und ist sehr unmotiviert",
-            "Keine Arbeitsbereitschaft und Motivation"
-          ]
-        },
-        {
-          "id": "kunst-8",
-          "name": "Mündliche Mitarbeit und Gespräch über Kunst",
-          "typ": "stunde",
-          "stufen": [
-            "Bringt viele passende Ideen ein und erklärt die eigene Arbeit sehr gut",
-            "Beteiligt sich regelmäßig und sinnvoll",
-            "Beteiligt sich gelegentlich",
-            "Meldet sich selten",
-            "Meldet sich kaum",
-            "Keine Beteiligung"
+          "id": "religion",
+          "name": "Religion",
+          "hinweis": "Die Bereiche sind in den Lehrplänen für Katholische und Evangelische Religionslehre gleich benannt. Konfessionsspezifisch sind die Inhalte, etwa die Sakramente oder Martin Luther und die Reformation. Persönliche Glaubensüberzeugungen und religiöse Praxis sind nicht Gegenstand der Bewertung.",
+          "kompetenzen": [
+            {
+              "id": "s12-religion-1",
+              "name": "Schöpfung und Zusammenleben",
+              "bereich": "Miteinander leben in Gottes Schöpfung",
+              "stufen": [
+                "Beschreibt die eigene Einmaligkeit und benennt Regeln für gutes Zusammenleben",
+                "Gibt Erzählungen von der Schöpfung wieder und beschreibt eigene Erfahrungen",
+                "Gibt die wichtigsten Inhalte wieder",
+                "Gibt Inhalte nur mit Hilfe wieder",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s12-religion-2",
+              "name": "Reden von und mit Gott",
+              "bereich": "Die Frage nach Gott",
+              "stufen": [
+                "Deutet einfache Bildworte von Gott und bringt eigene Fragen ein",
+                "Benennt Gebete und einfache Gottesbilder",
+                "Nennt die wichtigsten Bilder und Gebete",
+                "Nennt Inhalte nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s12-religion-3",
+              "name": "Leben, Botschaft und Nachfolge",
+              "bereich": "Jesus Christus",
+              "stufen": [
+                "Gibt Erzählungen von Jesus wieder und stellt Bezüge zum eigenen Leben her",
+                "Gibt zentrale Erzählungen wieder",
+                "Gibt einzelne Erzählungen wieder",
+                "Gibt Erzählungen nur mit Hilfe wieder",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s12-religion-4",
+              "name": "Kirchenraum, Feste und Gemeindeleben",
+              "bereich": "Kirche und Gemeinde",
+              "stufen": [
+                "Benennt Elemente des Kirchenraums und beschreibt Feste und Gemeinschaft",
+                "Benennt die Kirche als Ort der Gemeinschaft und zentrale Feste",
+                "Nennt einzelne Merkmale und Feste",
+                "Nennt Einzelheiten nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s12-religion-5",
+              "name": "Aufbau, Texte und Bedeutung",
+              "bereich": "Die Bibel",
+              "stufen": [
+                "Benennt die Bibel als Heilige Schrift und unterscheidet Altes und Neues Testament",
+                "Benennt die Bibel als zentrales Buch der Christinnen und Christen",
+                "Nennt einzelne Angaben zur Bibel",
+                "Nennt Angaben nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s12-religion-6",
+              "name": "Religionen vergleichen, Menschenwürde",
+              "bereich": "Religionen und Weltanschauungen",
+              "stufen": [
+                "Beschreibt Ausdrucksformen und Gotteshäuser verschiedener Religionen",
+                "Beschreibt eigene Wahrnehmungen von Menschen verschiedener Religionen",
+                "Nennt einzelne Beispiele",
+                "Nennt Beispiele nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s12-religion-7",
+              "name": "Gespräch über religiöse und ethische Fragen",
+              "bereich": "Fachliche Mitarbeit",
+              "stufen": [
+                "Bringt eigene Gedanken ein und hört anderen zu",
+                "Beteiligt sich regelmäßig mit passenden Beiträgen",
+                "Beteiligt sich gelegentlich",
+                "Meldet sich selten",
+                "Meldet sich kaum, auch nach Aufforderung",
+                "Keine Beteiligung"
+              ]
+            }
           ]
         }
       ]
     },
-    {
-      "id": "deutsch",
-      "name": "Deutsch",
-      "kriterien": [
+    "3-4": {
+      "bezeichnung": "Klasse 3 und 4",
+      "benotet": true,
+      "hinweis": "",
+      "nicht_verfuegbar": [],
+      "faecher": [
         {
-          "id": "deutsch-1",
-          "name": "Lesen",
-          "typ": "stunde",
-          "stufen": [
-            "Liest flüssig und betont, versteht auch schwierige Texte und gibt sie sicher wieder",
-            "Liest flüssig und versteht den Inhalt sicher",
-            "Liest meist flüssig, versteht den Inhalt in den Grundzügen",
-            "Liest stockend, versteht einfache Texte nur mit Hilfe",
-            "Liest sehr stockend, versteht den Inhalt kaum",
-            "Liest einzelne Wörter nicht, kein Textverständnis"
+          "id": "deutsch",
+          "name": "Deutsch",
+          "hinweis": "",
+          "kompetenzen": [
+            {
+              "id": "s34-deutsch-1",
+              "name": "Mit anderen und vor anderen sprechen",
+              "bereich": "Sprechen und Zuhören",
+              "stufen": [
+                "Spricht verständlich und adressatenbezogen, begründet den eigenen Standpunkt und geht auf andere ein",
+                "Spricht verständlich, hält Gesprächsregeln ein und nimmt Bezug auf Gesagtes",
+                "Beteiligt sich verständlich an Gesprächen, hält die Regeln meist ein",
+                "Spricht in kurzen Beiträgen, braucht Anstoß und Erinnerung an die Regeln",
+                "Spricht kaum, auch nach Aufforderung",
+                "Keine Gesprächsbeiträge"
+              ]
+            },
+            {
+              "id": "s34-deutsch-2",
+              "name": "Verstehend zuhören",
+              "bereich": "Sprechen und Zuhören",
+              "stufen": [
+                "Hört konzentriert zu, gibt Gehörtes zusammenhängend wieder und fragt gezielt nach",
+                "Entnimmt Gehörtem die wesentlichen Informationen und gibt sie wieder",
+                "Entnimmt Gehörtem einzelne Informationen",
+                "Versteht Gehörtes nur mit Wiederholung und Hilfen",
+                "Erfasst Gehörtes auch mit Hilfen kaum",
+                "Kein Zuhörverständnis erkennbar"
+              ]
+            },
+            {
+              "id": "s34-deutsch-3",
+              "name": "Texte verfassen",
+              "bereich": "Schreiben",
+              "stufen": [
+                "Plant, schreibt und überarbeitet Texte selbstständig, passend zu Schreibziel und Adressat",
+                "Schreibt verständliche Texte mit klarem Aufbau und überarbeitet sie nach Kriterien",
+                "Schreibt einfache Texte, Aufbau in Ansätzen erkennbar",
+                "Schreibt kurze Texte nur mit Vorgaben und Unterstützung",
+                "Schreibt einzelne Sätze ohne Zusammenhang",
+                "Verfasst keinen eigenen Text"
+              ]
+            },
+            {
+              "id": "s34-deutsch-4",
+              "name": "Richtig schreiben",
+              "bereich": "Schreiben",
+              "stufen": [
+                "Nutzt Rechtschreibstrategien selbstständig und begründet Schreibweisen",
+                "Schreibt geübte Wörter sicher richtig und nutzt Strategien",
+                "Schreibt geübte Wörter überwiegend richtig, Strategien noch unsicher",
+                "Schreibt geübte Wörter nur mit Hilfen richtig",
+                "Macht auch bei geübten Wörtern sehr viele Fehler",
+                "Keine Anwendung von Rechtschreibwissen erkennbar"
+              ]
+            },
+            {
+              "id": "s34-deutsch-5",
+              "name": "Schreibfertigkeiten und Heftführung",
+              "bereich": "Schreiben",
+              "stufen": [
+                "Schreibt flüssig, formklar und zügig, Heft vollständig und übersichtlich",
+                "Schreibt flüssig und gut lesbar, Heft vollständig geführt",
+                "Schreibt meist lesbar, Heft überwiegend vollständig",
+                "Schrift häufig schwer lesbar, Heft lückenhaft",
+                "Schrift kaum lesbar, Heft sehr unvollständig",
+                "Kein Heft geführt"
+              ]
+            },
+            {
+              "id": "s34-deutsch-6",
+              "name": "Lesefähigkeit und Lesestrategien",
+              "bereich": "Lesen – mit Texten und Medien umgehen",
+              "stufen": [
+                "Liest auch komplexere Texte flüssig und wählt Lesestrategien begründet aus",
+                "Liest flüssig und nutzt Lesestrategien zum Erschließen von Texten",
+                "Liest einfache Texte flüssig, nutzt Strategien nach Anleitung",
+                "Liest stockend, erschließt Texte nur mit Hilfe",
+                "Erliest einzelne Wörter, kaum Textverständnis",
+                "Kein Leseverständnis erkennbar"
+              ]
+            },
+            {
+              "id": "s34-deutsch-7",
+              "name": "Mit Texten und Medien umgehen",
+              "bereich": "Lesen – mit Texten und Medien umgehen",
+              "stufen": [
+                "Deutet Texte, begründet die eigene Lesart und nutzt Medien für eigene Produkte",
+                "Gibt Inhalt und Figuren wieder und nimmt Stellung zum Gelesenen",
+                "Gibt den Inhalt in Grundzügen wieder",
+                "Beantwortet Fragen zum Text nur mit Hilfe",
+                "Erfasst Inhalte auch mit Hilfe kaum",
+                "Keine Auseinandersetzung mit Texten"
+              ]
+            },
+            {
+              "id": "s34-deutsch-8",
+              "name": "Sprache untersuchen und Fachbegriffe nutzen",
+              "bereich": "Sprache und Sprachgebrauch untersuchen",
+              "stufen": [
+                "Erkennt Wortarten und Satzglieder sicher und überträgt Regeln auf neue Beispiele",
+                "Erkennt Wortarten und Satzglieder sicher und nutzt Fachbegriffe",
+                "Erkennt die Grundlagen, bei schwierigeren Aufgaben unsicher",
+                "Erkennt Wortarten und Satzglieder nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            }
           ]
         },
         {
-          "id": "deutsch-2",
-          "name": "Texte schreiben",
-          "typ": "projekt",
-          "stufen": [
-            "Schreibt anschauliche, klar aufgebaute Texte mit passendem Wortschatz",
-            "Schreibt verständliche Texte mit erkennbarem Aufbau",
-            "Schreibt einfache Texte, Aufbau meist erkennbar",
-            "Schreibt kurze Texte mit Hilfe, Aufbau unklar",
-            "Schreibt nur einzelne Sätze ohne Zusammenhang",
-            "Schreibt keinen eigenen Text"
+          "id": "mathe",
+          "name": "Mathematik",
+          "hinweis": "Die Lehrplanbereiche Kommunizieren und Darstellen sind hier zu einem Kriterium zusammengefasst.",
+          "kompetenzen": [
+            {
+              "id": "s34-mathe-1",
+              "name": "Rechnen und Zahlverständnis",
+              "bereich": "Zahlen und Operationen",
+              "stufen": [
+                "Rechnet sicher und flexibel, wählt Rechenwege bewusst aus und prüft Ergebnisse",
+                "Rechnet sicher und nutzt Rechengesetze und Strategien",
+                "Löst Grundaufgaben richtig, bei größeren Zahlen oder neuen Aufgaben unsicher",
+                "Rechnet einfache Aufgaben nur mit Material oder Hilfe",
+                "Rechnet auch mit Hilfe kaum richtig",
+                "Löst keine Rechenaufgaben"
+              ]
+            },
+            {
+              "id": "s34-mathe-2",
+              "name": "Figuren, Körper und Zeichnen",
+              "bereich": "Raum und Form",
+              "stufen": [
+                "Zeichnet sehr genau und beschreibt Figuren und Körper sicher mit Fachbegriffen",
+                "Zeichnet genau und erkennt Eigenschaften von Figuren und Körpern",
+                "Zeichnet meist richtig, Fachbegriffe teilweise sicher",
+                "Unsicher im Umgang mit Lineal und Geodreieck, braucht Hilfe",
+                "Kommt kaum zu richtigen Ergebnissen",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s34-mathe-3",
+              "name": "Größen schätzen, messen und umwandeln",
+              "bereich": "Größen und Messen",
+              "stufen": [
+                "Schätzt sicher, misst genau und rechnet flexibel mit Größen",
+                "Misst genau und rechnet mit Größen und Einheiten",
+                "Misst richtig, beim Umwandeln von Einheiten noch unsicher",
+                "Braucht beim Messen und Umwandeln Hilfe",
+                "Größenvorstellungen kaum vorhanden",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s34-mathe-4",
+              "name": "Daten erfassen und darstellen",
+              "bereich": "Daten, Häufigkeiten, Wahrscheinlichkeiten",
+              "stufen": [
+                "Erhebt Daten, stellt sie passend dar und interpretiert sie sicher",
+                "Liest Tabellen und Diagramme sicher und stellt Daten dar",
+                "Entnimmt einfachen Darstellungen die wichtigsten Angaben",
+                "Liest Tabellen und Diagramme nur mit Hilfe",
+                "Erfasst Darstellungen auch mit Hilfe kaum",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s34-mathe-5",
+              "name": "Aufgaben erkunden und lösen",
+              "bereich": "Problemlösen",
+              "stufen": [
+                "Erschließt neue Aufgaben selbstständig, probiert systematisch und überträgt Lösungen",
+                "Findet zu Aufgaben einen passenden Lösungsweg und prüft das Ergebnis",
+                "Löst bekannte Aufgabentypen, bei neuen Aufgaben unsicher",
+                "Beginnt erst nach Hilfestellung, probiert ungeordnet",
+                "Findet auch mit Hilfe kaum einen Zugang",
+                "Bearbeitet Aufgaben nicht"
+              ]
+            },
+            {
+              "id": "s34-mathe-6",
+              "name": "Sachsituationen bearbeiten",
+              "bereich": "Modellieren",
+              "stufen": [
+                "Entnimmt Sachsituationen die passenden Angaben, rechnet und deutet das Ergebnis zurück",
+                "Übersetzt Sachaufgaben in eine Rechnung und formuliert eine Antwort",
+                "Löst einfache Sachaufgaben, bei mehrschrittigen unsicher",
+                "Braucht Hilfe beim Verstehen der Aufgabe",
+                "Erfasst Sachaufgaben kaum",
+                "Bearbeitet Sachaufgaben nicht"
+              ]
+            },
+            {
+              "id": "s34-mathe-7",
+              "name": "Vermuten, begründen, überprüfen",
+              "bereich": "Argumentieren",
+              "stufen": [
+                "Stellt Vermutungen auf, begründet sie und prüft Begründungen anderer",
+                "Begründet eigene Vorgehensweisen nachvollziehbar",
+                "Begründet in Ansätzen, meist an Beispielen",
+                "Begründet nur auf gezielte Nachfrage",
+                "Begründet kaum",
+                "Keine Begründungen"
+              ]
+            },
+            {
+              "id": "s34-mathe-8",
+              "name": "Rechenwege erklären und darstellen",
+              "bereich": "Kommunizieren und Darstellen",
+              "stufen": [
+                "Erklärt Rechenwege verständlich, nutzt Darstellungen gezielt und wechselt zwischen ihnen",
+                "Erklärt den eigenen Weg nachvollziehbar und nutzt passende Darstellungen",
+                "Erklärt in Ansätzen, nutzt Darstellungen nach Vorgabe",
+                "Erklärt nur auf Nachfrage, Darstellungen bleiben unklar",
+                "Kann das eigene Vorgehen kaum darstellen",
+                "Keine Darstellung oder Erklärung"
+              ]
+            }
           ]
         },
         {
-          "id": "deutsch-3",
-          "name": "Rechtschreibung",
-          "typ": "projekt",
-          "stufen": [
-            "Schreibt geübte Wörter sicher richtig und nutzt Rechtschreibstrategien selbstständig",
-            "Schreibt geübte Wörter meist richtig",
-            "Schreibt geübte Wörter überwiegend richtig, einzelne Fehler",
-            "Macht häufig Fehler, auch bei geübten Wörtern",
-            "Macht sehr viele Fehler, nutzt Strategien kaum",
-            "Geschriebenes ist kaum lesbar"
+          "id": "englisch",
+          "name": "Englisch",
+          "hinweis": "Rechtschreibung fließt laut Lehrplan nicht in die Bewertung ein. Isolierte Vokabeltests, Grammatikaufgaben und Diktate sind nicht zulässig; schriftliche Arbeiten werden nicht benotet.",
+          "kompetenzen": [
+            {
+              "id": "s34-englisch-1",
+              "name": "Hör- und Hörsehverstehen",
+              "bereich": "Funktionale kommunikative Kompetenz",
+              "stufen": [
+                "Versteht classroom discourse und Geschichten sicher und reagiert passend",
+                "Versteht Aufträge und Hörtexte mit bekanntem Wortschatz",
+                "Versteht Bekanntes, braucht bei Neuem Wiederholungen",
+                "Versteht nur mit Bildern, Gesten und Wiederholung",
+                "Versteht auch mit Hilfen kaum etwas",
+                "Kein Hörverstehen erkennbar"
+              ]
+            },
+            {
+              "id": "s34-englisch-2",
+              "name": "Sprechen",
+              "bereich": "Funktionale kommunikative Kompetenz",
+              "stufen": [
+                "Spricht frei und zusammenhängend mit bekannten und eigenen Wendungen",
+                "Spricht in einfachen Sätzen über vertraute Themen",
+                "Antwortet mit einzelnen Sätzen und bekannten Redemitteln",
+                "Antwortet mit einzelnen Wörtern oder nach Vorgabe",
+                "Spricht kaum, auch nach Aufforderung",
+                "Spricht nicht"
+              ]
+            },
+            {
+              "id": "s34-englisch-3",
+              "name": "Leseverstehen und Schreiben",
+              "bereich": "Funktionale kommunikative Kompetenz",
+              "stufen": [
+                "Entnimmt kurzen Texten Informationen und verfasst eigene kurze Texte",
+                "Liest und versteht Wörter und Sätze, schreibt mit Vorlage richtig",
+                "Erliest Bekanntes und schreibt geübte Wörter ab",
+                "Liest und schreibt nur mit Vorlage und Hilfe",
+                "Liest und schreibt auch Bekanntes kaum",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s34-englisch-4",
+              "name": "Sprachmittlung",
+              "bereich": "Funktionale kommunikative Kompetenz",
+              "stufen": [
+                "Gibt Gehörtes und Gelesenes sinngemäß und vollständig für andere wieder",
+                "Gibt einfache Inhalte sinngemäß wieder",
+                "Gibt einzelne Informationen wieder",
+                "Gibt Inhalte nur auf Nachfrage wieder",
+                "Gibt Inhalte kaum wieder",
+                "Keine Wiedergabe"
+              ]
+            },
+            {
+              "id": "s34-englisch-5",
+              "name": "Wortschatz und Aussprache",
+              "bereich": "Verfügen über sprachliche Mittel",
+              "stufen": [
+                "Nutzt den Wortschatz sicher auch in neuen Zusammenhängen, Aussprache sehr verständlich",
+                "Nutzt den geübten Wortschatz sicher, Aussprache verständlich",
+                "Nutzt den wichtigsten Wortschatz, Aussprache meist verständlich",
+                "Nutzt einzelne Wörter nur mit Hilfe",
+                "Kaum Wortschatz verfügbar",
+                "Kein Wortschatz erkennbar"
+              ]
+            },
+            {
+              "id": "s34-englisch-6",
+              "name": "Orientierungswissen und Begegnung",
+              "bereich": "Interkulturelle kommunikative Kompetenz",
+              "stufen": [
+                "Vergleicht Lebenswelten begründet und handelt in Begegnungssituationen wertschätzend",
+                "Beschreibt Gemeinsamkeiten und Unterschiede englischsprachiger Länder",
+                "Nennt einzelne landeskundliche Beispiele",
+                "Nennt Beispiele nur mit Hilfe",
+                "Kaum Orientierungswissen vorhanden",
+                "Kein Orientierungswissen erkennbar"
+              ]
+            },
+            {
+              "id": "s34-englisch-7",
+              "name": "Texte und Medienprodukte gestalten",
+              "bereich": "Text- und Medienkompetenz",
+              "stufen": [
+                "Gestaltet analoge und digitale Produkte adressatengerecht nach Kriterien",
+                "Erstellt mit Vorlage verständliche Texte und Medienprodukte",
+                "Erstellt einfache Produkte nach Vorgabe",
+                "Erstellt Produkte nur mit durchgehender Hilfe",
+                "Beteiligt sich kaum an der Erstellung",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s34-englisch-8",
+              "name": "Lernstrategien nutzen und über Sprache nachdenken",
+              "bereich": "Sprachlernkompetenz und Sprachbewusstheit",
+              "stufen": [
+                "Nutzt Lernstrategien gezielt und beschreibt Besonderheiten der englischen Sprache",
+                "Nutzt bekannte Strategien und Hilfsmittel selbstständig",
+                "Nutzt Strategien nach Anleitung",
+                "Nutzt Hilfsmittel nur nach Erinnerung",
+                "Nutzt Strategien kaum",
+                "Keine Strategienutzung erkennbar"
+              ]
+            }
           ]
         },
         {
-          "id": "deutsch-4",
-          "name": "Sprache untersuchen",
-          "typ": "projekt",
-          "stufen": [
-            "Erkennt Wortarten und Satzglieder sicher und überträgt Regeln auf neue Beispiele",
-            "Erkennt Wortarten und Satzglieder sicher",
-            "Erkennt die Grundlagen, bei schwierigeren Aufgaben unsicher",
-            "Erkennt Wortarten und Satzglieder nur mit Hilfe",
-            "Kaum Kenntnisse vorhanden",
-            "Keine Kenntnisse vorhanden"
+          "id": "kunst",
+          "name": "Kunst",
+          "hinweis": "",
+          "kompetenzen": [
+            {
+              "id": "s34-kunst-1",
+              "name": "Bilder wahrnehmen, beschreiben und deuten",
+              "bereich": "Bilder betrachten und verstehen",
+              "stufen": [
+                "Beschreibt und deutet Bilder aspektgeleitet und begründet die eigene Wahrnehmung",
+                "Beschreibt Bilder genau und formuliert Deutungsansätze",
+                "Beschreibt, was zu sehen ist, Deutung in Ansätzen",
+                "Äußert sich nur auf Nachfrage",
+                "Äußert sich kaum zu Bildern",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s34-kunst-2",
+              "name": "Farbe und malerische Mittel",
+              "bereich": "Malen",
+              "stufen": [
+                "Setzt Farbe, Auftrag und Werkzeug gezielt für eine eigene Bildabsicht ein",
+                "Setzt malerische Mittel passend ein und erklärt ihre Wirkung",
+                "Setzt malerische Mittel einfach ein",
+                "Nutzt Farben und Werkzeuge unsicher",
+                "Malerische Gestaltung kaum erkennbar",
+                "Keine Gestaltung"
+              ]
+            },
+            {
+              "id": "s34-kunst-3",
+              "name": "Grafische Mittel und Druckverfahren",
+              "bereich": "Zeichnen und Drucken",
+              "stufen": [
+                "Nutzt grafische Mittel und Druckverfahren gezielt und erklärt ihre Wirkung",
+                "Setzt zeichnerische und druckgrafische Verfahren sicher ein",
+                "Wendet die Verfahren meist richtig an",
+                "Unsicher im Umgang mit Verfahren und Werkzeugen",
+                "Verfahren kaum angewendet",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s34-kunst-4",
+              "name": "Dreidimensionales Gestalten",
+              "bereich": "Plastizieren und Montieren",
+              "stufen": [
+                "Wählt Material, Werkzeug und Verbindung gezielt und beurteilt Stabilität und Wirkung",
+                "Bearbeitet und verbindet Material sicher",
+                "Bearbeitet Material mit einfachen Techniken",
+                "Unsicher beim Bearbeiten und Verbinden",
+                "Kaum plastische Gestaltung erkennbar",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s34-kunst-5",
+              "name": "Spiel, Szene und Körperausdruck",
+              "bereich": "Agieren und Inszenieren",
+              "stufen": [
+                "Entwickelt eigene Szenen und setzt Mimik, Gestik und Stimme gezielt ein",
+                "Spielt Szenen mit passenden Ausdrucksmitteln",
+                "Macht in Spielszenen mit",
+                "Macht zurückhaltend mit",
+                "Macht kaum mit",
+                "Macht nicht mit"
+              ]
+            },
+            {
+              "id": "s34-kunst-6",
+              "name": "Bildmittel in Foto und Film",
+              "bereich": "Fotografieren und Filmen",
+              "stufen": [
+                "Setzt Bildmittel wie Ausschnitt und Perspektive gezielt für eine eigene Idee ein",
+                "Fotografiert oder filmt mit bekannten Bildmitteln passend",
+                "Nutzt Bildmittel nach Vorgabe",
+                "Nutzt Geräte und Bildmittel nur mit Hilfe",
+                "Beteiligt sich kaum",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s34-kunst-7",
+              "name": "Textile Materialien und Verfahren",
+              "bereich": "Textiles Gestalten",
+              "stufen": [
+                "Entwickelt aus Materialeigenschaften eigene Gestaltungsideen und setzt sie sorgfältig um",
+                "Verarbeitet textiles Material sicher",
+                "Verarbeitet textiles Material mit einfachen Techniken",
+                "Unsicher im Umgang mit textilem Material",
+                "Kaum Verarbeitung erkennbar",
+                "Keine Bearbeitung"
+              ]
+            }
           ]
         },
         {
-          "id": "deutsch-5",
-          "name": "Mündliche Mitarbeit",
-          "typ": "stunde",
-          "stufen": [
-            "Beteiligt sich sehr häufig mit durchdachten Beiträgen, hört zu und geht auf andere ein",
-            "Beteiligt sich regelmäßig und sinnvoll",
-            "Beteiligt sich gelegentlich",
-            "Meldet sich selten, Beiträge bleiben kurz",
-            "Meldet sich kaum, auch nach Aufforderung",
-            "Keine Beteiligung"
+          "id": "musik",
+          "name": "Musik",
+          "hinweis": "",
+          "kompetenzen": [
+            {
+              "id": "s34-musik-1",
+              "name": "Singen",
+              "bereich": "Musik machen und gestalten",
+              "stufen": [
+                "Singt sicher in Tonhöhe, Rhythmus und Ausdruck, auch in einfacher Mehrstimmigkeit",
+                "Singt sicher mit und hält Melodie und Tempo",
+                "Singt mit, Melodie überwiegend richtig",
+                "Singt leise und unsicher mit",
+                "Singt kaum mit",
+                "Singt nicht mit"
+              ]
+            },
+            {
+              "id": "s34-musik-2",
+              "name": "Musizieren und Klanggestaltung",
+              "bereich": "Musik machen und gestalten",
+              "stufen": [
+                "Spielt sicher im Grundschlag, erfindet eigene Klangspiele und beschreibt sie mit Fachbegriffen",
+                "Spielt Instrumente sicher und hält den Rhythmus",
+                "Hält den Rhythmus meist und spielt einfache Begleitungen",
+                "Unsicher im Rhythmus und im Umgang mit Instrumenten",
+                "Kaum rhythmisches Spiel erkennbar",
+                "Keine Beteiligung am Musizieren"
+              ]
+            },
+            {
+              "id": "s34-musik-3",
+              "name": "Musik hören und beschreiben",
+              "bereich": "Musik hören und verstehen",
+              "stufen": [
+                "Beschreibt Musik mit Fachbegriffen und begründet ihre Wirkung",
+                "Beschreibt Gestaltungsmittel mit Fachbegriffen",
+                "Beschreibt Musik in einfachen Worten",
+                "Beschreibt Musik nur auf Nachfrage",
+                "Bringt kaum Beiträge ein",
+                "Keine Beiträge"
+              ]
+            },
+            {
+              "id": "s34-musik-4",
+              "name": "Notation und Fachbegriffe",
+              "bereich": "Musik hören und verstehen",
+              "stufen": [
+                "Liest und schreibt grafische und einfache traditionelle Notation sicher und begründet ihre Auswahl",
+                "Liest und schreibt einfache Notation",
+                "Kennt die wichtigsten Zeichen und Begriffe",
+                "Kennt einzelne Zeichen und Begriffe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s34-musik-5",
+              "name": "Bewegung und Tanz",
+              "bereich": "Musik umsetzen und darstellen",
+              "stufen": [
+                "Setzt Musik formklar und ausdrucksstark in Bewegung um, auch mit eigenen Ideen",
+                "Setzt Musik passend in Bewegung um und tanzt sicher mit",
+                "Macht die Bewegungen meist richtig mit",
+                "Macht zurückhaltend mit",
+                "Macht kaum mit",
+                "Macht nicht mit"
+              ]
+            },
+            {
+              "id": "s34-musik-6",
+              "name": "Musik szenisch und bildnerisch umsetzen",
+              "bereich": "Musik umsetzen und darstellen",
+              "stufen": [
+                "Setzt Musik in Bild oder Szene um und begründet die eigene Gestaltung",
+                "Setzt Musik passend in Bild oder Szene um",
+                "Setzt Musik einfach um",
+                "Setzt Musik nur nach Vorgaben um",
+                "Kaum eigene Umsetzung erkennbar",
+                "Keine Umsetzung"
+              ]
+            }
           ]
         },
         {
-          "id": "deutsch-6",
-          "name": "Arbeitsbereitschaft und Motivation",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet sehr motiviert und selbstständig und hilft anderen",
-            "Arbeitet motiviert und meist selbstständig",
-            "Arbeitet zuverlässig mit, braucht gelegentlich einen Anstoß",
-            "Arbeitet wenig und braucht häufig Aufforderung",
-            "Arbeitet kaum und ist sehr unmotiviert",
-            "Keine Arbeitsbereitschaft erkennbar"
+          "id": "sachunterricht",
+          "name": "Sachunterricht",
+          "hinweis": "",
+          "kompetenzen": [
+            {
+              "id": "s34-sachunterricht-1",
+              "name": "Zusammenleben, Medien und Vielfalt",
+              "bereich": "Demokratie und Gesellschaft",
+              "stufen": [
+                "Erklärt Regeln und Entscheidungsprozesse und beurteilt sie begründet",
+                "Beschreibt Regeln und Aufgaben des Zusammenlebens sicher",
+                "Nennt die wichtigsten Regeln und Beispiele",
+                "Nennt Beispiele nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s34-sachunterricht-2",
+              "name": "Körper, Entwicklung und gesunde Lebensführung",
+              "bereich": "Körper und Gesundheit",
+              "stufen": [
+                "Erklärt Bau und Funktionen des Körpers und begründet gesundheitsbewusstes Handeln",
+                "Beschreibt Körper und gesunde Lebensführung sicher",
+                "Nennt die wichtigsten Zusammenhänge",
+                "Nennt Einzelheiten nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s34-sachunterricht-3",
+              "name": "Tiere, Pflanzen, Stoffe und Energie",
+              "bereich": "Natur und Umwelt",
+              "stufen": [
+                "Erklärt Zusammenhänge in der Natur und leitet Folgerungen für das eigene Handeln ab",
+                "Beschreibt Tiere, Pflanzen, Stoffe und Energie sicher",
+                "Nennt die wichtigsten Inhalte",
+                "Nennt Inhalte nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s34-sachunterricht-4",
+              "name": "Orientierung, Räume und Verkehr",
+              "bereich": "Raum und Mobilität",
+              "stufen": [
+                "Orientiert sich sicher mit Karten und Plänen und begründet Regeln sicheren Verhaltens",
+                "Liest Pläne und Karten und beachtet Verkehrsregeln zuverlässig",
+                "Orientiert sich in vertrauten Räumen, bei Karten noch unsicher",
+                "Orientiert sich nur mit Hilfe",
+                "Orientierung kaum möglich",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s34-sachunterricht-5",
+              "name": "Bauen, Konstruieren und Arbeitswelt",
+              "bereich": "Technik, digitale Technologien und Arbeit",
+              "stufen": [
+                "Plant, baut und verbessert Modelle begründet und erklärt ihre Funktion",
+                "Baut Modelle nach Anleitung sicher und beschreibt die Funktion",
+                "Baut Modelle mit, Erklärungen in Ansätzen",
+                "Baut nur mit durchgehender Hilfe mit",
+                "Beteiligt sich kaum",
+                "Keine Bearbeitung"
+              ]
+            },
+            {
+              "id": "s34-sachunterricht-6",
+              "name": "Orientierung in der Zeit und Wandel",
+              "bereich": "Zeit und Wandel",
+              "stufen": [
+                "Ordnet Ereignisse in Zeiträume ein und erklärt Veränderungen an Beispielen",
+                "Ordnet Ereignisse auf der Zeitleiste ein und beschreibt Unterschiede früher und heute",
+                "Nennt einzelne Beispiele für Veränderungen",
+                "Ordnet nur mit Hilfe ein",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s34-sachunterricht-7",
+              "name": "Beobachten, Untersuchen und Dokumentieren",
+              "bereich": "Fachliche Arbeitsweisen",
+              "stufen": [
+                "Plant Versuche, beobachtet genau, zieht eigene Schlüsse und dokumentiert übersichtlich",
+                "Arbeitet nach Anleitung sicher und dokumentiert verständlich",
+                "Führt Versuche mit und hält die wichtigsten Ergebnisse fest",
+                "Braucht bei Versuchen und Dokumentation häufig Hilfe",
+                "Beteiligt sich kaum",
+                "Keine Beteiligung"
+              ]
+            }
           ]
         },
         {
-          "id": "deutsch-7",
-          "name": "Heftführung und Sorgfalt",
-          "typ": "stunde",
-          "stufen": [
-            "Heft vollständig, sehr sauber und übersichtlich geführt",
-            "Heft vollständig und sauber geführt",
-            "Heft überwiegend vollständig, teilweise unsauber",
-            "Heft lückenhaft und häufig unordentlich",
-            "Heft sehr unvollständig und unordentlich",
-            "Kein Heft geführt"
+          "id": "sport",
+          "name": "Sport",
+          "hinweis": "Der Bereich Schwimmen wird nur im Schwimmjahr bewertet. Außerunterrichtliche Wettkämpfe zählen nicht zur Sportnote.",
+          "kompetenzen": [
+            {
+              "id": "s34-sport-1",
+              "name": "Wahrnehmung, Koordination und Kondition",
+              "bereich": "Den Körper wahrnehmen und Bewegungsfähigkeiten ausprägen",
+              "stufen": [
+                "Steuert Bewegungen bewusst, setzt Körperspannung gezielt ein und beschreibt Körperreaktionen",
+                "Bewegt sich koordiniert und setzt Spannung und Entspannung zweckmäßig ein",
+                "Führt Übungen zu Koordination und Kondition meist sicher aus",
+                "Führt Übungen unsicher und nur mit Hilfe aus",
+                "Führt Übungen kaum aus",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s34-sport-2",
+              "name": "Spielideen entwickeln und Vereinbarungen einhalten",
+              "bereich": "Das Spielen entdecken und Spielräume nutzen",
+              "stufen": [
+                "Entwickelt eigene Spielideen, überträgt sie auf neue Räume und hält Vereinbarungen ein",
+                "Setzt Spielideen und Regeln zuverlässig um",
+                "Spielt nach Vorgabe mit",
+                "Braucht Erinnerung an Spielidee und Regeln",
+                "Beteiligt sich kaum am Spiel",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s34-sport-3",
+              "name": "Lauf-, Sprung- und Wurftechnik",
+              "bereich": "Laufen, Springen, Werfen – Leichtathletik",
+              "stufen": [
+                "Beherrscht Lauf-, Sprung- und Wurftechnik sicher und benennt die Bewegungsmerkmale",
+                "Führt die Techniken in der Grobform sicher aus",
+                "Führt die Techniken meist richtig aus",
+                "Führt die Techniken unsicher aus",
+                "Führt die Bewegungen kaum aus",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s34-sport-4",
+              "name": "Schwimmen, Tauchen, Baderegeln",
+              "bereich": "Bewegen im Wasser – Schwimmen",
+              "stufen": [
+                "Schwimmt sicher und ausdauernd, taucht und springt regelgerecht",
+                "Schwimmt in der Grobform sicher und hält die Baderegeln ein",
+                "Schwimmt kurze Strecken sicher",
+                "Schwimmt nur mit Hilfsmitteln",
+                "Bewegt sich im Wasser sehr unsicher",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s34-sport-5",
+              "name": "Turnerisches Bewegen, Sichern und Helfen",
+              "bereich": "Bewegen an Geräten – Turnen",
+              "stufen": [
+                "Turnt sicher an Geräten, sichert und hilft und schätzt Wagnisse ein",
+                "Turnt die geübten Elemente sicher",
+                "Turnt die geübten Elemente meist richtig",
+                "Turnt unsicher und nur mit Hilfestellung",
+                "Führt turnerische Bewegungen kaum aus",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s34-sport-6",
+              "name": "Bewegungsgestaltung und Tanz",
+              "bereich": "Gestalten, Tanzen, Darstellen",
+              "stufen": [
+                "Gestaltet und präsentiert eigene Bewegungsfolgen ausdrucksstark und synchron",
+                "Tanzt und gestaltet nach Vorgaben sicher",
+                "Macht Bewegungsfolgen meist richtig mit",
+                "Macht zurückhaltend mit",
+                "Macht kaum mit",
+                "Macht nicht mit"
+              ]
+            },
+            {
+              "id": "s34-sport-7",
+              "name": "Spielfertigkeiten, Taktik und Fairness",
+              "bereich": "Spielen in und mit Regelstrukturen – Sportspiele",
+              "stufen": [
+                "Wendet Technik und Taktik situationsgerecht an und spielt fair in wechselnden Rollen",
+                "Wendet Grundfertigkeiten und einfache Taktik im Spiel an",
+                "Spielt regelgerecht mit, Fertigkeiten noch unsicher",
+                "Braucht Erinnerung an Regeln und Aufgaben im Spiel",
+                "Beteiligt sich kaum am Spiel",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s34-sport-8",
+              "name": "Fahren und Rollen, Sicherheit und Wagnis",
+              "bereich": "Gleiten, Fahren, Rollen",
+              "stufen": [
+                "Bewältigt anspruchsvolle Fahr- und Rollaufgaben sicher und schätzt Wagnisse ein",
+                "Fährt oder rollt sicher und hält Sicherheitsvorgaben ein",
+                "Bewältigt einfache Aufgaben",
+                "Bewegt sich unsicher und braucht Hilfe",
+                "Beteiligt sich kaum",
+                "Keine Beteiligung"
+              ]
+            },
+            {
+              "id": "s34-sport-9",
+              "name": "Kampfformen, Regeln und Achtsamkeit",
+              "bereich": "Ringen und Kämpfen – Zweikampfsport",
+              "stufen": [
+                "Kämpft regelgerecht und achtsam und setzt Technik und Taktik gezielt ein",
+                "Hält die Regeln ein und geht achtsam mit der Partnerin oder dem Partner um",
+                "Macht bei Kampfformen regelgerecht mit",
+                "Braucht Erinnerung an Regeln und Achtsamkeit",
+                "Beteiligt sich kaum",
+                "Hält Regeln nicht ein und gefährdet damit andere"
+              ]
+            }
           ]
         },
         {
-          "id": "deutsch-8",
-          "name": "Fertigstellung und Zeitnutzung",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet konzentriert und wird vollständig fertig",
-            "Wird vollständig fertig",
-            "Wird weitgehend fertig",
-            "Wird nur teilweise fertig",
-            "Wird kaum fertig",
-            "Beginnt nicht mit der Arbeit"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "mathe",
-      "name": "Mathematik",
-      "kriterien": [
-        {
-          "id": "mathe-1",
-          "name": "Rechenfertigkeit",
-          "typ": "stunde",
-          "stufen": [
-            "Rechnet sicher, zügig und fehlerfrei, auch bei schwierigen Aufgaben",
-            "Rechnet sicher, macht wenige Fehler",
-            "Rechnet Grundaufgaben richtig, bei schwierigeren Aufgaben Fehler",
-            "Rechnet einfache Aufgaben nur mit Hilfe, häufige Fehler",
-            "Rechnet auch mit Hilfe kaum richtig",
-            "Löst keine Rechenaufgaben"
-          ]
-        },
-        {
-          "id": "mathe-2",
-          "name": "Sachaufgaben und Problemlösen",
-          "typ": "projekt",
-          "stufen": [
-            "Erfasst Aufgaben selbstständig, findet eigene Lösungswege und prüft das Ergebnis",
-            "Erfasst Aufgaben und löst sie mit passendem Rechenweg",
-            "Löst einfache Sachaufgaben, bei mehrschrittigen unsicher",
-            "Braucht Hilfe beim Verstehen der Aufgabe",
-            "Erfasst die Aufgabenstellung kaum",
-            "Bearbeitet Sachaufgaben nicht"
-          ]
-        },
-        {
-          "id": "mathe-3",
-          "name": "Rechenwege erklären",
-          "typ": "stunde",
-          "stufen": [
-            "Erklärt Rechenwege verständlich, begründet sie und vergleicht verschiedene Wege",
-            "Erklärt den eigenen Rechenweg nachvollziehbar",
-            "Erklärt den Rechenweg in Ansätzen",
-            "Erklärt den Rechenweg nur auf gezielte Nachfrage",
-            "Kann den Rechenweg kaum erklären",
-            "Keine Erklärung"
-          ]
-        },
-        {
-          "id": "mathe-4",
-          "name": "Raum, Form und Größen",
-          "typ": "projekt",
-          "stufen": [
-            "Zeichnet und misst sehr genau und nutzt Fachbegriffe sicher",
-            "Zeichnet und misst genau",
-            "Zeichnet und misst meist richtig",
-            "Unsicher im Umgang mit Lineal, Zirkel und Maßeinheiten",
-            "Kommt kaum zu richtigen Ergebnissen",
-            "Keine Bearbeitung"
-          ]
-        },
-        {
-          "id": "mathe-5",
-          "name": "Mündliche Mitarbeit",
-          "typ": "stunde",
-          "stufen": [
-            "Beteiligt sich sehr häufig mit durchdachten Beiträgen und geht auf andere Rechenwege ein",
-            "Beteiligt sich regelmäßig und sinnvoll",
-            "Beteiligt sich gelegentlich",
-            "Meldet sich selten",
-            "Meldet sich kaum, auch nach Aufforderung",
-            "Keine Beteiligung"
-          ]
-        },
-        {
-          "id": "mathe-6",
-          "name": "Arbeitsbereitschaft und Motivation",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet sehr motiviert und selbstständig und hilft anderen",
-            "Arbeitet motiviert und meist selbstständig",
-            "Arbeitet zuverlässig mit, braucht gelegentlich einen Anstoß",
-            "Arbeitet wenig und braucht häufig Aufforderung",
-            "Arbeitet kaum und ist sehr unmotiviert",
-            "Keine Arbeitsbereitschaft erkennbar"
-          ]
-        },
-        {
-          "id": "mathe-7",
-          "name": "Heftführung und Sorgfalt",
-          "typ": "stunde",
-          "stufen": [
-            "Heft vollständig, sehr sauber geführt, Zahlen und Skizzen sehr genau",
-            "Heft vollständig und sauber geführt",
-            "Heft überwiegend vollständig, teilweise unsauber",
-            "Heft lückenhaft und häufig unordentlich",
-            "Heft sehr unvollständig und unordentlich",
-            "Kein Heft geführt"
-          ]
-        },
-        {
-          "id": "mathe-8",
-          "name": "Fertigstellung und Zeitnutzung",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet konzentriert und wird vollständig fertig",
-            "Wird vollständig fertig",
-            "Wird weitgehend fertig",
-            "Wird nur teilweise fertig",
-            "Wird kaum fertig",
-            "Beginnt nicht mit der Arbeit"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "religion",
-      "name": "Religion",
-      "kriterien": [
-        {
-          "id": "religion-1",
-          "name": "Kenntnisse und Inhalte",
-          "typ": "projekt",
-          "stufen": [
-            "Kennt die Inhalte sehr genau und stellt Zusammenhänge selbstständig her",
-            "Kennt die Inhalte sicher",
-            "Kennt die wichtigsten Inhalte",
-            "Kennt einzelne Inhalte, Zusammenhänge fehlen",
-            "Kaum Kenntnisse vorhanden",
-            "Keine Kenntnisse vorhanden"
-          ]
-        },
-        {
-          "id": "religion-2",
-          "name": "Gespräch über religiöse und ethische Fragen",
-          "typ": "stunde",
-          "stufen": [
-            "Bringt eigene Gedanken ein, begründet die eigene Meinung und geht auf andere ein",
-            "Beteiligt sich regelmäßig mit passenden Beiträgen",
-            "Beteiligt sich gelegentlich",
-            "Meldet sich selten",
-            "Meldet sich kaum, auch nach Aufforderung",
-            "Keine Beteiligung"
-          ]
-        },
-        {
-          "id": "religion-3",
-          "name": "Gestalterische Umsetzung",
-          "typ": "projekt",
-          "stufen": [
-            "Setzt Inhalte kreativ und sorgfältig um, etwa im Bild, im Text oder im Rollenspiel",
-            "Setzt Inhalte passend um",
-            "Setzt Inhalte einfach um",
-            "Setzt Inhalte nur teilweise um",
-            "Kaum eigene Umsetzung erkennbar",
-            "Keine Umsetzung"
-          ]
-        },
-        {
-          "id": "religion-4",
-          "name": "Umgang miteinander",
-          "typ": "stunde",
-          "stufen": [
-            "Hält Gesprächsregeln zuverlässig ein, hört zu und achtet andere Meinungen",
-            "Hält die Regeln ein und hört anderen zu",
-            "Hält die Regeln meist ein",
-            "Unterbricht häufig und hört wenig zu",
-            "Stört das Gespräch regelmäßig",
-            "Nimmt keine Rücksicht auf Regeln und andere"
-          ]
-        },
-        {
-          "id": "religion-5",
-          "name": "Arbeitsbereitschaft und Motivation",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet sehr motiviert und selbstständig und hilft anderen",
-            "Arbeitet motiviert und meist selbstständig",
-            "Arbeitet zuverlässig mit, braucht gelegentlich einen Anstoß",
-            "Arbeitet wenig und braucht häufig Aufforderung",
-            "Arbeitet kaum und ist sehr unmotiviert",
-            "Keine Arbeitsbereitschaft erkennbar"
-          ]
-        },
-        {
-          "id": "religion-6",
-          "name": "Heftführung und Sorgfalt",
-          "typ": "stunde",
-          "stufen": [
-            "Mappe vollständig, sehr sauber und übersichtlich geführt",
-            "Mappe vollständig und sauber geführt",
-            "Mappe überwiegend vollständig, teilweise unsauber",
-            "Mappe lückenhaft und häufig unordentlich",
-            "Mappe sehr unvollständig und unordentlich",
-            "Keine Mappe geführt"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "englisch",
-      "name": "Englisch",
-      "kriterien": [
-        {
-          "id": "englisch-1",
-          "name": "Hörverstehen",
-          "typ": "stunde",
-          "stufen": [
-            "Versteht Aufträge und Geschichten sicher und reagiert passend",
-            "Versteht Aufträge und einfache Texte",
-            "Versteht Bekanntes, braucht bei Neuem Wiederholungen",
-            "Versteht nur mit Gesten und Bildern",
-            "Versteht auch mit Hilfen kaum etwas",
-            "Kein Verständnis erkennbar"
-          ]
-        },
-        {
-          "id": "englisch-2",
-          "name": "Sprechen und Aussprache",
-          "typ": "stunde",
-          "stufen": [
-            "Spricht frei in einfachen Sätzen mit sehr guter Aussprache",
-            "Spricht in einfachen Sätzen mit guter Aussprache",
-            "Antwortet mit einzelnen Sätzen, Aussprache meist richtig",
-            "Antwortet mit einzelnen Wörtern",
-            "Spricht kaum, auch nach Aufforderung",
-            "Spricht nicht"
-          ]
-        },
-        {
-          "id": "englisch-3",
-          "name": "Wortschatz",
-          "typ": "projekt",
-          "stufen": [
-            "Nutzt den Wortschatz sicher und auch in neuen Zusammenhängen",
-            "Nutzt den geübten Wortschatz sicher",
-            "Nutzt den wichtigsten Wortschatz",
-            "Nutzt einzelne Wörter nur mit Hilfe",
-            "Kaum Wortschatz vorhanden",
-            "Kein Wortschatz erkennbar"
-          ]
-        },
-        {
-          "id": "englisch-4",
-          "name": "Lesen und Schreiben",
-          "typ": "projekt",
-          "stufen": [
-            "Liest und schreibt geübte Wörter und Sätze sicher",
-            "Liest und schreibt geübte Wörter richtig",
-            "Liest und schreibt geübte Wörter überwiegend richtig",
-            "Schreibt Wörter nur mit Vorlage",
-            "Schreibt Wörter kaum richtig ab",
-            "Keine Bearbeitung"
-          ]
-        },
-        {
-          "id": "englisch-5",
-          "name": "Mitmachen bei Liedern, Spielen und Rollenspielen",
-          "typ": "stunde",
-          "stufen": [
-            "Macht sehr aktiv mit und übernimmt gern Sprechrollen",
-            "Macht regelmäßig aktiv mit",
-            "Macht meist mit",
-            "Macht zurückhaltend mit",
-            "Macht kaum mit",
-            "Macht nicht mit"
-          ]
-        },
-        {
-          "id": "englisch-6",
-          "name": "Arbeitsbereitschaft und Motivation",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet sehr motiviert und selbstständig und hilft anderen",
-            "Arbeitet motiviert und meist selbstständig",
-            "Arbeitet zuverlässig mit, braucht gelegentlich einen Anstoß",
-            "Arbeitet wenig und braucht häufig Aufforderung",
-            "Arbeitet kaum und ist sehr unmotiviert",
-            "Keine Arbeitsbereitschaft erkennbar"
-          ]
-        },
-        {
-          "id": "englisch-7",
-          "name": "Heftführung und Sorgfalt",
-          "typ": "stunde",
-          "stufen": [
-            "Heft vollständig, sehr sauber und übersichtlich geführt",
-            "Heft vollständig und sauber geführt",
-            "Heft überwiegend vollständig, teilweise unsauber",
-            "Heft lückenhaft und häufig unordentlich",
-            "Heft sehr unvollständig und unordentlich",
-            "Kein Heft geführt"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "sachunterricht",
-      "name": "Sachunterricht",
-      "kriterien": [
-        {
-          "id": "sachunterricht-1",
-          "name": "Fachwissen und Erfüllen der Aufgabenstellung",
-          "typ": "projekt",
-          "stufen": [
-            "Bearbeitet alle Aufgaben vollständig und genau und stellt eigene Zusammenhänge her",
-            "Bearbeitet die wichtigen Aufgaben vollständig",
-            "Bearbeitet die meisten Aufgaben, kleinere Lücken",
-            "Bearbeitet Aufgaben nur teilweise",
-            "Bearbeitet viele Aufgaben nicht",
-            "Bearbeitet die Aufgaben nicht"
-          ]
-        },
-        {
-          "id": "sachunterricht-2",
-          "name": "Beobachten, Untersuchen, Experimentieren",
-          "typ": "stunde",
-          "stufen": [
-            "Beobachtet sehr genau, arbeitet planvoll und zieht eigene Schlüsse",
-            "Beobachtet genau und arbeitet nach Anleitung sicher",
-            "Beobachtet und experimentiert meist richtig",
-            "Braucht bei Versuchen häufig Hilfe",
-            "Beteiligt sich kaum an Versuchen",
-            "Keine Beteiligung"
-          ]
-        },
-        {
-          "id": "sachunterricht-3",
-          "name": "Dokumentation, etwa Heft, Plakat oder Protokoll",
-          "typ": "projekt",
-          "stufen": [
-            "Dokumentiert vollständig, übersichtlich und mit Fachbegriffen",
-            "Dokumentiert vollständig und verständlich",
-            "Dokumentiert die wichtigsten Ergebnisse",
-            "Dokumentiert lückenhaft",
-            "Dokumentiert kaum",
-            "Keine Dokumentation"
-          ]
-        },
-        {
-          "id": "sachunterricht-4",
-          "name": "Mündliche Mitarbeit",
-          "typ": "stunde",
-          "stufen": [
-            "Beteiligt sich sehr häufig mit durchdachten Beiträgen und stellt eigene Fragen",
-            "Beteiligt sich regelmäßig und sinnvoll",
-            "Beteiligt sich gelegentlich",
-            "Meldet sich selten",
-            "Meldet sich kaum, auch nach Aufforderung",
-            "Keine Beteiligung"
-          ]
-        },
-        {
-          "id": "sachunterricht-5",
-          "name": "Zusammenarbeit in der Gruppe",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet sehr gut mit, übernimmt Verantwortung und bezieht andere ein",
-            "Arbeitet gut mit anderen zusammen",
-            "Arbeitet meist gut mit",
-            "Arbeitet nur mit einzelnen Kindern zusammen",
-            "Arbeitet kaum mit anderen zusammen",
-            "Keine Zusammenarbeit"
-          ]
-        },
-        {
-          "id": "sachunterricht-6",
-          "name": "Arbeitsbereitschaft und Motivation",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet sehr motiviert und selbstständig und hilft anderen",
-            "Arbeitet motiviert und meist selbstständig",
-            "Arbeitet zuverlässig mit, braucht gelegentlich einen Anstoß",
-            "Arbeitet wenig und braucht häufig Aufforderung",
-            "Arbeitet kaum und ist sehr unmotiviert",
-            "Keine Arbeitsbereitschaft erkennbar"
-          ]
-        },
-        {
-          "id": "sachunterricht-7",
-          "name": "Ordnung und Sorgfalt",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet sehr sorgfältig, Material und Arbeitsplatz sind immer in Ordnung",
-            "Arbeitet sorgfältig, Arbeitsplatz ist in Ordnung",
-            "Arbeitet meist sorgfältig, Arbeitsplatz etwas unordentlich",
-            "Arbeitet häufig unsorgfältig, Arbeitsplatz unordentlich",
-            "Arbeitet sehr unsorgfältig, räumt nicht auf",
-            "Kein sorgfältiges Arbeiten erkennbar, räumt nicht auf"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "sport",
-      "name": "Sport",
-      "kriterien": [
-        {
-          "id": "sport-1",
-          "name": "Bewegungsausführung und Technik",
-          "typ": "projekt",
-          "stufen": [
-            "Führt Bewegungen sehr sicher, kontrolliert und sauber aus",
-            "Führt Bewegungen sicher aus",
-            "Führt Bewegungen meist richtig aus",
-            "Führt Bewegungen unsicher aus",
-            "Führt Bewegungen kaum aus",
-            "Keine Bewegungsausführung erkennbar"
-          ]
-        },
-        {
-          "id": "sport-2",
-          "name": "Anstrengungsbereitschaft und Ausdauer",
-          "typ": "stunde",
-          "stufen": [
-            "Strengt sich immer an und hält auch bei Anstrengung durch",
-            "Strengt sich an und hält meist durch",
-            "Strengt sich meist an, lässt zwischendurch nach",
-            "Strengt sich wenig an und gibt schnell auf",
-            "Strengt sich kaum an",
-            "Verweigert die Mitarbeit"
-          ]
-        },
-        {
-          "id": "sport-3",
-          "name": "Regeln und Fairness",
-          "typ": "stunde",
-          "stufen": [
-            "Hält Regeln zuverlässig ein, verhält sich fair und akzeptiert Entscheidungen",
-            "Hält Regeln ein und spielt fair",
-            "Hält Regeln meist ein",
-            "Hält Regeln nur nach Ermahnung ein",
-            "Verstößt häufig gegen Regeln",
-            "Hält Regeln nicht ein und gefährdet damit andere"
-          ]
-        },
-        {
-          "id": "sport-4",
-          "name": "Zusammenarbeit im Team",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet mit allen sehr gut zusammen und unterstützt schwächere Kinder",
-            "Arbeitet gut mit anderen zusammen",
-            "Arbeitet meist gut mit",
-            "Arbeitet nur mit einzelnen Kindern zusammen",
-            "Arbeitet kaum mit anderen zusammen",
-            "Keine Zusammenarbeit"
-          ]
-        },
-        {
-          "id": "sport-5",
-          "name": "Umgang mit Geräten und Sicherheit",
-          "typ": "stunde",
-          "stufen": [
-            "Baut selbstständig sicher auf und ab und achtet auf sich und andere",
-            "Hilft beim Auf- und Abbau und geht sicher mit Geräten um",
-            "Hilft nach Aufforderung mit",
-            "Hilft selten, muss an Sicherheitsregeln erinnert werden",
-            "Beteiligt sich kaum und missachtet Sicherheitsregeln",
-            "Gefährdet sich oder andere"
-          ]
-        },
-        {
-          "id": "sport-6",
-          "name": "Selbstständigkeit und Sportzeug",
-          "typ": "stunde",
-          "stufen": [
-            "Hat immer Sportzeug dabei und zieht sich schnell und selbstständig um",
-            "Hat Sportzeug dabei und zieht sich selbstständig um",
-            "Vergisst das Sportzeug selten, braucht beim Umziehen etwas länger",
-            "Vergisst das Sportzeug häufiger und braucht beim Umziehen lange",
-            "Vergisst das Sportzeug regelmäßig",
-            "Nimmt wegen fehlendem Sportzeug fast nie teil"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "musik",
-      "name": "Musik",
-      "kriterien": [
-        {
-          "id": "musik-1",
-          "name": "Singen",
-          "typ": "stunde",
-          "stufen": [
-            "Singt sicher, in richtiger Tonhöhe und mit gutem Ausdruck",
-            "Singt sicher mit",
-            "Singt meist mit, Melodie überwiegend richtig",
-            "Singt leise und unsicher mit",
-            "Singt kaum mit",
-            "Singt nicht mit"
-          ]
-        },
-        {
-          "id": "musik-2",
-          "name": "Musizieren und Rhythmus",
-          "typ": "stunde",
-          "stufen": [
-            "Hält den Rhythmus sicher und spielt Instrumente sehr sicher",
-            "Hält den Rhythmus und spielt sicher",
-            "Hält den Rhythmus meist",
-            "Unsicher im Rhythmus und im Umgang mit Instrumenten",
-            "Kaum rhythmisches Spiel erkennbar",
-            "Keine Beteiligung am Musizieren"
-          ]
-        },
-        {
-          "id": "musik-3",
-          "name": "Musik hören und beschreiben",
-          "typ": "stunde",
-          "stufen": [
-            "Beschreibt Musik genau mit Fachbegriffen und begründet den eigenen Eindruck",
-            "Beschreibt Musik passend",
-            "Beschreibt Musik in einfachen Worten",
-            "Beschreibt Musik nur auf Nachfrage",
-            "Bringt kaum Beiträge ein",
-            "Keine Beiträge"
-          ]
-        },
-        {
-          "id": "musik-4",
-          "name": "Bewegung zur Musik",
-          "typ": "stunde",
-          "stufen": [
-            "Setzt Musik sehr sicher und mit eigenen Ideen in Bewegung um",
-            "Setzt Musik passend in Bewegung um",
-            "Macht die Bewegungen meist richtig mit",
-            "Macht zurückhaltend mit",
-            "Macht kaum mit",
-            "Macht nicht mit"
-          ]
-        },
-        {
-          "id": "musik-5",
-          "name": "Notenkenntnisse und Fachbegriffe",
-          "typ": "projekt",
-          "stufen": [
-            "Kennt Noten und Fachbegriffe sicher und wendet sie selbstständig an",
-            "Kennt Noten und Fachbegriffe",
-            "Kennt die wichtigsten Begriffe",
-            "Kennt nur einzelne Begriffe",
-            "Kaum Kenntnisse vorhanden",
-            "Keine Kenntnisse vorhanden"
-          ]
-        },
-        {
-          "id": "musik-6",
-          "name": "Arbeitsbereitschaft und Motivation",
-          "typ": "stunde",
-          "stufen": [
-            "Arbeitet sehr motiviert und selbstständig und hilft anderen",
-            "Arbeitet motiviert und meist selbstständig",
-            "Arbeitet zuverlässig mit, braucht gelegentlich einen Anstoß",
-            "Arbeitet wenig und braucht häufig Aufforderung",
-            "Arbeitet kaum und ist sehr unmotiviert",
-            "Keine Arbeitsbereitschaft erkennbar"
-          ]
-        },
-        {
-          "id": "musik-7",
-          "name": "Umgang mit Instrumenten und Material",
-          "typ": "stunde",
-          "stufen": [
-            "Geht mit Instrumenten sehr sorgfältig um und räumt selbstständig auf",
-            "Geht sorgfältig mit Instrumenten um und räumt auf",
-            "Geht meist sorgfältig um, räumt nach Aufforderung auf",
-            "Geht häufig unachtsam mit Instrumenten um",
-            "Geht sehr unachtsam um und räumt nicht auf",
-            "Beschädigt Material oder verweigert den Umgang damit"
+          "id": "religion",
+          "name": "Religion",
+          "hinweis": "Die Bereiche sind in den Lehrplänen für Katholische und Evangelische Religionslehre gleich benannt. Konfessionsspezifisch sind die Inhalte, etwa die Sakramente oder Martin Luther und die Reformation. Persönliche Glaubensüberzeugungen und religiöse Praxis sind nicht Gegenstand der Bewertung.",
+          "kompetenzen": [
+            {
+              "id": "s34-religion-1",
+              "name": "Schöpfung und Zusammenleben",
+              "bereich": "Miteinander leben in Gottes Schöpfung",
+              "stufen": [
+                "Erläutert die Einmaligkeit jedes Menschen und leitet aus biblischen Weisungen eigenes Handeln ab",
+                "Beschreibt Schöpfung und Zusammenleben sicher und stellt Bezüge zum eigenen Leben her",
+                "Gibt die wichtigsten Inhalte wieder",
+                "Gibt Inhalte nur mit Hilfe wieder",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s34-religion-2",
+              "name": "Reden von und mit Gott",
+              "bereich": "Die Frage nach Gott",
+              "stufen": [
+                "Deutet biblische Bilder und Sprechweisen von Gott und begründet eigene Vorstellungen",
+                "Beschreibt biblische Gottesbilder und Ausdrucksformen des Glaubens",
+                "Nennt die wichtigsten Bilder und Gebete",
+                "Nennt Inhalte nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s34-religion-3",
+              "name": "Leben, Botschaft und Nachfolge",
+              "bereich": "Jesus Christus",
+              "stufen": [
+                "Deutet Erzählungen von Leben, Tod und Auferstehung Jesu und stellt Bezüge zum eigenen Leben her",
+                "Gibt zentrale Erzählungen wieder und erklärt ihre Bedeutung",
+                "Gibt die wichtigsten Erzählungen wieder",
+                "Gibt Erzählungen nur mit Hilfe wieder",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s34-religion-4",
+              "name": "Kirchenraum, Feste und Gemeindeleben",
+              "bereich": "Kirche und Gemeinde",
+              "stufen": [
+                "Erläutert Kirchenraum, Feste und Gemeindeleben und vergleicht die Konfessionen begründet",
+                "Beschreibt Kirchenraum, Feste und Gemeindeleben sicher",
+                "Nennt die wichtigsten Merkmale und Feste",
+                "Nennt Einzelheiten nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s34-religion-5",
+              "name": "Aufbau, Texte und Bedeutung",
+              "bereich": "Die Bibel",
+              "stufen": [
+                "Erläutert Aufbau und Entstehung der Bibel und deutet Texte begründet",
+                "Unterscheidet Altes und Neues Testament und findet Textstellen",
+                "Nennt die wichtigsten Angaben zur Bibel",
+                "Nennt Angaben nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s34-religion-6",
+              "name": "Religionen vergleichen, Menschenwürde",
+              "bereich": "Religionen und Weltanschauungen",
+              "stufen": [
+                "Vergleicht religiöse Ausdrucksformen begründet und nimmt zu Vorurteilen Stellung",
+                "Beschreibt Gemeinsamkeiten und Unterschiede von Judentum, Christentum und Islam",
+                "Nennt einzelne Beispiele",
+                "Nennt Beispiele nur mit Hilfe",
+                "Kaum Kenntnisse vorhanden",
+                "Keine Kenntnisse vorhanden"
+              ]
+            },
+            {
+              "id": "s34-religion-7",
+              "name": "Gespräch über religiöse und ethische Fragen",
+              "bereich": "Fachliche Mitarbeit",
+              "stufen": [
+                "Bringt eigene Gedanken ein, begründet die eigene Meinung und geht auf andere ein",
+                "Beteiligt sich regelmäßig mit passenden Beiträgen",
+                "Beteiligt sich gelegentlich",
+                "Meldet sich selten",
+                "Meldet sich kaum, auch nach Aufforderung",
+                "Keine Beteiligung"
+              ]
+            }
           ]
         }
       ]
     }
-  ]
+  },
+  "arbeits_und_sozialverhalten": {
+    "name": "Arbeits- und Sozialverhalten",
+    "hinweis": "Nicht Teil der Fachnote. Arbeits- und Sozialverhalten werden nach APO-GS getrennt dokumentiert, etwa unter Bemerkungen im Zeugnis.",
+    "gilt_fuer": [
+      "1-2",
+      "3-4"
+    ],
+    "kriterien": [
+      {
+        "id": "aus-1",
+        "name": "Arbeitsbereitschaft und Motivation",
+        "bereich": "Arbeitsverhalten",
+        "stufen": [
+          "Arbeitet sehr motiviert und selbstständig und hilft anderen",
+          "Arbeitet motiviert und meist selbstständig",
+          "Arbeitet zuverlässig mit, braucht gelegentlich einen Anstoß",
+          "Arbeitet wenig und braucht häufig Aufforderung",
+          "Arbeitet kaum und ist sehr unmotiviert",
+          "Keine Arbeitsbereitschaft erkennbar"
+        ]
+      },
+      {
+        "id": "aus-2",
+        "name": "Selbstständigkeit und Zeitnutzung",
+        "bereich": "Arbeitsverhalten",
+        "stufen": [
+          "Arbeitet konzentriert, teilt sich die Zeit selbst ein und wird vollständig fertig",
+          "Arbeitet konzentriert und wird fertig",
+          "Wird weitgehend fertig",
+          "Wird nur teilweise fertig, arbeitet langsam",
+          "Wird kaum fertig",
+          "Beginnt nicht mit der Arbeit"
+        ]
+      },
+      {
+        "id": "aus-3",
+        "name": "Zusammenarbeit und Umgang miteinander",
+        "bereich": "Sozialverhalten",
+        "stufen": [
+          "Arbeitet sehr gut mit allen zusammen, übernimmt Verantwortung und bezieht andere ein",
+          "Arbeitet gut mit anderen zusammen und hält Regeln ein",
+          "Arbeitet meist gut mit",
+          "Arbeitet nur mit einzelnen Kindern zusammen",
+          "Arbeitet kaum mit anderen zusammen",
+          "Keine Zusammenarbeit"
+        ]
+      },
+      {
+        "id": "aus-4",
+        "name": "Sorgfalt, Material und Arbeitsplatz",
+        "bereich": "Arbeitsverhalten",
+        "stufen": [
+          "Arbeitet sehr sorgfältig, Material und Arbeitsplatz sind immer in Ordnung",
+          "Arbeitet sorgfältig, Arbeitsplatz ist in Ordnung",
+          "Arbeitet meist sorgfältig, Arbeitsplatz etwas unordentlich",
+          "Arbeitet häufig unsorgfältig, Arbeitsplatz unordentlich",
+          "Arbeitet sehr unsorgfältig und räumt nicht auf",
+          "Kein sorgfältiges Arbeiten erkennbar, räumt nicht auf"
+        ]
+      }
+    ]
+  }
 };

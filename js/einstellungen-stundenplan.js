@@ -128,7 +128,8 @@ NB.EinstellungenStundenplan = (function () {
       gefaehrlich: true
     });
     if (!ok) return;
-    SP.speichern(SP.eintraege().filter(x => x.id !== e.id));
+    const klasse = M.klasse(e.klasseId);
+    if (klasse) SP.eintragEntfernen(klasse, e.id);
     neuZeichnen();
   }
 
@@ -243,58 +244,68 @@ NB.EinstellungenStundenplan = (function () {
   /* Ausfalltermine: ganzer Tag oder eine einzelne Stunde */
   function ausfallText(a) {
     if (!a.stunde) return 'Ganzer Tag';
-    return a.stunde + '. Stunde' + (a.klasseId ? ' · ' + klassenName(a.klasseId) : '') + (a.fachId ? ' · ' + fachName(a.fachId) : '');
+    return a.stunde + '. Stunde';
+  }
+
+  function klassenAuswahl(label) {
+    const feld = H.el('select', { 'aria-label': label });
+    M.klassen().forEach(k => feld.appendChild(H.el('option', { value: k.id, text: k.name })));
+    return feld;
   }
 
   function ausfallRendern(inhalt) {
-    const sj = SP.schuljahr();
-    const zeilen = sj.ausnahmen.slice().sort((a, b) => (a.datum < b.datum ? -1 : 1)).map(a => eintrag(
-      H.datumMitWochentag(a.datum), ausfallText(a) + (a.grund ? ' · ' + a.grund : ''), null,
-      function () { const s = SP.schuljahr(); s.ausnahmen = s.ausnahmen.filter(x => x.id !== a.id); SP.schuljahrSpeichern(s); neuZeichnen(); }
+    const klassen = M.klassen();
+    const alle = [];
+    klassen.forEach(k => (k.ausnahmen || []).forEach(a => alle.push({ klasse: k, a: a })));
+    const zeilen = alle.sort((x, y) => (x.a.datum < y.a.datum ? -1 : 1)).map(x => eintrag(
+      H.datumMitWochentag(x.a.datum) + ' · ' + x.klasse.name, ausfallText(x.a) + (x.a.grund ? ' · ' + x.a.grund : ''), null,
+      function () { x.klasse.ausnahmen = (x.klasse.ausnahmen || []).filter(y => y.id !== x.a.id); M.klasseSpeichern(x.klasse); neuZeichnen(); }
     ));
-    const neu = { datum: null, wahl: 'tag' };
+    const neu = { datum: null };
+    const klasseFeld = klassenAuswahl('Klasse');
     const umfang = H.el('select', { 'aria-label': 'Was fällt aus', hidden: true });
-    function umfangFuellen(iso) {
+    function umfangFuellen() {
       H.leeren(umfang);
       umfang.appendChild(H.el('option', { value: 'tag', text: 'Ganzer Tag' }));
-      SP.stundenAmTag(iso).forEach(function (s) {
-        umfang.appendChild(H.el('option', { value: s.stunde + '|' + s.klasseId + '|' + s.fachId, text: s.stunde + '. Stunde · ' + klassenName(s.klasseId) + ' · ' + fachName(s.fachId) }));
+      const k = M.klasse(klasseFeld.value);
+      if (k && neu.datum) SP.klassenStundenAmTag(k, neu.datum).forEach(function (s) {
+        umfang.appendChild(H.el('option', { value: String(s.stunde), text: s.stunde + '. Stunde · ' + (s.art === 'fremd' ? (s.bezeichnung || 'fremde Stunde') : fachName(s.fachId)) }));
       });
-      umfang.hidden = false;
+      umfang.hidden = !neu.datum;
     }
-    const datum = datumKnopf(null, 'Datum wählen', iso => { neu.datum = iso; umfangFuellen(iso); }, 'Ausfalltermin');
+    klasseFeld.addEventListener('change', umfangFuellen);
+    const datum = datumKnopf(null, 'Datum wählen', iso => { neu.datum = iso; umfangFuellen(); }, 'Ausfalltermin');
     const grundFeld = H.el('input', { type: 'text', placeholder: 'Grund (optional), zum Beispiel Wandertag', autocomplete: 'off', 'aria-label': 'Grund' });
     const fehler = H.el('p', { class: 'fehler', hidden: true });
     const hinzu = H.el('button', { type: 'button', class: 'knopf primaer', text: 'Ausfall hinzufügen', onclick: function () {
+      const k = M.klasse(klasseFeld.value);
+      if (!k) { fehler.textContent = 'Bitte eine Klasse wählen.'; fehler.hidden = false; return; }
       if (!neu.datum) { fehler.textContent = 'Bitte ein Datum wählen.'; fehler.hidden = false; return; }
-      const s = SP.schuljahr();
-      const a = { id: H.neueId(), datum: neu.datum, grund: grundFeld.value.trim() };
-      if (umfang.value && umfang.value !== 'tag') {
-        const t = umfang.value.split('|');
-        a.stunde = Number(t[0]); a.klasseId = t[1]; a.fachId = t[2];
-      }
-      s.ausnahmen.push(a);
-      SP.schuljahrSpeichern(s);
+      const a = { id: H.neueId(), datum: neu.datum, stunde: (umfang.value && umfang.value !== 'tag') ? Number(umfang.value) : null, grund: grundFeld.value.trim() };
+      if (!Array.isArray(k.ausnahmen)) k.ausnahmen = [];
+      k.ausnahmen.push(a);
+      M.klasseSpeichern(k);
       neuZeichnen();
     } });
     zeilen.push(H.el('div', { class: 'einst-zeile einst-zeile-feld einst-formular' }, [
       H.el('div', { class: 'einst-text' }, [
         H.el('div', { class: 'einst-label', text: 'Ausfall hinzufügen' }),
-        H.el('div', { class: 'einst-beschreibung text-klein text-schwach', text: 'Ein ganzer Tag (etwa Wandertag, Konferenz) oder eine einzelne Stunde dieses Tages.' })
+        H.el('div', { class: 'einst-beschreibung text-klein text-schwach', text: 'Je Klasse: ein ganzer Tag (etwa Wandertag) oder eine einzelne Stunde dieses Tages.' })
       ]),
-      H.el('div', { class: 'einst-steuerung einst-formular-felder' }, [datum, umfang, grundFeld, fehler, hinzu])
+      H.el('div', { class: 'einst-steuerung einst-formular-felder' }, [klasseFeld, datum, umfang, grundFeld, fehler, hinzu])
     ]));
     inhalt.appendChild(gruppe('Ausfalltermine', zeilen));
   }
 
   /* Zusatztermine */
   function zusatzRendern(inhalt) {
-    const sj = SP.schuljahr();
-    const zeilen = sj.zusatz.slice().sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : a.stunde - b.stunde)).map(z => eintrag(
-      H.datumMitWochentag(z.datum) + ' · ' + z.stunde + '. Stunde',
-      klassenName(z.klasseId) + ' · ' + fachName(z.fachId) + (z.raum ? ' · ' + SP.raumText(z.raum) : ''),
-      () => N.bildschirmOeffnen('einstellungen-stunde', { zusatzId: z.id }),
-      function () { const s = SP.schuljahr(); s.zusatz = s.zusatz.filter(x => x.id !== z.id); SP.schuljahrSpeichern(s); neuZeichnen(); }
+    const alle = [];
+    M.klassen().forEach(k => (k.zusatz || []).forEach(z => alle.push({ klasse: k, z: z })));
+    const zeilen = alle.sort((x, y) => (x.z.datum < y.z.datum ? -1 : x.z.datum > y.z.datum ? 1 : x.z.stunde - y.z.stunde)).map(x => eintrag(
+      H.datumMitWochentag(x.z.datum) + ' · ' + x.z.stunde + '. Stunde',
+      x.klasse.name + ' · ' + fachName(x.z.fachId) + (x.z.raum ? ' · ' + SP.raumText(x.z.raum) : ''),
+      () => N.bildschirmOeffnen('einstellungen-stunde', { zusatzId: x.z.id, klasseId: x.klasse.id }),
+      function () { x.klasse.zusatz = (x.klasse.zusatz || []).filter(y => y.id !== x.z.id); M.klasseSpeichern(x.klasse); neuZeichnen(); }
     ));
     zeilen.push(H.el('div', { class: 'einst-eintrag' }, H.el('button', {
       type: 'button', class: 'einst-eintrag-text einst-hinzu', text: '+ Zusatztermin',
@@ -312,11 +323,23 @@ NB.EinstellungenStundenplan = (function () {
     const istZusatz = !!(stundeParameter.zusatz || stundeParameter.zusatzId);
     const sj = SP.schuljahr();
     let vorlage = null;
-    if (stundeParameter.id) vorlage = SP.eintraege().find(e => e.id === stundeParameter.id) || null;
-    if (stundeParameter.zusatzId) vorlage = sj.zusatz.find(z => z.id === stundeParameter.zusatzId) || null;
+    let vorlageKlasse = null;
+    if (stundeParameter.id) {
+      M.klassen().forEach(function (k) {
+        const e = SP.klassenplan(k).find(x => x.id === stundeParameter.id);
+        if (e) { vorlage = Object.assign({}, e, { klasseId: k.id }); vorlageKlasse = k; }
+      });
+    }
+    if (stundeParameter.zusatzId) {
+      const k = M.klasse(stundeParameter.klasseId);
+      const z = k ? (k.zusatz || []).find(x => x.id === stundeParameter.zusatzId) : null;
+      if (z) { vorlage = Object.assign({}, z, { klasseId: k.id }); vorlageKlasse = k; }
+    }
 
     const klassen = M.klassen();
-    const faecher = M.faecher();
+    const startKlasse = M.klasse((vorlage && vorlage.klasseId) || stundeParameter.klasseId) || klassen[0] || null;
+    let faecher = startKlasse ? M.klassenFaecher(startKlasse) : M.faecher();
+    if (!faecher.length) faecher = M.faecher();
     const werte = {
       wochentag: vorlage && vorlage.wochentag ? Number(vorlage.wochentag) : (stundeParameter.wochentag || 1),
       datum: vorlage && vorlage.datum ? vorlage.datum : (stundeParameter.datum || null),
@@ -392,35 +415,36 @@ NB.EinstellungenStundenplan = (function () {
       fehler.hidden = true;
       if (!werte.klasseId || !werte.fachId) { fehler.textContent = 'Bitte Klasse und Fach wählen.'; fehler.hidden = false; return; }
       if (istZusatz && !werte.datum) { fehler.textContent = 'Bitte ein Datum wählen.'; fehler.hidden = false; return; }
+      const zielKlasse = M.klasse(werte.klasseId);
+      if (!zielKlasse) { fehler.textContent = 'Bitte eine Klasse wählen.'; fehler.hidden = false; return; }
       if (istZusatz) {
-        const s = SP.schuljahr();
-        if (vorlage) {
-          Object.assign(vorlage, { datum: werte.datum, stunde: werte.stunde, klasseId: werte.klasseId, fachId: werte.fachId, raum: werte.raum.trim() });
-        } else {
-          s.zusatz.push({ id: H.neueId(), datum: werte.datum, stunde: werte.stunde, klasseId: werte.klasseId, fachId: werte.fachId, raum: werte.raum.trim() });
+        if (vorlageKlasse && vorlageKlasse.id !== zielKlasse.id) {
+          vorlageKlasse.zusatz = (vorlageKlasse.zusatz || []).filter(x => x.id !== vorlage.id);
+          M.klasseSpeichern(vorlageKlasse);
         }
-        SP.schuljahrSpeichern(s);
+        if (!Array.isArray(zielKlasse.zusatz)) zielKlasse.zusatz = [];
+        const neu = { id: vorlage ? vorlage.id : H.neueId(), datum: werte.datum, stunde: werte.stunde, fachId: werte.fachId, raum: werte.raum.trim() };
+        const i = zielKlasse.zusatz.findIndex(x => x.id === neu.id);
+        if (i >= 0) zielKlasse.zusatz[i] = neu; else zielKlasse.zusatz.push(neu);
+        M.klasseSpeichern(zielKlasse);
       } else {
-        const liste = SP.eintraege();
         // Gleiche Klasse, gleicher Tag, gleiche Stunde: Konflikt, wenn sich die Turnusse überschneiden
-        const doppelt = liste.find(function (e) {
+        const doppelt = SP.klassenplan(zielKlasse).find(function (e) {
           if (e.id === (vorlage && vorlage.id)) return false;
-          if (Number(e.wochentag) !== werte.wochentag || Number(e.stunde) !== werte.stunde || e.klasseId !== werte.klasseId) return false;
+          if (Number(e.wochentag) !== werte.wochentag || Number(e.stunde) !== werte.stunde) return false;
           const t = e.turnus || 'jede';
           return t === werte.turnus || t === 'jede' || werte.turnus === 'jede';
         });
         if (doppelt) {
-          fehler.textContent = 'Für diese Klasse gibt es am ' + H.WOCHENTAGE[werte.wochentag - 1] + ' in der ' + werte.stunde + '. Stunde bereits einen Eintrag (' + fachName(doppelt.fachId) + (doppelt.turnus && doppelt.turnus !== 'jede' ? ', ' + SP.turnusText(doppelt.turnus) : '') + ').';
+          fehler.textContent = 'Für diese Klasse gibt es am ' + H.WOCHENTAGE[werte.wochentag - 1] + ' in der ' + werte.stunde + '. Stunde bereits einen Eintrag (' + (doppelt.art === 'fremd' ? (doppelt.bezeichnung || 'fremde Stunde') : fachName(doppelt.fachId)) + (doppelt.turnus && doppelt.turnus !== 'jede' ? ', ' + SP.turnusText(doppelt.turnus) : '') + ').';
           fehler.hidden = false;
           return;
         }
-        if (vorlage) {
-          Object.assign(vorlage, { wochentag: werte.wochentag, stunde: werte.stunde, klasseId: werte.klasseId, fachId: werte.fachId, raum: werte.raum.trim(), turnus: werte.turnus });
-          delete vorlage.beispiel;
-        } else {
-          liste.push({ id: H.neueId(), wochentag: werte.wochentag, stunde: werte.stunde, klasseId: werte.klasseId, fachId: werte.fachId, raum: werte.raum.trim(), turnus: werte.turnus });
-        }
-        SP.speichern(liste);
+        if (vorlageKlasse && vorlageKlasse.id !== zielKlasse.id) SP.eintragEntfernen(vorlageKlasse, vorlage.id);
+        const eintrag = { id: vorlage ? vorlage.id : H.neueId(), art: 'eigene', wochentag: werte.wochentag, stunde: werte.stunde, fachId: werte.fachId, raum: werte.raum.trim(), turnus: werte.turnus };
+        const konflikte = SP.ueberschneidungen(zielKlasse, eintrag).filter(k => k.id !== eintrag.id);
+        SP.eintragSpeichern(zielKlasse, eintrag);
+        if (konflikte.length) NB.App.meldung('Hinweis: Zur selben Zeit steht bereits ' + konflikte.map(k => k.klasseName + ' · ' + fachName(k.fachId)).join(', ') + ' in deinem Plan.');
       }
       N.zurueck();
     }

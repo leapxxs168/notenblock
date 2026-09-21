@@ -25,7 +25,8 @@ NB.Dialog = (function () {
 
   /**
    * Generisches Overlay.
-   * optionen: { klasse, beiSchliessen(ergebnis), beiTaste(ereignis), fokus (Selektor), unten (Blatt am unteren Rand) }
+   * optionen: { klasse, beiSchliessen(ergebnis), beiTaste(ereignis), fokus (Selektor), unten (Blatt am unteren Rand),
+   *             pflicht (kein Schließen über Hintergrund oder Escape) }
    */
   Dg.overlayOeffnen = function (inhalt, optionen) {
     optionen = optionen || {};
@@ -56,14 +57,14 @@ NB.Dialog = (function () {
       if (stapel[stapel.length - 1] !== eintrag) return;
       if (ereignis.key === 'Escape') {
         ereignis.preventDefault();
-        schliessen(null);
+        if (!optionen.pflicht) schliessen(null);
       } else if (optionen.beiTaste) {
         optionen.beiTaste(ereignis);
       }
     }
 
     overlay.addEventListener('click', function (ereignis) {
-      if (ereignis.target === overlay) schliessen(null);
+      if (ereignis.target === overlay && !optionen.pflicht) schliessen(null);
     });
     document.addEventListener('keydown', tastatur, true);
     stapel.push(eintrag);

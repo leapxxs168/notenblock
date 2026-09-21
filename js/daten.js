@@ -176,6 +176,7 @@ NB.Daten = (function () {
       geaendert = true;
     }
     Object.keys(standard).forEach(function (name) {
+      if (name === 'datenmodell') return;   // kennzeichnet den Aufbau des Bestands; setzt nur die Umstellung
       if (e[name] === undefined) { e[name] = standard[name]; geaendert = true; }
     });
     if (geaendert) D.setzen('einstellungen', '', e);

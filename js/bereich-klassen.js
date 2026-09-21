@@ -223,7 +223,9 @@ NB.BereichKlassen = (function () {
         klasse.letztesSchuljahr = schuljahrFeld.value.trim();
         D.setzen('klasse', klasse.id, klasse);
       } else {
-        const neu = { id: H.neueId(), name: name, kinder: abgleich.kinder, letztesSchuljahr: schuljahrFeld.value.trim() };
+        const neu = NB.Startdaten.leereKlasse(name);
+        neu.kinder = abgleich.kinder;
+        neu.letztesSchuljahr = schuljahrFeld.value.trim();
         D.setzen('klasse', neu.id, neu);
       }
       NB.App.meldung('Liste gespeichert.');

@@ -269,7 +269,7 @@ NB.Export = (function () {
   };
 
   X.csvNotenText = function () {
-    const zeilen = [csvZeile(['Klasse', 'Fach', 'Datum', 'Kind', 'Kürzel', 'Fehlt', 'Kriterium', 'Note', 'Notiz zur Stunde'])];
+    const zeilen = [csvZeile(['Klasse', 'Fach', 'Datum', 'Einheit', 'Kind', 'Kürzel', 'Fehlt', 'Kriterium', 'Wert', 'Art', 'Notiz zur Stunde'])];
     const faecher = M.faecher();
     M.klassen().forEach(function (klasse) {
       const kinder = M.kinderSortiert(klasse);
@@ -282,12 +282,14 @@ NB.Export = (function () {
           const noten = e.noten || {};
           const kritIds = Object.keys(noten);
           if (e.fehlt || !kritIds.length) {
-            if (e.fehlt || (e.notiz && e.notiz.trim())) zeilen.push(csvZeile([klasse.name, fachName, H.datumKurz(b.datum), kind.name || '', kind.kuerzel || '', e.fehlt ? 'ja' : '', '', '', e.notiz || '']));
+            if (e.fehlt || (e.notiz && e.notiz.trim())) zeilen.push(csvZeile([klasse.name, fachName, H.datumKurz(b.datum), M.einheitText(b), kind.name || '', kind.kuerzel || '', e.fehlt ? 'ja' : '', '', '', '', e.notiz || '']));
             return;
           }
           kritIds.forEach(function (kritId) {
-            const krit = fach && (fach.kriterien || []).find(k => k.id === kritId);
-            zeilen.push(csvZeile([klasse.name, fachName, H.datumKurz(b.datum), kind.name || '', kind.kuerzel || '', '', krit ? krit.name : kritId, noten[kritId], e.notiz || '']));
+            const n = M.notenWert(e, kritId);
+            if (!n) return;
+            const krit = M.kriterium(kritId, fach);
+            zeilen.push(csvZeile([klasse.name, fachName, H.datumKurz(b.datum), M.einheitText(b), kind.name || '', kind.kuerzel || '', '', krit ? krit.name : kritId, n.wert, n.art === 'uebernommen' ? 'übernommen' : 'gesetzt', e.notiz || '']));
           });
         });
       });

@@ -1,21 +1,29 @@
 /*
  * Notenblock – Bewertungsbildschirm
  *
- * Aufbau (von oben): Kopfzeile mit Klasse (links, antippbar) und Datum (rechts,
- * antippbar) · Name des Kindes mit Pfeilen und Position · Fächerleiste ·
- * Umschaltung Stunde/Projekt/Alle · Bewertungsmatrix (Kriterium, Skala 1–6,
- * Beschreibungstext) · Fußleiste mit Fortschritt, „Fehlt“ und „Weiter“.
+ * Aufbau (von oben): Kopfzeile mit Klasse (links, antippbar), Datum und
+ * Einheit (rechts, antippbar) · Name des Kindes mit Pfeilen und Position ·
+ * Fächerleiste der Klasse · Umschaltung Stunde | Kompetenzen · Matrix
+ * (Kriterium, Skala 1–6, Beschreibungstext) · Fußleiste mit Fortschritt,
+ * „Fehlt“ und „Weiter“.
  *
- * Regeln:
- * - Jedes Kind startet mit der Standardnote (Einstellung). Gespeichert wird
- *   nur, was bewusst gesetzt wurde. Unangetastete Standardnoten erscheinen
- *   gedämpft, bewusst gesetzte kräftig.
- * - Die Skala ist Tippfeld und Schieberegler zugleich. Ein Tipp setzt sofort,
- *   ein Ziehen verschiebt den Knopf mitlaufend, der Beschreibungstext folgt.
- *   Vertikales Scrollen bleibt möglich (touch-action: pan-y).
- * - Wischen links/rechts wechselt das Kind, nicht aber auf einer Reglerzeile.
- *   Pfeiltasten wechseln das Kind, Ziffern 1–6 setzen die Note im fokussierten Regler.
- * - Alles speichert sofort. Die Position (Klasse, Fach, Datum, Kind) wird gemerkt.
+ * Bewertet wird jede Unterrichtsstunde einzeln: Eine Bewertungseinheit gehört
+ * zu Klasse, Fach, Datum und Stundennummer (Doppelstunde = eine Einheit,
+ * Schlüssel ist die erste Stunde). Hat die Klasse am Tag mehrere getrennte
+ * Einheiten desselben Fachs, erscheint neben dem Datum eine Auswahl.
+ *
+ * Stunde: die vier Kriterien des Arbeits- und Sozialverhaltens, vorbelegt mit
+ * der Standardnote (blass). Beim Verlassen eines Kindes – Weiter, Wischen,
+ * Pfeile, Verlassen des Bildschirms – werden noch offene Stundenkriterien mit
+ * der Standardnote festgeschrieben (Zustand „uebernommen“, zurückhaltender
+ * dargestellt); nicht bei „Fehlt“, nicht bei „keine Vorbelegung“.
+ * Kompetenzen: starten immer leer und werden nur gespeichert, wenn die
+ * Lehrerin sie ausdrücklich setzt – sie werden nicht in jeder Stunde
+ * beobachtet, automatische Werte würden jeden Durchschnitt entwerten.
+ *
+ * Wischen links/rechts wechselt das Kind, nicht aber auf einer Reglerzeile.
+ * Pfeiltasten wechseln das Kind, Ziffern 1–6 setzen den Wert im fokussierten Regler.
+ * Alles speichert sofort. Die Position (Klasse, Fach, Datum, Einheit, Kind) wird gemerkt.
  */
 'use strict';
 NB.Bewertung = (function () {
@@ -25,11 +33,11 @@ NB.Bewertung = (function () {
   const M = NB.Modell;
   const N = NB.Navigation;
 
-  const FILTER = [['stunde', 'Stunde'], ['projekt', 'Projekt'], ['alle', 'Alle']];
+  const ANSICHTEN = [['stunde', 'Stunde'], ['kompetenzen', 'Kompetenzen']];
   const KURZWORTE = ['sehr gut', 'gut', 'befr.', 'ausr.', 'mangelh.', 'ungen.'];
 
   // Zustand des Bildschirms (wird in 'zustand' gemerkt)
-  let z = { klasseId: null, fachId: null, datum: null, datumGewaehltAm: null, filter: 'stunde', kindIndex: 0 };
+  let z = { klasseId: null, fachId: null, datum: null, datumGewaehltAm: null, stunde: null, stundeBis: null, ansicht: 'stunde', kindIndex: 0 };
   let kinder = [];        // Kinder der aktuellen Klasse in Anzeigereihenfolge
   let el = null;          // DOM-Referenzen des aufgebauten Bildschirms
   let zuletztHeute = null;
@@ -42,6 +50,8 @@ NB.Bewertung = (function () {
   function zustandLaden() {
     const zs = D.holen('zustand', '') || {};
     if (zs.bewertung) Object.assign(z, zs.bewertung);
+    if (z.ansicht !== 'stunde' && z.ansicht !== 'kompetenzen') z.ansicht = 'stunde';
+    delete z.filter;
   }
 
   function zustandMerken() {
@@ -52,30 +62,26 @@ NB.Bewertung = (function () {
   }
 
   function einstellungen() { return M.einstellungen(); }
+  function klasse() { return M.klasse(z.klasseId); }
+  function benotet() { return M.istBenotet(klasse()); }
+
+  /* ---------- Datum und Einheit ---------- */
 
   /** Gibt es an diesem Datum bereits Einträge für die Klasse (in irgendeinem Fach)? */
   function hatErfasst(datum) {
-    return M.bewertungen(z.klasseId).some(b => b.datum === datum && M.bewertungHatInhalt(b));
+    return M.einheiten(z.klasseId).some(b => b.datum === datum && M.bewertungHatInhalt(b));
   }
 
-  /**
-   * Automatisches Datum laut Stundenplan: heute, falls heute ein Unterrichtstag
-   * der Kombination Klasse/Fach ist, sonst der letzte zurückliegende
-   * Unterrichtstag. Ohne Stundenplan immer heute.
-   */
+  /** Automatisches Datum laut Stundenplan der Klasse: heute, sonst der letzte Unterrichtstag. */
   function datumAutomatisch() {
     const heute = H.heute();
     const SP = NB.Stundenplan;
-    if (!SP.hatStundenplan() || !z.klasseId || !z.fachId) return heute;
+    if (!SP.klasseHatPlan(klasse()) || !z.klasseId || !z.fachId) return heute;
     if (SP.istUnterrichtstag(heute, z.klasseId, z.fachId)) return heute;
     return SP.letzterUnterrichtstag(z.klasseId, z.fachId, H.tageAddieren(heute, -1)) || heute;
   }
 
-  /**
-   * Datum neu bestimmen (Start, Klassen- oder Fachwechsel, Tageswechsel).
-   * Eine in dieser Sitzung bewusst getroffene Wahl, unter der schon etwas
-   * erfasst wurde, bleibt erhalten – dann erscheint nur der Hinweis.
-   */
+  /** Datum neu bestimmen; eine bewusste Wahl mit Einträgen bleibt erhalten. */
   function datumNeuBestimmen() {
     if (datumManuell && z.datum && hatErfasst(z.datum)) return false;
     const neu = datumAutomatisch();
@@ -86,12 +92,51 @@ NB.Bewertung = (function () {
     return geaendert;
   }
 
+  /**
+   * Wählbare Einheiten des Tages: laut Stundenplan der Klasse plus bereits
+   * gespeicherte Einheiten (etwa „Tag“ ohne Stundenplan).
+   */
+  function einheitenDesTages() {
+    const SP = NB.Stundenplan;
+    const k = klasse();
+    const liste = k ? SP.einheitenAmTag(k, z.datum, z.fachId).map(e => ({ stunde: e.stunde, stundeBis: e.stundeBis })) : [];
+    M.einheitenAmTag(z.klasseId, z.fachId, z.datum).forEach(function (b) {
+      if (!liste.some(e => Number(e.stunde) === Number(b.stunde))) liste.push({ stunde: Number(b.stunde), stundeBis: Number(b.stundeBis == null ? b.stunde : b.stundeBis) });
+    });
+    if (!liste.length || !SP.klasseHatPlan(k)) {
+      if (!liste.some(e => e.stunde === M.OHNE_STUNDE)) liste.push({ stunde: M.OHNE_STUNDE, stundeBis: M.OHNE_STUNDE });
+    }
+    liste.sort((a, b) => a.stunde - b.stunde);
+    return liste;
+  }
+
+  /** Einheit bestimmen: gewünschte, sonst die bisherige, sonst die aktuelle bzw. zuletzt vergangene. */
+  function einheitBestimmen(gewuenscht) {
+    const SP = NB.Stundenplan;
+    const liste = einheitenDesTages();
+    let e = null;
+    if (gewuenscht != null) e = liste.find(x => x.stunde === Number(gewuenscht)) || null;
+    if (!e && z.stunde != null && gewuenscht == null) e = liste.find(x => x.stunde === Number(z.stunde)) || null;
+    if (!e) {
+      const aktuell = klasse() ? SP.aktuelleEinheit(klasse(), z.datum, z.fachId) : null;
+      e = aktuell ? liste.find(x => x.stunde === aktuell.stunde) : null;
+    }
+    if (!e) e = liste.find(x => x.stunde !== M.OHNE_STUNDE) || liste[0] || { stunde: M.OHNE_STUNDE, stundeBis: M.OHNE_STUNDE };
+    z.stunde = e.stunde;
+    z.stundeBis = e.stundeBis;
+  }
+
+  function einheitTextAktuell() {
+    return NB.Stundenplan.stundenText(z.stunde, z.stundeBis);
+  }
+
   /** Beim Zurückkehren aus dem Hintergrund: hat sich der Kalendertag geändert? */
   function tagPruefen() {
     const heute = H.heute();
     if (zuletztHeute === heute) return;
     zuletztHeute = heute;
     if (datumNeuBestimmen()) {
+      einheitBestimmen();
       zustandMerken();
       if (N.istSichtbar('bewertung')) allesRendern();
     } else if (N.istSichtbar('bewertung')) {
@@ -100,9 +145,11 @@ NB.Bewertung = (function () {
   }
 
   function aufHeuteSetzen() {
+    kindVerlassen();
     z.datum = H.heute();
     datumManuell = true;
     z.datumGewaehltAm = z.datum;
+    einheitBestimmen();
     zustandMerken();
     allesRendern();
   }
@@ -114,18 +161,18 @@ NB.Bewertung = (function () {
     const heute = H.heute();
     el.hinweis.hidden = true;
     H.leeren(el.hinweis);
-    if (!SP.hatStundenplan() || !z.klasseId || !z.fachId || !kinder.length) return;
-    const klasse = M.klasse(z.klasseId);
+    const k = klasse();
+    if (!SP.klasseHatPlan(k) || !z.klasseId || !z.fachId || !kinder.length) return;
     const fach = M.fach(z.fachId);
-    if (!klasse || !fach) return;
+    if (!k || !fach) return;
     const istUnterrichtstag = SP.istUnterrichtstag(z.datum, z.klasseId, z.fachId);
     let text = null;
     let knopf = false;
     if (!datumManuell && z.datum !== heute) {
-      text = 'Heute ist kein Unterrichtstag für ' + fach.name + ' in der ' + klasse.name + ' – gewählt ist die letzte Stunde am ' + H.datumKurzOhneJahr(z.datum);
+      text = 'Heute ist kein Unterrichtstag für ' + fach.name + ' in der ' + k.name + ' – gewählt ist die letzte Stunde am ' + H.datumKurzOhneJahr(z.datum);
       knopf = true;
     } else if (!istUnterrichtstag) {
-      text = (z.datum === heute ? 'Heute hat die ' : 'Am ' + H.datumKurzOhneJahr(z.datum) + ' hat die ') + klasse.name + ' laut Stundenplan kein ' + fach.name + '. Erfassen ist trotzdem möglich.';
+      text = (z.datum === heute ? 'Heute hat die ' : 'Am ' + H.datumKurzOhneJahr(z.datum) + ' hat die ') + k.name + ' laut Stundenplan kein ' + fach.name + '. Erfassen ist trotzdem möglich.';
       knopf = z.datum !== heute;
     }
     if (!text) return;
@@ -137,8 +184,8 @@ NB.Bewertung = (function () {
   /* ---------- Öffnen ---------- */
 
   /**
-   * Bewertung öffnen. parameter: { klasseId, fachId, datum } – fehlende Werte
-   * kommen aus der gemerkten Position.
+   * Bewertung öffnen. parameter: { klasseId, fachId, datum, stunde } – fehlende
+   * Werte kommen aus der gemerkten Position.
    */
   Bw.oeffnen = function (parameter) {
     parameter = parameter || {};
@@ -163,22 +210,42 @@ NB.Bewertung = (function () {
       z.datum = parameter.datum;
       datumManuell = true;
       z.datumGewaehltAm = heute;
+      einheitBestimmen(parameter.stunde);
     } else {
       // Nach einem Neuladen zählt eine heute getroffene Wahl weiter als bewusst gewählt.
       if (z.datum && z.datumGewaehltAm === heute) datumManuell = true;
-      if (klasseGewechselt || !z.datum || !bereitsGeoeffnet) datumNeuBestimmen();
+      if (klasseGewechselt || !z.datum || !bereitsGeoeffnet) { datumNeuBestimmen(); einheitBestimmen(); }
+      else einheitBestimmen();
     }
     bereitsGeoeffnet = true;
     if (parameter.kindIndex != null) z.kindIndex = parameter.kindIndex;
     zuletztHeute = heute;
     if (N.aktiverBereich() !== 'klassen') N.zeigen('klassen');
     N.bildschirmOeffnen('bewertung');
+    stufeSicherstellen();
   };
 
+  /** Fach der Klasse prüfen: fehlt das aktive Fach in der Klasse, gilt das erste Fach der Klasse. */
   function fachPruefen() {
-    const faecher = M.faecher();
+    const faecher = M.klassenFaecher(klasse());
     if (!faecher.length) { z.fachId = null; return; }
-    if (!M.fach(z.fachId)) z.fachId = faecher[0].id;
+    if (!faecher.some(f => f.id === z.fachId)) z.fachId = faecher[0].id;
+  }
+
+  /** Klasse ohne Stufe (aus einer früheren Fassung): einmalig nach der Stufe fragen. */
+  async function stufeSicherstellen() {
+    const k = klasse();
+    if (!k || k.stufe) return;
+    const stufen = M.stufen();
+    const wahl = await NB.Dialog.auswahl({
+      titel: 'Stufe der Klasse ' + k.name,
+      optionen: M.STUFEN.map(s => ({ text: stufen[s].bezeichnung, wert: s, untertitel: stufen[s].benotet ? 'Mit Noten' : 'Ohne Noten – Stufen beschreiben den Lernstand' }))
+    });
+    if (!wahl) return;
+    k.stufe = wahl;
+    M.klasseSpeichern(k);
+    NB.App.meldung('Stufe gesetzt: ' + stufen[wahl].bezeichnung + '. Fächer und Stundenplan der Klasse lassen sich unter „Kinder verwalten“ anpassen.');
+    if (N.istSichtbar('bewertung')) allesRendern();
   }
 
   /* ---------- Aufbau ---------- */
@@ -192,24 +259,26 @@ NB.Bewertung = (function () {
 
     el.kindname = H.el('div', { class: 'bw-kindname' });
     el.position = H.el('div', { class: 'bw-position text-schwach' });
+    el.statistik = H.el('div', { class: 'bw-statistik text-klein text-schwach', hidden: true });
     el.kindzeile = H.el('div', { class: 'bw-kind' }, [
       H.el('button', { type: 'button', class: 'symbolknopf bw-pfeil', 'aria-label': 'Vorheriges Kind', onclick: () => kindWechseln(-1) },
         H.el('span', { 'aria-hidden': 'true', text: '‹' })),
-      H.el('div', { class: 'bw-name' }, [el.kindname, el.position]),
+      H.el('div', { class: 'bw-name' }, [el.kindname, el.position, el.statistik]),
       H.el('button', { type: 'button', class: 'symbolknopf bw-pfeil', 'aria-label': 'Nächstes Kind', onclick: () => kindWechseln(1) },
         H.el('span', { 'aria-hidden': 'true', text: '›' }))
     ]);
 
     el.faecher = H.el('div', { class: 'bw-faecher', role: 'group', 'aria-label': 'Fach' });
-    el.filter = H.el('div', { class: 'bw-filter', role: 'group', 'aria-label': 'Kriterien' });
-    FILTER.forEach(function (f) {
-      el.filter.appendChild(H.el('button', {
-        type: 'button', dataset: { filter: f[0] }, text: f[1], 'aria-pressed': 'false',
-        onclick: () => filterSetzen(f[0])
+    el.ansicht = H.el('div', { class: 'bw-filter', role: 'group', 'aria-label': 'Kriterien' });
+    ANSICHTEN.forEach(function (a) {
+      el.ansicht.appendChild(H.el('button', {
+        type: 'button', dataset: { ansicht: a[0] }, text: a[1], 'aria-pressed': 'false',
+        onclick: () => ansichtSetzen(a[0])
       }));
     });
 
     el.fehltHinweis = H.el('div', { class: 'bw-fehlt-hinweis', hidden: true, text: 'Fehlt in dieser Stunde – keine Bewertung. Ein zweiter Tipp auf „Fehlt“ macht das rückgängig.' });
+    el.fachHinweis = H.el('details', { class: 'bw-fachhinweis', hidden: true });
     el.matrix = H.el('div', { class: 'bw-matrix' });
 
     el.notiz = H.el('input', { type: 'text', class: 'bw-notiz-feld', placeholder: 'Notiz zu diesem Kind für diese Stunde', autocomplete: 'off' });
@@ -221,7 +290,7 @@ NB.Bewertung = (function () {
 
     el.leer = H.el('div', { class: 'leer', hidden: true });
 
-    H.anhaengen(wurzel, [el.hinweis, el.kindzeile, el.faecher, el.filter, el.fehltHinweis, el.matrix, el.notizzeile, el.leer]);
+    H.anhaengen(wurzel, [el.hinweis, el.kindzeile, el.faecher, el.ansicht, el.fehltHinweis, el.fachHinweis, el.matrix, el.notizzeile, el.leer]);
 
     // Fußleiste
     el.balken = H.el('span');
@@ -244,21 +313,21 @@ NB.Bewertung = (function () {
 
   function allesRendern() {
     if (!el) aufbauen();
-    const klasse = M.klasse(z.klasseId);
-    kinder = M.kinderSortiert(klasse);
+    const k = klasse();
+    kinder = M.kinderSortiert(k);
     if (z.kindIndex >= kinder.length) z.kindIndex = Math.max(0, kinder.length - 1);
     fachPruefen();
     N.kopfAktualisieren();
     hinweisAktualisieren();
     faecherRendern();
-    filterRendern();
+    ansichtRendern();
     kindRendern();
     N.fussAktualisieren();
   }
 
   function faecherRendern() {
     H.leeren(el.faecher);
-    M.faecher().forEach(function (fach) {
+    M.klassenFaecher(klasse()).forEach(function (fach) {
       const aktiv = fach.id === z.fachId;
       const knopf = H.el('button', {
         type: 'button', class: 'bw-fach', text: fach.name, 'aria-pressed': aktiv ? 'true' : 'false',
@@ -271,9 +340,9 @@ NB.Bewertung = (function () {
     });
   }
 
-  function filterRendern() {
-    H.$$('button', el.filter).forEach(function (k) {
-      k.setAttribute('aria-pressed', k.dataset.filter === z.filter ? 'true' : 'false');
+  function ansichtRendern() {
+    H.$$('button', el.ansicht).forEach(function (k) {
+      k.setAttribute('aria-pressed', k.dataset.ansicht === z.ansicht ? 'true' : 'false');
     });
   }
 
@@ -284,7 +353,7 @@ NB.Bewertung = (function () {
 
     el.kindzeile.hidden = keineKinder;
     el.faecher.hidden = keineKinder;
-    el.filter.hidden = keineKinder;
+    el.ansicht.hidden = keineKinder;
     el.matrix.hidden = keineKinder;
     el.notizzeile.hidden = keineKinder || einstellungen().notizfeldAnzeigen === false;
     el.leer.hidden = !keineKinder;
@@ -297,6 +366,7 @@ NB.Bewertung = (function () {
         H.el('button', { type: 'button', class: 'knopf primaer', text: 'Kinder eintragen', onclick: () => NB.BereichKlassen.kinderVerwalten(z.klasseId) })
       ]);
       el.fehltHinweis.hidden = true;
+      el.fachHinweis.hidden = true;
       fussAktualisieren();
       return;
     }
@@ -304,42 +374,80 @@ NB.Bewertung = (function () {
     el.kindname.textContent = M.kindName(kind);
     el.position.textContent = (z.kindIndex + 1) + ' von ' + kinder.length;
 
-    const b = M.bewertung(z.klasseId, z.fachId, z.datum);
+    const b = M.einheit(z.klasseId, z.fachId, z.datum, z.stunde);
     const eintrag = b && b.kinder ? b.kinder[kind.id] : null;
     const fehlt = !!(eintrag && eintrag.fehlt);
     el.fehltHinweis.hidden = !fehlt;
     el.notiz.value = eintrag && eintrag.notiz ? eintrag.notiz : '';
+    fachHinweisRendern();
     matrixRendern(kind, eintrag, fehlt);
     fussAktualisieren();
+  }
+
+  /** Einklappbarer Hinweis des Fachs oben in der Kompetenzansicht. */
+  function fachHinweisRendern() {
+    const k = klasse();
+    const fach = M.fach(z.fachId);
+    const text = (z.ansicht === 'kompetenzen' && k && k.stufe) ? M.fachHinweis(fach, k.stufe) : '';
+    H.leeren(el.fachHinweis);
+    el.fachHinweis.hidden = !text;
+    if (!text) return;
+    H.anhaengen(el.fachHinweis, [
+      H.el('summary', { text: 'Hinweis zu ' + fach.name }),
+      H.el('p', { class: 'text-klein', text: text })
+    ]);
   }
 
   function matrixRendern(kind, eintrag, fehlt) {
     H.leeren(el.matrix);
     const fach = M.fach(z.fachId);
+    const k = klasse();
     const e = einstellungen();
-    const kriterien = M.kriterien(fach, z.filter);
 
     if (!fach) {
-      el.matrix.appendChild(H.el('p', { class: 'text-schwach', text: 'Es sind keine Fächer angelegt. Fächer und Kriterien lassen sich in den Einstellungen anlegen.' }));
-      return;
-    }
-    if (kriterien.length === 0) {
-      const alle = M.kriterien(fach, 'alle').length;
-      el.matrix.appendChild(H.el('p', { class: 'text-schwach bw-leer-hinweis', text: alle
-        ? 'In diesem Fach gibt es keine Kriterien vom Typ „' + (z.filter === 'stunde' ? 'Stunde' : 'Projekt') + '“. Umschalten auf „Alle“ zeigt alle Kriterien.'
-        : 'Dieses Fach hat noch keine Kriterien.' }));
+      el.matrix.appendChild(H.el('p', { class: 'text-schwach bw-leer-hinweis', text: 'Diese Klasse hat noch kein Fach. Fächer lassen sich in der Klassenverwaltung zuordnen.' }));
       return;
     }
 
-    kriterien.forEach(function (krit) {
-      const anzeige = M.anzeigeNote(z.klasseId, z.fachId, z.datum, kind.id, krit.id, eintrag);
-      el.matrix.appendChild(zeileBauen(krit, anzeige.note, anzeige.standard, fehlt, e));
+    if (z.ansicht === 'kompetenzen' && (!k || !k.stufe)) {
+      el.matrix.appendChild(H.el('div', { class: 'bw-leer-hinweis' }, [
+        H.el('p', { class: 'text-schwach', text: 'Für Kompetenzen braucht die Klasse eine Stufe (Klasse 1 und 2 oder Klasse 3 und 4).' }),
+        H.el('button', { type: 'button', class: 'knopf', text: 'Stufe wählen', onclick: stufeSicherstellen })
+      ]));
+      return;
+    }
+
+    const kriterien = M.kriterienFuer(k, fach, z.ansicht);
+    if (kriterien.length === 0) {
+      el.matrix.appendChild(H.el('p', { class: 'text-schwach bw-leer-hinweis', text: z.ansicht === 'stunde'
+        ? 'Es sind keine Stundenkriterien vorhanden (Einstellungen → Fächer und Kriterien → Arbeits- und Sozialverhalten).'
+        : 'In ' + fach.name + ' gibt es für diese Stufe keine aktiven Kompetenzen.' }));
+      return;
+    }
+
+    const gruppen = z.ansicht === 'kompetenzen' ? M.nachBereich(kriterien) : [{ bereich: null, kriterien: kriterien }];
+    gruppen.forEach(function (g) {
+      if (g.bereich) el.matrix.appendChild(H.el('h3', { class: 'bw-bereich', text: g.bereich }));
+      g.kriterien.forEach(function (krit) {
+        const anzeige = M.anzeigeNote(z.klasseId, z.fachId, z.datum, kind.id, krit.id, eintrag, z.stunde);
+        el.matrix.appendChild(zeileBauen(krit, anzeige.wert, anzeige.art, fehlt, e));
+      });
     });
   }
 
-  /** Eine Kriterienzeile mit Skala. */
-  function zeileBauen(krit, note, istStandard, fehlt, e) {
+  /** Beschreibung eines Wertes: Wortform nur bei benoteten Stufen. */
+  function wertText(n, art, krit) {
     const woerter = M.notenwoerter();
+    if (n == null) return z.ansicht === 'kompetenzen' ? 'Noch nicht bewertet' : 'Noch kein Wert gesetzt';
+    const text = (krit.stufen && krit.stufen[n - 1]) || '';
+    const vorsatz = (einstellungen().skalenBeschriftung === 'worte' && benotet()) ? woerter[n - 1] + ': ' : '';
+    return vorsatz + text;
+  }
+
+  /** Eine Kriterienzeile mit Skala. art: 'gesetzt' | 'uebernommen' | 'vorbelegt' | 'offen' */
+  function zeileBauen(krit, wert, art, fehlt, e) {
+    const woerter = M.notenwoerter();
+    const mitNoten = benotet();
     const skala = H.el('div', {
       class: 'skala', role: 'slider', tabindex: fehlt ? -1 : 0,
       'aria-label': krit.name, 'aria-valuemin': '1', 'aria-valuemax': '6',
@@ -349,7 +457,7 @@ NB.Bewertung = (function () {
     for (let w = 1; w <= 6; w++) {
       const stufe = H.el('span', { class: 'stufe', dataset: { wert: String(w) } }, [
         H.el('span', { class: 'stufe-zahl', text: String(w) }),
-        e.skalenBeschriftung === 'worte' ? H.el('span', { class: 'stufe-wort', text: KURZWORTE[w - 1] }) : null
+        (e.skalenBeschriftung === 'worte' && mitNoten) ? H.el('span', { class: 'stufe-wort', text: KURZWORTE[w - 1] }) : null
       ]);
       stufen.push(stufe);
       skala.appendChild(stufe);
@@ -358,23 +466,26 @@ NB.Bewertung = (function () {
     skala.appendChild(knopf);
     const text = H.el('div', { class: 'krit-text' });
 
-    function anzeigen(n, std) {
+    function anzeigen(n, a) {
       skala.dataset.note = n == null ? '' : String(n);
-      skala.classList.toggle('standard', !!std);
+      skala.classList.toggle('standard', a === 'vorbelegt');
+      skala.classList.toggle('uebernommen', a === 'uebernommen');
       skala.classList.toggle('leer', n == null);
       knopf.style.transform = n == null ? '' : 'translateX(' + ((n - 1) * 100) + '%)';
       stufen.forEach(s => s.classList.toggle('aktiv', Number(s.dataset.wert) === n));
       skala.setAttribute('aria-valuenow', n == null ? '' : String(n));
-      skala.setAttribute('aria-valuetext', n == null ? 'keine Note' : n + ' – ' + woerter[n - 1] + (std ? ' (Standard)' : ''));
-      if (n == null) text.textContent = 'Noch keine Note gesetzt';
-      else text.textContent = (e.skalenBeschriftung === 'worte' ? woerter[n - 1] + ': ' : '') + (krit.stufen[n - 1] || '');
+      skala.setAttribute('aria-valuetext', n == null ? 'kein Wert' : (mitNoten ? n + ' – ' + woerter[n - 1] : 'Stufe ' + n) + (a === 'vorbelegt' ? ' (Vorbelegung)' : a === 'uebernommen' ? ' (übernommen)' : ''));
+      text.textContent = wertText(n, a, krit);
     }
-    anzeigen(note, istStandard);
+    anzeigen(wert, art);
 
     if (!fehlt) reglerVerdrahten(skala, krit, anzeigen);
 
     return H.el('div', { class: 'krit' + (fehlt ? ' gesperrt' : ''), dataset: { krit: krit.id } }, [
-      H.el('div', { class: 'krit-name', text: krit.name }),
+      H.el('div', { class: 'krit-kopf' }, [
+        H.el('div', { class: 'krit-name', text: krit.name }),
+        H.el('div', { class: 'krit-schnitt text-klein text-schwach', hidden: true })
+      ]),
       skala,
       e.beschreibungenAnzeigen === false ? null : text
     ]);
@@ -392,8 +503,8 @@ NB.Bewertung = (function () {
 
     function setzen(n) {
       if (n == null) return;
-      const geaendert = noteSetzen(krit.id, n);
-      anzeigen(n, false);
+      const geaendert = wertSetzen(krit.id, n);
+      anzeigen(n, 'gesetzt');
       if (geaendert && einstellungen().haptik) H.vibrieren(10);
     }
 
@@ -437,16 +548,21 @@ NB.Bewertung = (function () {
 
   function aktuellesKind() { return kinder[z.kindIndex] || null; }
 
-  /** Note bewusst setzen. Liefert true, wenn sich etwas geändert hat. */
-  function noteSetzen(kriteriumId, n) {
+  function einheitOderNeu() {
+    return M.einheitOderNeu(z.klasseId, z.fachId, z.datum, z.stunde, z.stundeBis);
+  }
+
+  /** Wert bewusst setzen (Zustand „gesetzt“). Liefert true, wenn sich etwas geändert hat. */
+  function wertSetzen(kriteriumId, n) {
     const kind = aktuellesKind();
     if (!kind) return false;
-    const b = M.bewertungOderNeu(z.klasseId, z.fachId, z.datum);
+    const b = einheitOderNeu();
     const eintrag = M.kindEintrag(b, kind.id);
-    if (eintrag.noten[kriteriumId] === n) return false;
-    eintrag.noten[kriteriumId] = n;
+    const bisher = M.notenWert(eintrag, kriteriumId);
+    if (bisher && bisher.wert === n && bisher.art === 'gesetzt') return false;
+    eintrag.noten[kriteriumId] = { wert: n, art: 'gesetzt' };
     eintrag.beruehrt = true;
-    M.bewertungSpeichern(b);
+    M.einheitSpeichern(b);
     fussAktualisieren();
     return true;
   }
@@ -454,31 +570,45 @@ NB.Bewertung = (function () {
   function fehltUmschalten() {
     const kind = aktuellesKind();
     if (!kind) return;
-    const b = M.bewertungOderNeu(z.klasseId, z.fachId, z.datum);
+    const b = einheitOderNeu();
     const eintrag = M.kindEintrag(b, kind.id);
     eintrag.fehlt = !eintrag.fehlt;
     eintrag.beruehrt = true;
-    M.bewertungSpeichern(b);
+    M.einheitSpeichern(b);
     kindRendern();
   }
 
   function notizSpeichern() {
     const kind = aktuellesKind();
-    if (!kind) return;
+    if (!kind || !el) return;
     const wert = el.notiz.value;
-    const b = M.bewertungOderNeu(z.klasseId, z.fachId, z.datum);
+    const vorhanden = M.einheit(z.klasseId, z.fachId, z.datum, z.stunde);
+    const bisher = vorhanden && vorhanden.kinder && vorhanden.kinder[kind.id] ? (vorhanden.kinder[kind.id].notiz || '') : '';
+    if (bisher === wert) return;
+    const b = einheitOderNeu();
     const eintrag = M.kindEintrag(b, kind.id);
-    if ((eintrag.notiz || '') === wert) return;
     eintrag.notiz = wert;
     if (wert.trim()) eintrag.beruehrt = true;
-    M.bewertungSpeichern(b);
+    M.einheitSpeichern(b);
+  }
+
+  /**
+   * Beim Verlassen eines Kindes: Notiz sichern und offene Stundenkriterien mit
+   * der Standardnote festschreiben (nur Arbeits- und Sozialverhalten).
+   */
+  function kindVerlassen() {
+    const kind = aktuellesKind();
+    if (!kind || !z.klasseId || !z.fachId || !z.datum) return;
+    notizSpeichern();
+    const b = einheitOderNeu();
+    if (M.vorbelegungUebernehmen(b, kind.id)) M.einheitSpeichern(b);
   }
 
   function kindWechseln(richtung) {
     if (!kinder.length) return;
     const neu = H.begrenzen(z.kindIndex + richtung, 0, kinder.length - 1);
     if (neu === z.kindIndex) return;
-    notizSpeichern(); // noch nicht gesicherte Notiz des bisherigen Kindes
+    kindVerlassen();
     z.kindIndex = neu;
     zustandMerken();
     kindRendern();
@@ -488,41 +618,71 @@ NB.Bewertung = (function () {
     if (z.kindIndex < kinder.length - 1) {
       kindWechseln(1);
     } else {
+      kindVerlassen();
       N.bildschirmOeffnen('auswertung', { klasseId: z.klasseId, fachId: z.fachId, datum: z.datum });
     }
   }
 
   function fachSetzen(fachId) {
     if (fachId === z.fachId) return;
+    kindVerlassen();
     z.fachId = fachId;
     const datumGeaendert = datumNeuBestimmen();
+    einheitBestimmen();
     zustandMerken();
     if (datumGeaendert) {
       allesRendern();
     } else {
+      N.kopfAktualisieren();
       hinweisAktualisieren();
       faecherRendern();
       kindRendern();
     }
   }
 
-  function filterSetzen(filter) {
-    if (filter === z.filter) return;
-    z.filter = filter;
+  function ansichtSetzen(ansicht) {
+    if (ansicht === z.ansicht) return;
+    z.ansicht = ansicht;
     zustandMerken();
-    filterRendern();
+    ansichtRendern();
+    kindRendern();
+  }
+
+  function einheitSetzen(stunde) {
+    if (Number(stunde) === Number(z.stunde)) return;
+    kindVerlassen();
+    einheitBestimmen(stunde);
+    zustandMerken();
+    N.kopfAktualisieren();
     kindRendern();
   }
 
   async function klasseWechseln() {
     const klassen = M.klassen();
-    const optionen = klassen.map(k => ({ text: k.name, wert: k.id, aktiv: k.id === z.klasseId, untertitel: (k.kinder || []).length + ' Kinder' }));
+    const optionen = klassen.map(k => ({ text: k.name, wert: k.id, aktiv: k.id === z.klasseId, untertitel: (k.kinder || []).length + ' Kinder' + (k.stufe ? ' · ' + M.stufe(k.stufe).kurz : '') }));
     optionen.push({ text: 'Alle Klassen anzeigen', wert: '__liste__', klasse: 'auswahl-sekundaer' });
     const wahl = await NB.Dialog.auswahl({ titel: 'Klasse wechseln', optionen: optionen });
     if (!wahl) return;
     if (wahl === '__liste__') { N.zeigen('klassen'); return; }
     if (wahl === z.klasseId) return;
+    kindVerlassen();
     Bw.oeffnen({ klasseId: wahl });
+  }
+
+  async function einheitWaehlen() {
+    const liste = einheitenDesTages();
+    if (liste.length < 2) return;
+    const SP = NB.Stundenplan;
+    const wahl = await NB.Dialog.auswahl({
+      titel: 'Einheit am ' + H.datumKurzOhneJahr(z.datum),
+      optionen: liste.map(e => ({
+        text: SP.stundenText(e.stunde, e.stundeBis),
+        untertitel: e.stunde ? SP.uhrzeitTextBereich(e.stunde, e.stundeBis) : 'Ohne Stundenplan',
+        wert: String(e.stunde), aktiv: Number(e.stunde) === Number(z.stunde)
+      }))
+    });
+    if (wahl == null) return;
+    einheitSetzen(Number(wahl));
   }
 
   function datumWaehlen() {
@@ -530,7 +690,7 @@ NB.Bewertung = (function () {
     function erfassteTage(jahr, monat) {
       const praefix = jahr + '-' + ((monat + 1 < 10) ? '0' : '') + (monat + 1) + '-';
       const tage = {};
-      M.bewertungen(z.klasseId, z.fachId).forEach(function (b) {
+      M.einheiten(z.klasseId, z.fachId).forEach(function (b) {
         if (b.datum.indexOf(praefix) === 0 && M.bewertungHatInhalt(b)) tage[b.datum] = true;
       });
       return tage;
@@ -546,7 +706,7 @@ NB.Bewertung = (function () {
         return m;
       },
       fusszeile: function (jahr, monat) {
-        if (!SP.hatStundenplan()) return '';
+        if (!SP.klasseHatPlan(klasse())) return '';
         const tage = SP.unterrichtstageImMonat(jahr, monat, z.klasseId, z.fachId);
         const erfasst = erfassteTage(jahr, monat);
         const anzahlErfasst = tage.filter(iso => erfasst[iso]).length;
@@ -554,9 +714,11 @@ NB.Bewertung = (function () {
       },
       beiAuswahl: function (iso) {
         if (iso === z.datum && datumManuell) return;
+        kindVerlassen();
         z.datum = iso;
         datumManuell = true;
         z.datumGewaehltAm = H.heute();
+        einheitBestimmen();
         zustandMerken();
         allesRendern();
       }
@@ -570,14 +732,14 @@ NB.Bewertung = (function () {
     const anzahl = kinder.length;
     const kind = aktuellesKind();
     el.balken.style.width = anzahl ? Math.round(((z.kindIndex + 1) / anzahl) * 100) + '%' : '0%';
-    const b = M.bewertung(z.klasseId, z.fachId, z.datum);
+    const b = M.einheit(z.klasseId, z.fachId, z.datum, z.stunde);
     let angepasst = 0, fehlend = 0;
     if (b && b.kinder) {
       kinder.forEach(function (k) {
         const e = b.kinder[k.id];
         if (!e) return;
         if (e.fehlt) fehlend++;
-        else if (e.noten && Object.keys(e.noten).length) angepasst++;
+        else if (e.noten && Object.keys(e.noten).some(id => e.noten[id] && e.noten[id].art === 'gesetzt')) angepasst++;
       });
     }
     const teile = [anzahl ? (z.kindIndex + 1) + ' von ' + anzahl : 'Keine Kinder'];
@@ -596,7 +758,7 @@ NB.Bewertung = (function () {
   function wischenVerdrahten(wurzel) {
     let wisch = null;
     wurzel.addEventListener('pointerdown', function (ev) {
-      if (ev.target.closest('.skala, .bw-faecher, input, textarea, select, button, .bw-notiz')) return;
+      if (ev.target.closest('.skala, .bw-faecher, input, textarea, select, button, .bw-notiz, details')) return;
       wisch = { id: ev.pointerId, x: ev.clientX, y: ev.clientY };
     });
     wurzel.addEventListener('pointermove', function (ev) {
@@ -624,18 +786,31 @@ NB.Bewertung = (function () {
   /* ---------- Kopfzeile ---------- */
 
   function kopfLinks() {
-    const klasse = M.klasse(z.klasseId);
+    const k = klasse();
     return H.el('button', { type: 'button', class: 'kopf-knopf', 'aria-label': 'Klasse wechseln', onclick: klasseWechseln }, [
-      H.el('span', { class: 'kopf-knopf-text', text: klasse ? klasse.name : 'Klasse' }),
+      H.el('span', { class: 'kopf-knopf-text', text: k ? k.name : 'Klasse' }),
       H.el('span', { class: 'kopf-knopf-pfeil', 'aria-hidden': 'true', text: '⌄' })
     ]);
   }
 
   function kopfRechts() {
     const heute = H.heute();
-    const text = (z.datum === heute ? 'Heute, ' : H.WOCHENTAGE_KURZ[H.wochentag(z.datum) - 1] + ', ') + H.datumKurz(z.datum).slice(0, 6);
-    return H.el('button', { type: 'button', class: 'kopf-knopf', 'aria-label': 'Datum wählen: ' + H.datumLang(z.datum), onclick: datumWaehlen },
-      H.el('span', { class: 'kopf-knopf-text', text: text }));
+    const datumText = (z.datum === heute ? 'Heute, ' : H.WOCHENTAGE_KURZ[H.wochentag(z.datum) - 1] + ', ') + H.datumKurz(z.datum).slice(0, 6);
+    const liste = einheitenDesTages();
+    const mehrere = liste.length > 1;
+    const einheitText = (z.stunde === M.OHNE_STUNDE && !mehrere) ? '' : einheitTextAktuell();
+    return [
+      H.el('button', { type: 'button', class: 'kopf-knopf', 'aria-label': 'Datum wählen: ' + H.datumLang(z.datum), onclick: datumWaehlen },
+        H.el('span', { class: 'kopf-knopf-text', text: datumText })),
+      einheitText ? H.el('button', {
+        type: 'button', class: 'kopf-knopf bw-einheit' + (mehrere ? '' : ' passiv'),
+        'aria-label': mehrere ? 'Einheit wählen: ' + einheitText : 'Einheit: ' + einheitText,
+        onclick: mehrere ? einheitWaehlen : null
+      }, [
+        H.el('span', { class: 'kopf-knopf-text', text: einheitText }),
+        mehrere ? H.el('span', { class: 'kopf-knopf-pfeil', 'aria-hidden': 'true', text: '⌄' }) : null
+      ]) : null
+    ];
   }
 
   /* ---------- Registrierung ---------- */
@@ -651,9 +826,13 @@ NB.Bewertung = (function () {
         document.addEventListener('keydown', tastatur);
         document.addEventListener('visibilitychange', function () {
           if (document.visibilityState === 'visible' && D.istEntsperrt() && z.klasseId) tagPruefen();
+          if (document.visibilityState === 'hidden' && D.istEntsperrt() && N.istSichtbar('bewertung')) kindVerlassen();
         });
       }
       allesRendern();
+    },
+    verbergen: function () {
+      if (D.istEntsperrt()) kindVerlassen();
     },
     kopfLinks: kopfLinks,
     kopfRechts: kopfRechts,

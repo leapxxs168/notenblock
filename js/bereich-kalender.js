@@ -60,7 +60,17 @@ NB.BereichKalender = (function () {
   function fachName(id) { const f = M.fach(id); return f ? f.name : 'Fach fehlt'; }
 
   function istBewertet(s, datum) {
-    return M.bewertungHatInhalt(M.bewertung(s.klasseId, s.fachId, datum));
+    return M.bewertungHatInhalt(M.einheit(s.klasseId, s.fachId, datum, s.stunde));
+  }
+
+  /** Eigene Bewertungseinheiten aller Klassen an einem Tag („Mein Plan“), nach Stunde. */
+  function einheitenAmTag(datum) {
+    const liste = [];
+    M.klassen().forEach(function (k) {
+      SP.einheitenAmTag(k, datum).forEach(e => liste.push(e));
+    });
+    liste.sort((a, b) => a.stunde - b.stunde);
+    return liste;
   }
 
   function wochenstart(iso) { return SP.montag(iso); }
@@ -182,7 +192,7 @@ NB.BereichKalender = (function () {
   /* Tagesansicht */
   function tagRendern(wurzel) {
     const datum = z.datum;
-    const stunden = SP.stundenAmTag(datum);
+    const stunden = einheitenAmTag(datum);
     const frei = SP.freierTag(datum);
     const imSchuljahr = SP.imSchuljahr(datum);
 
@@ -227,7 +237,7 @@ NB.BereichKalender = (function () {
           const anzahl = s.stunde - vorherige - 1;
           liste.appendChild(H.el('div', { class: 'kal-luecke text-klein text-schwach', text: anzahl === 1 ? 'Freistunde' : anzahl + ' Freistunden' }));
         }
-        if (vorherige == null || s.stunde !== vorherige) vorherige = s.stunde;
+        if (vorherige == null || s.stundeBis > vorherige) vorherige = s.stundeBis;
         liste.appendChild(stundenKarte(s, datum));
       });
       wurzel.appendChild(liste);
@@ -243,15 +253,16 @@ NB.BereichKalender = (function () {
     const fertig = M.planungFertig(datum, s.stunde, s.klasseId, s.fachId);
     const bewertet = istBewertet(s, datum);
     const planung = M.planung(datum, s.stunde, s.klasseId, s.fachId);
-    const zeit = SP.uhrzeitText(s.stunde);
+    const zeit = SP.uhrzeitTextBereich(s.stunde, s.stundeBis);
+    const nummer = s.stundeBis > s.stunde ? s.stunde + '.–' + s.stundeBis + '.' : s.stunde + '.';
     return H.el('button', {
       type: 'button',
       class: 'kal-stunde' + (fertig ? ' geplant' : ''),
-      'aria-label': s.stunde + '. Stunde, ' + klassenName(s.klasseId) + ' ' + fachName(s.fachId) + (fertig ? ', Planung fertig' : ', Planung offen') + (bewertet ? ', bewertet' : ''),
+      'aria-label': SP.stundenText(s.stunde, s.stundeBis) + ', ' + klassenName(s.klasseId) + ' ' + fachName(s.fachId) + (fertig ? ', Planung fertig' : ', Planung offen') + (bewertet ? ', bewertet' : ''),
       onclick: () => B.planungOeffnen({ datum: datum, stunde: s.stunde, klasseId: s.klasseId, fachId: s.fachId })
     }, [
       H.el('span', { class: 'kal-stunde-nr' }, [
-        H.el('span', { class: 'kal-nr', text: s.stunde + '.' }),
+        H.el('span', { class: 'kal-nr', text: nummer }),
         zeit ? H.el('span', { class: 'kal-zeit text-klein text-schwach', text: zeit }) : null
       ]),
       H.el('span', { class: 'kal-stunde-text' }, [
@@ -279,11 +290,11 @@ NB.BereichKalender = (function () {
     const montag = wochenstart(z.datum);
     const tage = [];
     for (let i = 0; i < 7; i++) tage.push(H.tageAddieren(montag, i));
-    const stundenJeTag = tage.map(iso => SP.stundenAmTag(iso));
+    const stundenJeTag = tage.map(iso => einheitenAmTag(iso));
     const wochenende = stundenJeTag[5].length > 0 || stundenJeTag[6].length > 0;
     const spalten = wochenende ? 7 : 5;
     let maxStunde = 0;
-    stundenJeTag.forEach(liste => liste.forEach(s => { if (s.stunde > maxStunde) maxStunde = s.stunde; }));
+    stundenJeTag.forEach(liste => liste.forEach(s => { if (s.stundeBis > maxStunde) maxStunde = s.stundeBis; }));
     SP.eintraege().forEach(e => { if (Number(e.stunde) > maxStunde) maxStunde = Number(e.stunde); });
     if (maxStunde < 1) maxStunde = 1;
 
@@ -310,7 +321,7 @@ NB.BereichKalender = (function () {
         zeit ? H.el('span', { class: 'wo-zeit', text: zeit.split('–')[0] }) : null
       ]));
       tage.slice(0, spalten).forEach(function (iso, i) {
-        const passende = stundenJeTag[i].filter(s => s.stunde === stunde);
+        const passende = stundenJeTag[i].filter(s => stunde >= s.stunde && stunde <= s.stundeBis);
         const frei = SP.freierTag(iso);
         if (!passende.length) {
           raster.appendChild(H.el('div', { class: 'wo-zelle wo-leer' + (frei ? ' frei' : ''), role: 'gridcell' }));
@@ -321,7 +332,7 @@ NB.BereichKalender = (function () {
           const fertig = M.planungFertig(iso, s.stunde, s.klasseId, s.fachId);
           const bewertet = istBewertet(s, iso);
           zelle.appendChild(H.el('button', {
-            type: 'button', class: 'wo-stunde' + (fertig ? ' geplant' : '') + (bewertet ? ' bewertet' : ''),
+            type: 'button', class: 'wo-stunde' + (fertig ? ' geplant' : '') + (bewertet ? ' bewertet' : '') + (stunde > s.stunde ? ' fortsetzung' : ''),
             'aria-label': H.WOCHENTAGE[i] + ', ' + stunde + '. Stunde, ' + klassenName(s.klasseId) + ' ' + fachName(s.fachId) + (fertig ? ', geplant' : ', ungeplant') + (bewertet ? ', bewertet' : ''),
             onclick: () => B.planungOeffnen({ datum: iso, stunde: s.stunde, klasseId: s.klasseId, fachId: s.fachId })
           }, [
@@ -382,8 +393,9 @@ NB.BereichKalender = (function () {
     const wurzel = H.$('#bildschirm-planung');
     H.leeren(wurzel);
     const p = M.planungOderNeu(parameter.datum, parameter.stunde, parameter.klasseId, parameter.fachId);
-    const stundeInfo = SP.stundenAmTag(parameter.datum).find(s => s.stunde === Number(parameter.stunde) && s.klasseId === parameter.klasseId && s.fachId === parameter.fachId);
-    const zeit = SP.uhrzeitText(parameter.stunde);
+    const klasseObj = M.klasse(parameter.klasseId);
+    const stundeInfo = klasseObj ? SP.einheitFuerStunde(klasseObj, parameter.datum, parameter.stunde) : null;
+    const zeit = stundeInfo ? SP.uhrzeitTextBereich(stundeInfo.stunde, stundeInfo.stundeBis) : SP.uhrzeitText(parameter.stunde);
 
     const speichern = () => M.planungSpeichern(p);
     const speichernVerzoegert = H.entprellen(speichern, 300);
@@ -416,7 +428,7 @@ NB.BereichKalender = (function () {
 
     const kopf = H.el('div', { class: 'planung-kopf' }, [
       H.el('div', { class: 'planung-titel', text: klassenName(parameter.klasseId) + ' · ' + fachName(parameter.fachId) }),
-      H.el('div', { class: 'text-schwach text-klein', text: H.datumLang(parameter.datum) + ' · ' + parameter.stunde + '. Stunde' + (zeit ? ' · ' + zeit : '') + (stundeInfo && stundeInfo.raum ? ' · ' + SP.raumText(stundeInfo.raum) : '') })
+      H.el('div', { class: 'text-schwach text-klein', text: H.datumLang(parameter.datum) + ' · ' + (stundeInfo ? SP.stundenText(stundeInfo.stunde, stundeInfo.stundeBis) : parameter.stunde + '. Std.') + (zeit ? ' · ' + zeit : '') + (stundeInfo && stundeInfo.raum ? ' · ' + SP.raumText(stundeInfo.raum) : '') })
     ]);
 
     wurzel.appendChild(H.el('div', { class: 'karte-inhalt' }, [
@@ -435,7 +447,7 @@ NB.BereichKalender = (function () {
         H.el('button', { type: 'button', class: 'knopf', text: 'Planung übernehmen von …', onclick: () => uebernehmen(p, felder) }),
         H.el('button', { type: 'button', class: 'knopf primaer', text: 'Stunde bewerten', onclick: function () {
           speichern();
-          NB.Bewertung.oeffnen({ klasseId: parameter.klasseId, fachId: parameter.fachId, datum: parameter.datum });
+          NB.Bewertung.oeffnen({ klasseId: parameter.klasseId, fachId: parameter.fachId, datum: parameter.datum, stunde: parameter.stunde });
         } })
       ])
     ]));
