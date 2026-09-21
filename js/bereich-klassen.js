@@ -2,17 +2,18 @@
  * Notenblock – Bereich Klassen
  *
  * Einstieg: Liste der Klassen. Tipp auf eine Klasse → Bewertungsbildschirm.
- * Stiftsymbol → Klasse verwalten (NB.KlasseVerwalten: Stufe, Fächer, Kinder).
- * Kinder verwalten: Liste, ein Kind pro Zeile: „Nachname, Vorname | Kürzel“,
- * samt Klassenname und „Zuletzt unterrichtet im Schuljahr“. Beim Speichern
- * behalten bestehende Kinder ihre Id, damit ihre Bewertungen erhalten bleiben
- * (Abgleich über Name, sonst Kürzel).
+ * Stiftsymbol → Klasse verwalten (NB.KlasseVerwalten: Klasse, Fächer,
+ * Stundenplan, Kinder). „Neue Klasse anlegen“ → geführte Anlage in vier
+ * Schritten (ebenfalls NB.KlasseVerwalten).
+ * Kinder verwalten: Liste, ein Kind pro Zeile: „Nachname, Vorname | Kürzel“.
+ * Beim Speichern behalten bestehende Kinder ihre Id, damit ihre Bewertungen
+ * erhalten bleiben (Abgleich über Name, sonst Kürzel). Die Bausteine
+ * (zeilenEinlesen, abgleichen, kinderZuText) nutzt auch Schritt 4 der Anlage.
  */
 'use strict';
 NB.BereichKlassen = (function () {
   const B = {};
   const H = NB.Hilfen;
-  const D = NB.Daten;
   const M = NB.Modell;
   const N = NB.Navigation;
 
@@ -95,7 +96,7 @@ NB.BereichKlassen = (function () {
 
     wurzel.appendChild(H.el('div', { class: 'knopfzeile' }, H.el('button', {
       type: 'button', class: 'knopf primaer', text: 'Neue Klasse anlegen',
-      onclick: () => B.kinderVerwalten(null)
+      onclick: () => NB.KlasseVerwalten.neu()
     })));
   }
 
@@ -107,6 +108,8 @@ NB.BereichKlassen = (function () {
   function nurKuerzelSpeichern() {
     return M.einstellungen().keineVollenNamen === true;
   }
+  B.nurKuerzel = nurKuerzelSpeichern;
+  B.hinweisText = () => (nurKuerzelSpeichern() ? HINWEIS_KUERZEL : HINWEIS);
 
   /** Zeilen der Liste einlesen → [{ name, kuerzel }] oder Fehlertext. */
   function zeilenEinlesen(text) {
@@ -133,6 +136,7 @@ NB.BereichKlassen = (function () {
     }
     return { kinder: kinder };
   }
+  B.zeilenEinlesen = zeilenEinlesen;
 
   /** Neue Liste mit bestehenden Kindern abgleichen, damit Ids erhalten bleiben. */
   function abgleichen(bestehend, neu) {
@@ -149,39 +153,66 @@ NB.BereichKlassen = (function () {
     });
     return { kinder: ergebnis, entfernt: rest };
   }
+  B.abgleichen = abgleichen;
 
   function kinderZuText(kinder) {
     if (nurKuerzelSpeichern()) return (kinder || []).map(k => k.kuerzel || '').join('\n');
     return (kinder || []).map(k => (k.name || '') + (k.kuerzel ? ' | ' + k.kuerzel : '')).join('\n');
   }
+  B.kinderZuText = kinderZuText;
 
-  let bearbeitet = null; // { klasseId } oder { klasseId: null } für eine neue Klasse
+  let bearbeitet = null; // { klasseId }
 
   B.kinderVerwalten = function (klasseId) {
     N.bildschirmOeffnen('kinder', { klasseId: klasseId });
   };
 
+  /**
+   * Neue Liste in die Klasse übernehmen: Abgleich mit bestehenden Kindern,
+   * Rückfrage bei entfernten Kindern (samt ihrer Bewertungen und Notizen).
+   * Liefert true, wenn gespeichert wurde, sonst den Fehlertext.
+   */
+  B.listeUebernehmen = async function (klasse, text) {
+    const gelesen = zeilenEinlesen(text);
+    if (gelesen.fehler) return gelesen.fehler;
+    const abgleich = abgleichen(klasse.kinder || [], gelesen.kinder);
+    if (abgleich.entfernt.length > 0) {
+      const namen = abgleich.entfernt.map(k => M.kindName(k)).join(', ');
+      const ok = await NB.Dialog.bestaetigen({
+        titel: abgleich.entfernt.length === 1 ? 'Ein Kind entfernen?' : abgleich.entfernt.length + ' Kinder entfernen?',
+        text: namen + ' – steht nicht mehr in der Liste. Beim Entfernen werden auch die bisherigen Bewertungen und Notizen dieses Kindes gelöscht. Bei einem Tippfehler im Namen: Abbrechen und den Namen korrigieren.',
+        bestaetigen: 'Entfernen',
+        gefaehrlich: true
+      });
+      if (!ok) return false;
+    }
+    abgleich.entfernt.forEach(k => M.kindEntfernen(klasse, k.id));
+    klasse.kinder = abgleich.kinder;
+    M.klasseSpeichern(klasse);
+    return true;
+  };
+
   function kinderRendern(parameter) {
-    bearbeitet = parameter || { klasseId: null };
-    const klasse = bearbeitet.klasseId ? M.klasse(bearbeitet.klasseId) : null;
+    bearbeitet = parameter || {};
+    const klasse = M.klasse(bearbeitet.klasseId);
     const wurzel = H.$('#bildschirm-kinder');
     H.leeren(wurzel);
+    if (!klasse) {
+      wurzel.appendChild(H.el('div', { class: 'leer' }, H.el('p', { text: 'Diese Klasse gibt es nicht mehr.' })));
+      return;
+    }
 
-    const nameFeld = H.el('input', { type: 'text', id: 'kinder-name', autocomplete: 'off', value: klasse ? klasse.name : '', placeholder: 'zum Beispiel 3a' });
     const listeFeld = H.el('textarea', { id: 'kinder-liste', rows: 12, autocomplete: 'off', autocapitalize: 'words', spellcheck: 'false', placeholder: nurKuerzelSpeichern() ? 'MM07' : 'Mustermann, Max | MM07' });
-    listeFeld.value = klasse ? kinderZuText(klasse.kinder) : '';
-    const schuljahrFeld = H.el('input', { type: 'text', id: 'kinder-schuljahr', autocomplete: 'off', value: klasse && klasse.letztesSchuljahr ? klasse.letztesSchuljahr : NB.Startdaten.aktuellesSchuljahr(), placeholder: NB.Startdaten.aktuellesSchuljahr() });
+    listeFeld.value = kinderZuText(klasse.kinder);
     const fehler = H.el('p', { class: 'fehler', role: 'alert', hidden: true });
 
     const formular = H.el('form', { class: 'formular', novalidate: true, onsubmit: ev => { ev.preventDefault(); speichern(); } }, [
-      H.el('label', { class: 'feld' }, [H.el('span', { class: 'feld-name', text: 'Klassenname' }), nameFeld]),
+      H.el('h2', { class: 'aw-titel', text: klasse.name }),
       H.el('label', { class: 'feld' }, [
         H.el('span', { class: 'feld-name', text: 'Kinder' }),
         listeFeld
       ]),
-      H.el('p', { class: 'text-schwach text-klein', text: nurKuerzelSpeichern() ? HINWEIS_KUERZEL : HINWEIS }),
-      H.el('label', { class: 'feld' }, [H.el('span', { class: 'feld-name', text: 'Zuletzt unterrichtet im Schuljahr' }), schuljahrFeld]),
-      H.el('p', { class: 'text-schwach text-klein', text: 'Dient der Löschfrist: Ein Jahr nach Ende des Kalenderjahres, in dem der Unterricht endete, erinnert Notenblock an das Löschen.' }),
+      H.el('p', { class: 'text-schwach text-klein', text: B.hinweisText() }),
       fehler,
       H.el('div', { class: 'knopfzeile' }, [
         H.el('button', { type: 'submit', class: 'knopf primaer', text: 'Liste speichern' })
@@ -191,56 +222,19 @@ NB.BereichKlassen = (function () {
 
     async function speichern() {
       fehler.hidden = true;
-      const name = nameFeld.value.trim();
-      if (!name) {
-        fehler.textContent = 'Bitte einen Klassennamen eintragen.';
-        fehler.hidden = false;
-        nameFeld.focus();
-        return;
-      }
-      const gelesen = zeilenEinlesen(listeFeld.value);
-      if (gelesen.fehler) {
-        fehler.textContent = gelesen.fehler;
-        fehler.hidden = false;
-        listeFeld.focus();
-        return;
-      }
-      const abgleich = abgleichen(klasse ? klasse.kinder : [], gelesen.kinder);
-      if (abgleich.entfernt.length > 0) {
-        const namen = abgleich.entfernt.map(k => M.kindName(k)).join(', ');
-        const ok = await NB.Dialog.bestaetigen({
-          titel: abgleich.entfernt.length === 1 ? 'Ein Kind entfernen?' : abgleich.entfernt.length + ' Kinder entfernen?',
-          text: namen + ' – steht nicht mehr in der Liste. Beim Entfernen werden auch die bisherigen Bewertungen und Notizen dieses Kindes gelöscht. Bei einem Tippfehler im Namen: Abbrechen und den Namen korrigieren.',
-          bestaetigen: 'Entfernen',
-          gefaehrlich: true
-        });
-        if (!ok) return;
-      }
-
-      if (klasse) {
-        abgleich.entfernt.forEach(k => M.kindEntfernen(klasse, k.id));
-        klasse.name = name;
-        klasse.kinder = abgleich.kinder;
-        klasse.letztesSchuljahr = schuljahrFeld.value.trim();
-        D.setzen('klasse', klasse.id, klasse);
-      } else {
-        const neu = NB.Startdaten.leereKlasse(name);
-        neu.kinder = abgleich.kinder;
-        neu.letztesSchuljahr = schuljahrFeld.value.trim();
-        D.setzen('klasse', neu.id, neu);
-      }
-      NB.App.meldung('Liste gespeichert.');
-      N.zurueck();
+      const ergebnis = await B.listeUebernehmen(klasse, listeFeld.value);
+      if (ergebnis === true) { NB.App.meldung('Liste gespeichert.'); N.zurueck(); return; }
+      if (typeof ergebnis === 'string') { fehler.textContent = ergebnis; fehler.hidden = false; listeFeld.focus(); }
     }
 
-    setTimeout(() => (klasse ? listeFeld : nameFeld).focus(), 50);
+    setTimeout(() => listeFeld.focus(), 50);
   }
 
   /* ---------- Registrierung ---------- */
 
   N.bereichRegistrieren('klassen', { titel: 'Klassen', zeigen: listeRendern });
   N.bildschirmRegistrieren('kinder', {
-    titel: () => (bearbeitet && bearbeitet.klasseId ? 'Kinder verwalten' : 'Neue Klasse'),
+    titel: 'Kinder verwalten',
     zurueck: true,
     zeigen: kinderRendern
   });

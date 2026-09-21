@@ -69,7 +69,7 @@ Einstellungen → Daten → „Sicherung erstellen“ erzeugt eine Datei `notenb
 
 `datenschutz.md` beschreibt in einfachen Worten, welche Daten gespeichert werden, wo sie liegen, wie sie verschlüsselt sind, wie lange sie aufbewahrt und wie sie gelöscht werden – als Grundlage für das Verzeichnis der Verarbeitungstätigkeiten der Schule. Die Stellen „Von der Schule zu ergänzen“ sind für die Schulleitung gedacht.
 
-Je Klasse ist unter „Kinder verwalten“ das Schuljahr hinterlegt, in dem zuletzt unterrichtet wurde. Ein Jahr nach Ablauf des Kalenderjahres, in dem der Unterricht endete, erinnert Notenblock beim Start an das Löschen (höchstens einmal am Tag) – gelöscht wird nur auf Tipp.
+Je Klasse ist unter „Klasse verwalten“ das Schuljahr hinterlegt, in dem zuletzt unterrichtet wurde. Ein Jahr nach Ablauf des Kalenderjahres, in dem der Unterricht endete, erinnert Notenblock beim Start an das Löschen (höchstens einmal am Tag) – gelöscht wird nur auf Tipp.
 
 ## Für Fortgeschrittene: Kriterien aktualisieren
 

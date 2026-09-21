@@ -17,7 +17,7 @@ NB.Einstellungen = (function () {
 
   const ABSCHNITTE = [
     { id: 'bewertung', titel: 'Bewertung', text: 'Standardnote, Skala, Rundung' },
-    { id: 'stundenplan', titel: 'Stundenplan', text: 'Stunden, Uhrzeiten, Schuljahr, Ferien, Ausfälle' },
+    { id: 'stundenplan', titel: 'Stundenplan', text: 'Uhrzeiten, Schuljahr, A-Woche, Ferien, Feiertage' },
     { id: 'faecher', titel: 'Fächer und Kriterien', text: 'Anlegen, umbenennen, sortieren, Gewichte' },
     { id: 'darstellung', titel: 'Darstellung', text: 'Beschreibungen, Notizfeld, Schriftgröße, Wischen' },
     { id: 'datenschutz', titel: 'Datenschutz', text: 'Kürzel, automatische Sperre, Passphrase' },

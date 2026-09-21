@@ -83,7 +83,7 @@ NB.Loeschfristen = (function () {
         H.el('h2', { text: 'Löschfrist erreicht' }),
         H.el('p', { text: (klassen.length === 1 ? 'Für eine Klasse' : 'Für ' + klassen.length + ' Klassen') + ' ist seit dem Ende des Unterrichts mehr als ein Jahr nach Ablauf des Kalenderjahres vergangen. Personenbezogene Daten sollten dann gelöscht werden. Notenblock löscht nichts von selbst.' }),
         liste,
-        H.el('p', { class: 'text-klein text-schwach', text: 'Vorher kann eine Sicherung erstellt werden (Einstellungen → Daten). Das Schuljahr je Klasse lässt sich unter „Kinder verwalten“ anpassen.' }),
+        H.el('p', { class: 'text-klein text-schwach', text: 'Vorher kann eine Sicherung erstellt werden (Einstellungen → Daten). Das Schuljahr je Klasse lässt sich unter „Klasse verwalten“ anpassen.' }),
         H.el('div', { class: 'knopfzeile' }, H.el('button', { type: 'button', class: 'knopf', text: 'Später erinnern', onclick: () => eintrag.schliessen(null) }))
       ];
       eintrag = NB.Dialog.overlayOeffnen(inhalt, { klasse: 'dialog', beiSchliessen: erg => { if (erg !== true) aufloesen(); } });

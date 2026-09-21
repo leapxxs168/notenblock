@@ -1,10 +1,11 @@
 /*
- * Notenblock – Einstellungen: Stundenplan
+ * Notenblock – Einstellungen: Stundenplan (global)
  *
- * Abschnitt „Stundenplan“ der Einstellungen: Stunden je Wochentag (Klasse,
- * Fach, Raum, Turnus), Uhrzeiten je Stundennummer, Schuljahreszeitraum,
- * Ferien, Feiertage, einzelne Ausfalltermine und Zusatztermine.
- * Datumsangaben ausschließlich über den Monatskalender.
+ * Abschnitt „Stundenplan“ der Einstellungen mit allem, was für alle Klassen
+ * gilt: Uhrzeiten je Stundennummer, Schuljahreszeitraum und A-Woche, Ferien,
+ * Feiertage. Datumsangaben ausschließlich über den Monatskalender.
+ * Die Stundenpläne selbst sowie Ausfall- und Zusatztermine werden je Klasse
+ * gepflegt (Klassen → Klasse verwalten → Stundenplan, NB.KlasseStundenplan).
  */
 'use strict';
 NB.EinstellungenStundenplan = (function () {
@@ -13,8 +14,6 @@ NB.EinstellungenStundenplan = (function () {
   const M = NB.Modell;
   const N = NB.Navigation;
   const SP = NB.Stundenplan;
-
-  let stundeParameter = null;   // Parameter des Stundeneditors (für den Titel)
 
   /* ---------- Bausteine ---------- */
 
@@ -63,13 +62,6 @@ NB.EinstellungenStundenplan = (function () {
     return knopf;
   }
 
-  function klassenName(id) { const k = M.klasse(id); return k ? k.name : 'Klasse fehlt'; }
-  function fachName(id) { const f = M.fach(id); return f ? f.name : 'Fach fehlt'; }
-
-  function stundenText(s) {
-    const zeit = SP.uhrzeitText(s.stunde);
-    return s.stunde + '. Stunde' + (zeit ? ' · ' + zeit : '');
-  }
 
   function neuZeichnen() {
     NB.Einstellungen.neuZeichnen();
@@ -79,59 +71,15 @@ NB.EinstellungenStundenplan = (function () {
 
   ES.rendern = function (inhalt) {
     const klassen = M.klassen();
-    const faecher = M.faecher();
-    if (!klassen.length || !faecher.length) {
-      inhalt.appendChild(H.el('p', { class: 'fehler', text: 'Für Stundenplaneinträge werden mindestens eine Klasse und ein Fach benötigt.' }));
-    }
-    wochentageRendern(inhalt);
+    const eigene = klassen.reduce((n, k) => n + SP.klassenplan(k).filter(e => e.art !== 'fremd').length, 0);
+    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach einst-hinweis', text:
+      'Die Stundenpläne pflegst du je Klasse: Klassen → Stiftsymbol → Stundenplan. Dein eigener Plan ist die Summe aller eigenen Stunden'
+      + (klassen.length ? ' – zurzeit ' + (eigene === 1 ? '1 eigene Stunde' : eigene + ' eigene Stunden') + ' in ' + (klassen.length === 1 ? '1 Klasse' : klassen.length + ' Klassen') + '.' : '.') }));
     uhrzeitenRendern(inhalt);
     schuljahrRendern(inhalt);
     ferienRendern(inhalt);
     feiertageRendern(inhalt);
-    ausfallRendern(inhalt);
-    zusatzRendern(inhalt);
   };
-
-  /* Wochentage mit Stunden */
-  function wochentageRendern(inhalt) {
-    const eintraege = SP.eintraege();
-    for (let wt = 1; wt <= 7; wt++) {
-      const amTag = eintraege.filter(e => Number(e.wochentag) === wt).sort((a, b) => a.stunde - b.stunde);
-      if (wt >= 6 && amTag.length === 0) continue; // Wochenende nur zeigen, wenn belegt
-      const zeilen = amTag.map(e => eintrag(
-        stundenText(e),
-        klassenName(e.klasseId) + ' · ' + fachName(e.fachId) + (e.raum ? ' · ' + SP.raumText(e.raum) : '') + (e.turnus && e.turnus !== 'jede' ? ' · ' + SP.turnusText(e.turnus) : ''),
-        () => N.bildschirmOeffnen('einstellungen-stunde', { id: e.id }),
-        () => stundeEntfernen(e)
-      ));
-      zeilen.push(H.el('div', { class: 'einst-eintrag' }, H.el('button', {
-        type: 'button', class: 'einst-eintrag-text einst-hinzu', text: '+ Stunde am ' + H.WOCHENTAGE[wt - 1],
-        onclick: () => N.bildschirmOeffnen('einstellungen-stunde', { wochentag: wt })
-      })));
-      inhalt.appendChild(gruppe(H.WOCHENTAGE[wt - 1], zeilen));
-    }
-    if (!eintraege.some(e => Number(e.wochentag) >= 6)) {
-      inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach einst-hinweis' }, [
-        'Samstag und Sonntag: ',
-        H.el('button', { type: 'button', class: 'textknopf klein', text: 'Stunde am Samstag', onclick: () => N.bildschirmOeffnen('einstellungen-stunde', { wochentag: 6 }) }),
-        ' · ',
-        H.el('button', { type: 'button', class: 'textknopf klein', text: 'Stunde am Sonntag', onclick: () => N.bildschirmOeffnen('einstellungen-stunde', { wochentag: 7 }) })
-      ]));
-    }
-  }
-
-  async function stundeEntfernen(e) {
-    const ok = await NB.Dialog.bestaetigen({
-      titel: 'Stunde entfernen?',
-      text: H.WOCHENTAGE[Number(e.wochentag) - 1] + ', ' + e.stunde + '. Stunde: ' + klassenName(e.klasseId) + ' · ' + fachName(e.fachId) + '. Bereits erfasste Bewertungen bleiben erhalten.',
-      bestaetigen: 'Entfernen',
-      gefaehrlich: true
-    });
-    if (!ok) return;
-    const klasse = M.klasse(e.klasseId);
-    if (klasse) SP.eintragEntfernen(klasse, e.id);
-    neuZeichnen();
-  }
 
   /* Uhrzeiten je Stundennummer */
   function uhrzeitenRendern(inhalt) {
@@ -240,238 +188,6 @@ NB.EinstellungenStundenplan = (function () {
     ]));
     inhalt.appendChild(gruppe('Feiertage', zeilen));
   }
-
-  /* Ausfalltermine: ganzer Tag oder eine einzelne Stunde */
-  function ausfallText(a) {
-    if (!a.stunde) return 'Ganzer Tag';
-    return a.stunde + '. Stunde';
-  }
-
-  function klassenAuswahl(label) {
-    const feld = H.el('select', { 'aria-label': label });
-    M.klassen().forEach(k => feld.appendChild(H.el('option', { value: k.id, text: k.name })));
-    return feld;
-  }
-
-  function ausfallRendern(inhalt) {
-    const klassen = M.klassen();
-    const alle = [];
-    klassen.forEach(k => (k.ausnahmen || []).forEach(a => alle.push({ klasse: k, a: a })));
-    const zeilen = alle.sort((x, y) => (x.a.datum < y.a.datum ? -1 : 1)).map(x => eintrag(
-      H.datumMitWochentag(x.a.datum) + ' · ' + x.klasse.name, ausfallText(x.a) + (x.a.grund ? ' · ' + x.a.grund : ''), null,
-      function () { x.klasse.ausnahmen = (x.klasse.ausnahmen || []).filter(y => y.id !== x.a.id); M.klasseSpeichern(x.klasse); neuZeichnen(); }
-    ));
-    const neu = { datum: null };
-    const klasseFeld = klassenAuswahl('Klasse');
-    const umfang = H.el('select', { 'aria-label': 'Was fällt aus', hidden: true });
-    function umfangFuellen() {
-      H.leeren(umfang);
-      umfang.appendChild(H.el('option', { value: 'tag', text: 'Ganzer Tag' }));
-      const k = M.klasse(klasseFeld.value);
-      if (k && neu.datum) SP.klassenStundenAmTag(k, neu.datum).forEach(function (s) {
-        umfang.appendChild(H.el('option', { value: String(s.stunde), text: s.stunde + '. Stunde · ' + (s.art === 'fremd' ? (s.bezeichnung || 'fremde Stunde') : fachName(s.fachId)) }));
-      });
-      umfang.hidden = !neu.datum;
-    }
-    klasseFeld.addEventListener('change', umfangFuellen);
-    const datum = datumKnopf(null, 'Datum wählen', iso => { neu.datum = iso; umfangFuellen(); }, 'Ausfalltermin');
-    const grundFeld = H.el('input', { type: 'text', placeholder: 'Grund (optional), zum Beispiel Wandertag', autocomplete: 'off', 'aria-label': 'Grund' });
-    const fehler = H.el('p', { class: 'fehler', hidden: true });
-    const hinzu = H.el('button', { type: 'button', class: 'knopf primaer', text: 'Ausfall hinzufügen', onclick: function () {
-      const k = M.klasse(klasseFeld.value);
-      if (!k) { fehler.textContent = 'Bitte eine Klasse wählen.'; fehler.hidden = false; return; }
-      if (!neu.datum) { fehler.textContent = 'Bitte ein Datum wählen.'; fehler.hidden = false; return; }
-      const a = { id: H.neueId(), datum: neu.datum, stunde: (umfang.value && umfang.value !== 'tag') ? Number(umfang.value) : null, grund: grundFeld.value.trim() };
-      if (!Array.isArray(k.ausnahmen)) k.ausnahmen = [];
-      k.ausnahmen.push(a);
-      M.klasseSpeichern(k);
-      neuZeichnen();
-    } });
-    zeilen.push(H.el('div', { class: 'einst-zeile einst-zeile-feld einst-formular' }, [
-      H.el('div', { class: 'einst-text' }, [
-        H.el('div', { class: 'einst-label', text: 'Ausfall hinzufügen' }),
-        H.el('div', { class: 'einst-beschreibung text-klein text-schwach', text: 'Je Klasse: ein ganzer Tag (etwa Wandertag) oder eine einzelne Stunde dieses Tages.' })
-      ]),
-      H.el('div', { class: 'einst-steuerung einst-formular-felder' }, [klasseFeld, datum, umfang, grundFeld, fehler, hinzu])
-    ]));
-    inhalt.appendChild(gruppe('Ausfalltermine', zeilen));
-  }
-
-  /* Zusatztermine */
-  function zusatzRendern(inhalt) {
-    const alle = [];
-    M.klassen().forEach(k => (k.zusatz || []).forEach(z => alle.push({ klasse: k, z: z })));
-    const zeilen = alle.sort((x, y) => (x.z.datum < y.z.datum ? -1 : x.z.datum > y.z.datum ? 1 : x.z.stunde - y.z.stunde)).map(x => eintrag(
-      H.datumMitWochentag(x.z.datum) + ' · ' + x.z.stunde + '. Stunde',
-      x.klasse.name + ' · ' + fachName(x.z.fachId) + (x.z.raum ? ' · ' + SP.raumText(x.z.raum) : ''),
-      () => N.bildschirmOeffnen('einstellungen-stunde', { zusatzId: x.z.id, klasseId: x.klasse.id }),
-      function () { x.klasse.zusatz = (x.klasse.zusatz || []).filter(y => y.id !== x.z.id); M.klasseSpeichern(x.klasse); neuZeichnen(); }
-    ));
-    zeilen.push(H.el('div', { class: 'einst-eintrag' }, H.el('button', {
-      type: 'button', class: 'einst-eintrag-text einst-hinzu', text: '+ Zusatztermin',
-      onclick: () => N.bildschirmOeffnen('einstellungen-stunde', { zusatz: true })
-    })));
-    inhalt.appendChild(gruppe('Zusatztermine', zeilen, 'Eine zusätzliche Stunde an einem bestimmten Tag, etwa eine Vertretung oder eine verlegte Stunde. Zusatztermine gelten immer als Unterrichtstag.'));
-  }
-
-  /* ---------- Stundeneditor (Plan-Eintrag oder Zusatztermin) ---------- */
-
-  function stundeRendern(parameter) {
-    stundeParameter = parameter || {};
-    const wurzel = H.$('#bildschirm-einstellungen-stunde');
-    H.leeren(wurzel);
-    const istZusatz = !!(stundeParameter.zusatz || stundeParameter.zusatzId);
-    const sj = SP.schuljahr();
-    let vorlage = null;
-    let vorlageKlasse = null;
-    if (stundeParameter.id) {
-      M.klassen().forEach(function (k) {
-        const e = SP.klassenplan(k).find(x => x.id === stundeParameter.id);
-        if (e) { vorlage = Object.assign({}, e, { klasseId: k.id }); vorlageKlasse = k; }
-      });
-    }
-    if (stundeParameter.zusatzId) {
-      const k = M.klasse(stundeParameter.klasseId);
-      const z = k ? (k.zusatz || []).find(x => x.id === stundeParameter.zusatzId) : null;
-      if (z) { vorlage = Object.assign({}, z, { klasseId: k.id }); vorlageKlasse = k; }
-    }
-
-    const klassen = M.klassen();
-    const startKlasse = M.klasse((vorlage && vorlage.klasseId) || stundeParameter.klasseId) || klassen[0] || null;
-    let faecher = startKlasse ? M.klassenFaecher(startKlasse) : M.faecher();
-    if (!faecher.length) faecher = M.faecher();
-    const werte = {
-      wochentag: vorlage && vorlage.wochentag ? Number(vorlage.wochentag) : (stundeParameter.wochentag || 1),
-      datum: vorlage && vorlage.datum ? vorlage.datum : (stundeParameter.datum || null),
-      stunde: vorlage ? Number(vorlage.stunde) : 1,
-      klasseId: vorlage ? vorlage.klasseId : (klassen[0] ? klassen[0].id : ''),
-      fachId: vorlage ? vorlage.fachId : (faecher[0] ? faecher[0].id : ''),
-      raum: vorlage ? (vorlage.raum || '') : '',
-      turnus: vorlage && vorlage.turnus ? vorlage.turnus : 'jede'
-    };
-
-    const felder = [];
-
-    if (istZusatz) {
-      const datum = datumKnopf(werte.datum, 'Datum wählen', iso => { werte.datum = iso; }, 'Datum des Zusatztermins');
-      felder.push(zeileFeld('Datum', datum));
-    } else {
-      const wtFeld = H.el('select', { 'aria-label': 'Wochentag' });
-      H.WOCHENTAGE.forEach((name, i) => wtFeld.appendChild(H.el('option', { value: String(i + 1), text: name })));
-      wtFeld.value = String(werte.wochentag);
-      wtFeld.addEventListener('change', () => { werte.wochentag = Number(wtFeld.value); });
-      felder.push(zeileFeld('Wochentag', wtFeld));
-    }
-
-    const stundeFeld = H.el('select', { 'aria-label': 'Stunde' });
-    for (let s = 1; s <= 10; s++) {
-      const zeit = SP.uhrzeitText(s);
-      stundeFeld.appendChild(H.el('option', { value: String(s), text: s + '. Stunde' + (zeit ? ' (' + zeit + ')' : '') }));
-    }
-    stundeFeld.value = String(werte.stunde);
-    stundeFeld.addEventListener('change', () => { werte.stunde = Number(stundeFeld.value); });
-    felder.push(zeileFeld('Stunde', stundeFeld));
-
-    const klasseFeld = H.el('select', { 'aria-label': 'Klasse' });
-    klassen.forEach(k => klasseFeld.appendChild(H.el('option', { value: k.id, text: k.name })));
-    if (werte.klasseId) klasseFeld.value = werte.klasseId;
-    klasseFeld.addEventListener('change', () => { werte.klasseId = klasseFeld.value; });
-    felder.push(zeileFeld('Klasse', klasseFeld));
-
-    const fachFeld = H.el('select', { 'aria-label': 'Fach' });
-    faecher.forEach(f => fachFeld.appendChild(H.el('option', { value: f.id, text: f.name })));
-    if (werte.fachId) fachFeld.value = werte.fachId;
-    fachFeld.addEventListener('change', () => { werte.fachId = fachFeld.value; });
-    felder.push(zeileFeld('Fach', fachFeld));
-
-    const raumFeld = H.el('input', { type: 'text', value: werte.raum, placeholder: 'zum Beispiel 12', autocomplete: 'off', 'aria-label': 'Raum' });
-    raumFeld.addEventListener('input', () => { werte.raum = raumFeld.value; });
-    felder.push(zeileFeld('Raum', raumFeld));
-
-    if (!istZusatz) {
-      const turnus = H.el('div', { class: 'segment', role: 'group', 'aria-label': 'Turnus' });
-      [['jede', 'Jede Woche'], ['A', 'A-Woche'], ['B', 'B-Woche']].forEach(function (t) {
-        turnus.appendChild(H.el('button', {
-          type: 'button', dataset: { wert: t[0] }, text: t[1], 'aria-pressed': werte.turnus === t[0] ? 'true' : 'false',
-          onclick: function () {
-            werte.turnus = t[0];
-            H.$$('button', turnus).forEach(k => k.setAttribute('aria-pressed', k.dataset.wert === t[0] ? 'true' : 'false'));
-          }
-        }));
-      });
-      felder.push(H.el('div', { class: 'einst-zeile einst-zeile-segment' }, [
-        H.el('div', { class: 'einst-text' }, [
-          H.el('div', { class: 'einst-label', text: 'Turnus' }),
-          H.el('div', { class: 'einst-beschreibung text-klein text-schwach', text: 'Bei A- und B-Wochen zählt die Ankerwoche aus dem Abschnitt Schuljahr.' })
-        ]),
-        H.el('div', { class: 'einst-steuerung' }, turnus)
-      ]));
-    }
-
-    const fehler = H.el('p', { class: 'fehler', role: 'alert', hidden: true });
-
-    function speichern(ev) {
-      ev.preventDefault();
-      fehler.hidden = true;
-      if (!werte.klasseId || !werte.fachId) { fehler.textContent = 'Bitte Klasse und Fach wählen.'; fehler.hidden = false; return; }
-      if (istZusatz && !werte.datum) { fehler.textContent = 'Bitte ein Datum wählen.'; fehler.hidden = false; return; }
-      const zielKlasse = M.klasse(werte.klasseId);
-      if (!zielKlasse) { fehler.textContent = 'Bitte eine Klasse wählen.'; fehler.hidden = false; return; }
-      if (istZusatz) {
-        if (vorlageKlasse && vorlageKlasse.id !== zielKlasse.id) {
-          vorlageKlasse.zusatz = (vorlageKlasse.zusatz || []).filter(x => x.id !== vorlage.id);
-          M.klasseSpeichern(vorlageKlasse);
-        }
-        if (!Array.isArray(zielKlasse.zusatz)) zielKlasse.zusatz = [];
-        const neu = { id: vorlage ? vorlage.id : H.neueId(), datum: werte.datum, stunde: werte.stunde, fachId: werte.fachId, raum: werte.raum.trim() };
-        const i = zielKlasse.zusatz.findIndex(x => x.id === neu.id);
-        if (i >= 0) zielKlasse.zusatz[i] = neu; else zielKlasse.zusatz.push(neu);
-        M.klasseSpeichern(zielKlasse);
-      } else {
-        // Gleiche Klasse, gleicher Tag, gleiche Stunde: Konflikt, wenn sich die Turnusse überschneiden
-        const doppelt = SP.klassenplan(zielKlasse).find(function (e) {
-          if (e.id === (vorlage && vorlage.id)) return false;
-          if (Number(e.wochentag) !== werte.wochentag || Number(e.stunde) !== werte.stunde) return false;
-          const t = e.turnus || 'jede';
-          return t === werte.turnus || t === 'jede' || werte.turnus === 'jede';
-        });
-        if (doppelt) {
-          fehler.textContent = 'Für diese Klasse gibt es am ' + H.WOCHENTAGE[werte.wochentag - 1] + ' in der ' + werte.stunde + '. Stunde bereits einen Eintrag (' + (doppelt.art === 'fremd' ? (doppelt.bezeichnung || 'fremde Stunde') : fachName(doppelt.fachId)) + (doppelt.turnus && doppelt.turnus !== 'jede' ? ', ' + SP.turnusText(doppelt.turnus) : '') + ').';
-          fehler.hidden = false;
-          return;
-        }
-        if (vorlageKlasse && vorlageKlasse.id !== zielKlasse.id) SP.eintragEntfernen(vorlageKlasse, vorlage.id);
-        const eintrag = { id: vorlage ? vorlage.id : H.neueId(), art: 'eigene', wochentag: werte.wochentag, stunde: werte.stunde, fachId: werte.fachId, raum: werte.raum.trim(), turnus: werte.turnus };
-        const konflikte = SP.ueberschneidungen(zielKlasse, eintrag).filter(k => k.id !== eintrag.id);
-        SP.eintragSpeichern(zielKlasse, eintrag);
-        if (konflikte.length) NB.App.meldung('Hinweis: Zur selben Zeit steht bereits ' + konflikte.map(k => k.klasseName + ' · ' + fachName(k.fachId)).join(', ') + ' in deinem Plan.');
-      }
-      N.zurueck();
-    }
-
-    wurzel.appendChild(H.el('div', { class: 'karte-inhalt einst' }, H.el('form', { novalidate: true, onsubmit: speichern }, [
-      H.el('div', { class: 'einst-karte' }, felder),
-      fehler,
-      H.el('div', { class: 'knopfzeile' }, H.el('button', { type: 'submit', class: 'knopf primaer', text: istZusatz ? 'Zusatztermin speichern' : 'Stunde speichern' }))
-    ])));
-  }
-
-  function zeileFeld(label, feld) {
-    return H.el('label', { class: 'einst-zeile einst-zeile-feld' }, [
-      H.el('div', { class: 'einst-text' }, H.el('span', { class: 'einst-label', text: label })),
-      H.el('div', { class: 'einst-steuerung' }, feld)
-    ]);
-  }
-
-  N.bildschirmRegistrieren('einstellungen-stunde', {
-    titel: function () {
-      if (!stundeParameter) return 'Stunde';
-      if (stundeParameter.zusatz || stundeParameter.zusatzId) return stundeParameter.zusatzId ? 'Zusatztermin bearbeiten' : 'Neuer Zusatztermin';
-      return stundeParameter.id ? 'Stunde bearbeiten' : 'Neue Stunde';
-    },
-    zurueck: true,
-    zeigen: stundeRendern
-  });
 
   return ES;
 })();
