@@ -26,11 +26,11 @@ Schülerinnen und Schüler der von der Lehrkraft unterrichteten Klassen. Mittelb
 
 | Datenart | Inhalt |
 |---|---|
-| Klassen | Name der Klasse, Schuljahr, in dem zuletzt unterrichtet wurde |
+| Klassen | Name der Klasse, Stufe (Klasse 1 und 2 oder 3 und 4), Schuljahr, in dem zuletzt unterrichtet wurde, gewählte Fächer und abgeschaltete Kompetenzen, Stundenplan der Klasse (eigene und fremde Stunden mit freier Bezeichnung, Lehrkraft, Raum), Ausfall- und Zusatztermine |
 | Kinder | Name (Schreibweise „Nachname, Vorname“) und/oder Kürzel. Wahlweise werden gar keine vollen Namen gespeichert, nur Kürzel. |
-| Bewertungen | Je Klasse, Fach und Datum und je Kind: bewusst gesetzte Noten (1–6) je Kriterium, Kennzeichen „fehlt“, eine kurze Notiz zur Stunde |
-| Fächer und Kriterien | Bewertungskriterien mit Beschreibungstexten (keine personenbezogenen Daten) |
-| Stundenplan | Wochentage, Stunden, Klasse, Fach, Raum, Schuljahr, Ferien, Feiertage, Ausfall- und Zusatztermine |
+| Bewertungen | Je Klasse, Fach, Datum und Unterrichtsstunde (Bewertungseinheit) und je Kind: Werte 1–6 je Kriterium (Kompetenzen des Fachs, Arbeits- und Sozialverhalten) mit Kennzeichen „gesetzt“ oder „übernommen“, Kennzeichen „fehlt“, eine kurze Notiz zur Stunde; je Einheit ausgesetzte Kriterien. Ältere Bewertungen aus einer früheren Fassung bleiben archiviert lesbar. |
+| Fächer und Kriterien | Fächer je Stufe mit Kompetenzen nach Lehrplanbereich und Kriterien zum Arbeits- und Sozialverhalten, jeweils mit Beschreibungstexten (keine personenbezogenen Daten) |
+| Stundenplan (global) | Uhrzeiten, Schuljahr, A-Woche, Ferien, Feiertage |
 | Stundenplanungen | Thema, Verlauf, Material, Hausaufgabe je Stunde (keine personenbezogenen Daten, sofern die Lehrkraft dort keine Namen einträgt) |
 | Notizen | Titel, Text, Datum, wahlweise Zuordnung zu Klasse, Kind und Fach |
 | Aufgaben | Text, Fälligkeit, wahlweise Klasse |

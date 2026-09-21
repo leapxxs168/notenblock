@@ -381,6 +381,20 @@ NB.Einstellungen = (function () {
       aktivFeld.setAttribute('aria-checked', aktivFeld.checked ? 'true' : 'false');
       aktivFeld.addEventListener('change', function () { aktivFeld.setAttribute('aria-checked', aktivFeld.checked ? 'true' : 'false'); fachAktivSetzen(fach, aktivFeld.checked, aktivFeld); });
       kopfZeilen.push(zeile('Aktiv', 'Aus: Das Fach ruht – es erscheint nicht mehr in der Erfassung, alle Daten bleiben.', aktivFeld, { alsLabel: true }));
+      if (fach.eigen) {
+        // Selbst angelegte Fächer: einer oder beiden Stufen zugeordnet, später änderbar
+        const stufenBox = H.el('div', { class: 'segment', role: 'group', 'aria-label': 'Stufen' });
+        const aktuelleWahl = () => (Array.isArray(fach.stufen) && fach.stufen.length === 1 ? fach.stufen[0] : 'beide');
+        [['1-2', M.stufe('1-2').kurz], ['3-4', M.stufe('3-4').kurz], ['beide', 'Beide']].forEach(function (o) {
+          stufenBox.appendChild(H.el('button', { type: 'button', dataset: { wert: o[0] }, text: o[1], 'aria-pressed': aktuelleWahl() === o[0] ? 'true' : 'false', onclick: function () {
+            fach.stufen = o[0] === 'beide' ? M.STUFEN.slice() : [o[0]];
+            speichern();
+            H.$$('button', stufenBox).forEach(k => k.setAttribute('aria-pressed', k.dataset.wert === o[0] ? 'true' : 'false'));
+            NB.App.meldung(o[0] === 'beide' ? 'Fach gilt für beide Stufen.' : 'Fach gilt für ' + M.stufe(o[0]).kurz + ' – in der anderen Stufe wird es nicht mehr angeboten, Daten bleiben.');
+          } }));
+        });
+        kopfZeilen.push(zeile('Stufen', 'In welchen Stufen das Fach angeboten wird. Kompetenzen gehören jeweils zu einer Stufe.', stufenBox, { klasse: 'einst-zeile-segment' }));
+      }
       if (M.fachHinweis(fach, stufe)) kopfZeilen.push(zeile('Hinweis aus dem Lehrplan', M.fachHinweis(fach, stufe), null));
       M.fachnoteKriterien().forEach(function (mk) {
         const gewichtFeld = H.el('select', { 'aria-label': 'Gewicht von ' + mk.name + ' in ' + fach.name });
@@ -467,9 +481,11 @@ NB.Einstellungen = (function () {
   }
 
   async function kriteriumLoeschen(fach, krit, istAsv, parameter) {
+    const anzahl = M.anzahlEinheitenMitKriterien(null, istAsv ? null : fach.id, [krit.id]);
     const ok = await NB.Dialog.bestaetigen({
       titel: '„' + krit.name + '“ löschen?',
-      text: 'Bereits erfasste Werte in diesem Kriterium werden gelöscht. Soll es nur nicht mehr angezeigt werden, schalte es stattdessen aus – dann bleiben die Daten erhalten.',
+      text: (anzahl ? 'In ' + (anzahl === 1 ? '1 Einheit' : anzahl + ' Einheiten') + ' wurden Werte zu diesem Kriterium erfasst – sie werden gelöscht. ' : 'Zu diesem Kriterium wurden noch keine Werte erfasst. ')
+        + 'Soll es nur nicht mehr angezeigt werden, schalte es stattdessen aus – dann bleiben die Daten erhalten.',
       bestaetigen: 'Löschen',
       gefaehrlich: true
     });
@@ -550,11 +566,12 @@ NB.Einstellungen = (function () {
     }
     inhalt.appendChild(gruppe(istAsv ? 'Kriterium' : 'Kompetenz' + (krit.stufe ? ' · ' + M.stufe(krit.stufe).kurz : ''), [
       zeile('Name', null, nameFeld, { alsLabel: true, klasse: 'einst-zeile-feld' }),
-      zeile(istAsv ? 'Bereich' : 'Lehrplanbereich', istAsv ? 'Etwa Mitarbeit, Arbeitsverhalten oder Sozialverhalten.' : 'Kompetenzen werden nach Bereich gruppiert angezeigt.', H.el('div', {}, [bereichFeld, datalist]), { alsLabel: true, klasse: 'einst-zeile-feld' }),
+      zeile(istAsv ? 'Bereich' : 'Lehrplanbereich', istAsv ? 'Etwa Mitarbeit, Arbeitsverhalten oder Sozialverhalten.' : 'Kompetenzen werden nach Bereich gruppiert angezeigt.', bereichFeld, { alsLabel: true, klasse: 'einst-zeile-feld' }),
       zeile('Gewicht', istAsv ? 'Zwischen 0 und 3; bei „zählt zur Fachleistung“ der Standard für alle Fächer, je Fach überschreibbar.' : 'Zwischen 0 und 3. Gewicht 0 blendet aus, ohne bisherige Daten zu löschen.', gewichtFeld, { alsLabel: true, klasse: 'einst-zeile-auswahl' }),
       fachnoteFeld ? zeile('Zählt zur Fachleistung', 'An: fließt wie eine Kompetenz in die Fachleistung des jeweiligen Fachs ein (Mündliche Mitarbeit). Aus: nur Arbeits- und Sozialverhalten, nie in der Fachnote.', fachnoteFeld, { alsLabel: true }) : null,
       zeile('Aktiv', 'Aus: wird in der Erfassung nicht angezeigt, Daten bleiben erhalten.', aktivFeld, { alsLabel: true })
     ]));
+    inhalt.appendChild(datalist);
 
     const woerter = M.notenwoerter();
     const stufenFelder = [];
