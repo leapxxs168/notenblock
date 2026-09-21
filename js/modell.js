@@ -2,8 +2,12 @@
  * Notenblock – Fachliches Modell (Datenmodell Version 2)
  *
  * Zwei Arten von Kriterien:
- *   Stunde     – die vier Kriterien des Arbeits- und Sozialverhaltens, gleicher
- *                Satz in jedem Fach und jeder Stufe (Datensatz 'arbeitsverhalten').
+ *   Stunde     – die sechs Kriterien zu Mitarbeit, Arbeits- und Sozialverhalten,
+ *                gleicher Satz in jedem Fach und jeder Stufe (Datensatz
+ *                'arbeitsverhalten'). Kriterien mit fachnote true (Mündliche
+ *                Mitarbeit) fließen in die Fachleistung ein, alle anderen nie.
+ *                Je Einheit lässt sich ein Stundenkriterium aussetzen
+ *                (einheit.ausgesetzt): keine Vorbelegung, keine Übernahme, zählt nicht.
  *   Kompetenz  – fachliche Kompetenzen des Fachs in der Stufe der Klasse,
  *                gruppiert nach Lehrplanbereich (im Fächerkatalog 'faecher').
  *
@@ -116,9 +120,38 @@ NB.Modell = (function () {
   function gewichtVon(k) { return (typeof k.gewicht === 'number') ? k.gewicht : 1; }
   M.gewicht = gewichtVon;
 
-  /** Die vier Stundenkriterien (aktiv, Gewicht > 0). */
+  /** Die Stundenkriterien (aktiv, Gewicht > 0). */
   M.stundenkriterien = function () {
     return (M.arbeitsverhalten().kriterien || []).filter(k => k.aktiv !== false && gewichtVon(k) > 0);
+  };
+
+  /** Fließt ein Stundenkriterium in die Fachleistung ein (etwa Mündliche Mitarbeit)? */
+  M.istFachnote = k => !!(k && k.fachnote === true);
+
+  /** Stundenkriterien, die zur Fachleistung zählen. */
+  M.fachnoteKriterien = () => M.stundenkriterien().filter(M.istFachnote);
+
+  /** Gewicht eines Fachnote-Kriteriums in der Fachleistung eines Fachs (je Fach überschreibbar). */
+  M.mitarbeitGewicht = function (fachId, kriterium) {
+    const je = M.einstellungen().mitarbeitGewichtJeFach || {};
+    const wert = je[fachId];
+    if (typeof wert === 'number' && wert >= 0) return wert;
+    return kriterium ? gewichtVon(kriterium) : 1;
+  };
+
+  /* ---------- Aussetzen je Einheit (einmal für die ganze Klasse) ---------- */
+
+  M.ausgesetzt = function (einheit, kriteriumId) {
+    return !!(einheit && Array.isArray(einheit.ausgesetzt) && einheit.ausgesetzt.indexOf(kriteriumId) >= 0);
+  };
+
+  /** Kriterium für diese Einheit aussetzen oder wieder aufnehmen (ohne zu speichern). Werte bleiben erhalten. */
+  M.aussetzenUmschalten = function (einheit, kriteriumId) {
+    if (!Array.isArray(einheit.ausgesetzt)) einheit.ausgesetzt = [];
+    const i = einheit.ausgesetzt.indexOf(kriteriumId);
+    if (i >= 0) einheit.ausgesetzt.splice(i, 1);
+    else einheit.ausgesetzt.push(kriteriumId);
+    return i < 0;
   };
 
   /**
@@ -182,6 +215,8 @@ NB.Modell = (function () {
   M.archivKriterium = function (kriteriumId) {
     const a = M.archiv();
     if (!a) return null;
+    const alt = (a.arbeitsverhalten || []).find(x => x.id === kriteriumId);
+    if (alt) return alt;
     for (let i = 0; i < (a.faecher || []).length; i++) {
       const k = (a.faecher[i].kriterien || []).find(x => x.id === kriteriumId);
       if (k) return k;
@@ -458,8 +493,9 @@ NB.Modell = (function () {
    * { wert, art: 'gesetzt'|'uebernommen'|'vorbelegt'|'offen' }.
    * Vorbelegung nur für Stundenkriterien; Kompetenzen starten leer.
    */
-  M.anzeigeNote = function (klasseId, fachId, datum, kindId, kriteriumId, eintrag, stunde) {
+  M.anzeigeNote = function (klasseId, fachId, datum, kindId, kriteriumId, eintrag, stunde, einheit) {
     const vorhanden = M.notenWert(eintrag, kriteriumId);
+    if (einheit && M.ausgesetzt(einheit, kriteriumId)) return { wert: vorhanden ? vorhanden.wert : null, art: 'ausgesetzt' };
     if (vorhanden) return vorhanden;
     if (!M.istStundenkriterium(kriteriumId)) return { wert: null, art: 'offen' };
     const standard = M.standardNote(fachId);
@@ -483,6 +519,7 @@ NB.Modell = (function () {
     if (standard === 'keine') return false;
     let geschrieben = false;
     M.stundenkriterien().forEach(function (k) {
+      if (M.ausgesetzt(b, k.id)) return;   // für diese Einheit ausgesetzt: keine Übernahme
       const e = M.kindEintrag(b, kindId);
       if (M.notenWert(e, k.id)) return;
       let wert = typeof standard === 'number' ? standard : M.letzteNote(b.klasseId, b.fachId, kindId, k.id, b.datum, b.stunde);

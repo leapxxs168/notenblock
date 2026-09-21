@@ -110,6 +110,9 @@ NB.App = (function () {
         NB.Sperre.bildschirmZeigen('app');
         try { await NB.Umstellung.durchfuehren(); } catch (fehler) { console.error(fehler); A.meldung('Umstellung fehlgeschlagen: ' + (fehler.message || fehler), 'fehler'); }
       }
+      if (NB.Umstellung) {
+        try { const hinweis = NB.Umstellung.kleineAnhebungen(); if (hinweis) A.meldung(hinweis, 'fehler'); } catch (fehler) { console.error(fehler); }
+      }
       NB.Navigation.start();        // Seitenstart oder Neuanfang
       if (NB.Speicher.backend === 'localstorage' && !hinweisGezeigt) {
         hinweisGezeigt = true;

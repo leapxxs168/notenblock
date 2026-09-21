@@ -26,11 +26,11 @@ NB.Umstellung = (function () {
 
   const ENTFERNTE_FAECHER = ['geometrie', 'lesen'];
 
-  /** Liegt der Bestand noch im alten Aufbau vor? */
+  /** Liegt der Bestand noch im Aufbau von Version 1 vor (Wahl nötig)? */
   U.noetig = function () {
     if (!D.istEntsperrt()) return false;
     const e = D.holen('einstellungen', '') || {};
-    if (e.datenmodell >= SD.DATENMODELL) return false;
+    if (e.datenmodell >= 2) return false;
     // Frisch eingerichtete Bestände tragen die Kennung; alte nicht.
     const faecher = D.holen('faecher', '') || [];
     const alt = faecher.some(f => Array.isArray(f.kriterien)) || !D.holen('arbeitsverhalten', '');
@@ -265,6 +265,39 @@ NB.Umstellung = (function () {
     einstellungenAnpassen();
     D.setzen('zustand', '', { bereich: 'kalender' });
     return bericht;
+  };
+
+  /**
+   * Kleine Anhebungen ohne Wahl: Datenmodell 2 → 2.1 ersetzt die vier bisherigen
+   * Stundenkriterien (aus-1 … aus-4) durch die sechs neuen. Werte zu den alten
+   * Ids werden nicht übertragen, ihre Definitionen wandern ins Archiv unter
+   * „frühere Kriterien“; die Werte bleiben in den Einheiten stehen.
+   * Liefert einen Hinweistext, wenn etwas geändert wurde.
+   */
+  U.kleineAnhebungen = function () {
+    if (!D.istEntsperrt()) return null;
+    const e = D.holen('einstellungen', '') || {};
+    if (!(e.datenmodell >= 2) || e.datenmodell >= SD.DATENMODELL) return null;
+    let hinweis = null;
+    const alt = D.holen('arbeitsverhalten', '');
+    const neu = SD.arbeitsverhalten();
+    const neueIds = neu.kriterien.map(k => k.id);
+    if (alt && (alt.kriterien || []).some(k => neueIds.indexOf(k.id) < 0)) {
+      const archiv = D.holen('archiv', '') || { faecher: [], umgestelltAm: H.jetztIso() };
+      archiv.arbeitsverhalten = (archiv.arbeitsverhalten || []).concat(
+        (alt.kriterien || []).filter(k => neueIds.indexOf(k.id) < 0).map(k => ({ id: k.id, name: k.name, bereich: k.bereich, gewicht: k.gewicht, stufen: k.stufen }))
+      );
+      D.setzen('archiv', '', archiv);
+      D.setzen('arbeitsverhalten', '', neu);
+      const betroffen = D.alle('bewertung').filter(b => !b.archiviert && Object.keys(b.kinder || {}).some(id => { const n = b.kinder[id] && b.kinder[id].noten; return n && Object.keys(n).some(k => k.indexOf('aus-') === 0); })).length;
+      hinweis = 'Stundenkriterien erneuert: sechs Kriterien zu Mitarbeit, Arbeits- und Sozialverhalten. ' + (betroffen ? 'Werte der bisherigen vier Kriterien in ' + betroffen + (betroffen === 1 ? ' Einheit bleiben' : ' Einheiten bleiben') + ' unter „frühere Kriterien“ erhalten.' : '');
+    } else if (!alt) {
+      D.setzen('arbeitsverhalten', '', neu);
+    }
+    e.datenmodell = SD.DATENMODELL;
+    if (e.mitarbeitGewichtJeFach === undefined) e.mitarbeitGewichtJeFach = {};
+    D.setzen('einstellungen', '', e);
+    return hinweis;
   };
 
   /* ---------- Dialoge ---------- */

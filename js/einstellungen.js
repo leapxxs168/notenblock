@@ -236,11 +236,11 @@ NB.Einstellungen = (function () {
   /** Abschnitt: Arbeits- und Sozialverhalten, Stufenwahl, Fächer der Stufe. */
   function faecherRendern(inhalt) {
     const asv = M.arbeitsverhalten();
-    inhalt.appendChild(gruppe('Arbeits- und Sozialverhalten', [
+    inhalt.appendChild(gruppe('Stundenkriterien', [
       H.el('div', { class: 'einst-eintrag' }, [
         H.el('button', { type: 'button', class: 'einst-eintrag-text', onclick: () => N.bildschirmOeffnen('einstellungen-fach', { fachId: ASV_ID }) }, [
           H.el('span', { class: 'einst-eintrag-titel', text: asv.name || 'Arbeits- und Sozialverhalten' }),
-          H.el('span', { class: 'text-klein text-schwach', text: (asv.kriterien || []).length + ' Kriterien · in jeder Stunde, jedem Fach und jeder Stufe' })
+          H.el('span', { class: 'text-klein text-schwach', text: (asv.kriterien || []).length + ' Kriterien · in jeder Stunde, jedem Fach und jeder Stufe' + (M.fachnoteKriterien().length ? ' · ' + M.fachnoteKriterien().map(k => k.name).join(', ') + ' zählt zur Fachleistung' : '') })
         ]),
         H.el('span', { class: 'einst-pfeil', 'aria-hidden': 'true', text: '›' })
       ])
@@ -382,6 +382,18 @@ NB.Einstellungen = (function () {
       aktivFeld.addEventListener('change', function () { aktivFeld.setAttribute('aria-checked', aktivFeld.checked ? 'true' : 'false'); fachAktivSetzen(fach, aktivFeld.checked, aktivFeld); });
       kopfZeilen.push(zeile('Aktiv', 'Aus: Das Fach ruht – es erscheint nicht mehr in der Erfassung, alle Daten bleiben.', aktivFeld, { alsLabel: true }));
       if (M.fachHinweis(fach, stufe)) kopfZeilen.push(zeile('Hinweis aus dem Lehrplan', M.fachHinweis(fach, stufe), null));
+      M.fachnoteKriterien().forEach(function (mk) {
+        const gewichtFeld = H.el('select', { 'aria-label': 'Gewicht von ' + mk.name + ' in ' + fach.name });
+        [0, 0.5, 1, 1.5, 2, 2.5, 3].forEach(g => gewichtFeld.appendChild(H.el('option', { value: String(g), text: String(g).replace('.', ',') + (g === 0 ? ' – zählt nicht' : g === 1 ? ' – wie eine Kompetenz' : '') })));
+        gewichtFeld.value = String(M.mitarbeitGewicht(fach.id, mk));
+        gewichtFeld.addEventListener('change', function () {
+          const e = M.einstellungen();
+          const je = e.mitarbeitGewichtJeFach || {};
+          je[fach.id] = Number(gewichtFeld.value);
+          einstellungSetzen('mitarbeitGewichtJeFach', je);
+        });
+        kopfZeilen.push(zeile('Gewicht „' + mk.name + '“ in der Fachleistung', 'Anteil der mündlichen Mitarbeit an der Fachleistung dieses Fachs, Standard 1 wie bei einer Kompetenz.', gewichtFeld, { alsLabel: true, klasse: 'einst-zeile-auswahl' }));
+      });
     } else if (fach.hinweis) {
       kopfZeilen.push(zeile('Hinweis', fach.hinweis, null));
     }
@@ -530,10 +542,17 @@ NB.Einstellungen = (function () {
     aktivFeld.setAttribute('aria-checked', aktivFeld.checked ? 'true' : 'false');
     aktivFeld.addEventListener('change', function () { krit.aktiv = aktivFeld.checked; aktivFeld.setAttribute('aria-checked', krit.aktiv ? 'true' : 'false'); speichern(); });
 
+    const fachnoteFeld = istAsv ? H.el('input', { type: 'checkbox', class: 'schalter', role: 'switch' }) : null;
+    if (fachnoteFeld) {
+      fachnoteFeld.checked = krit.fachnote === true;
+      fachnoteFeld.setAttribute('aria-checked', fachnoteFeld.checked ? 'true' : 'false');
+      fachnoteFeld.addEventListener('change', function () { krit.fachnote = fachnoteFeld.checked; fachnoteFeld.setAttribute('aria-checked', krit.fachnote ? 'true' : 'false'); speichern(); });
+    }
     inhalt.appendChild(gruppe(istAsv ? 'Kriterium' : 'Kompetenz' + (krit.stufe ? ' · ' + M.stufe(krit.stufe).kurz : ''), [
       zeile('Name', null, nameFeld, { alsLabel: true, klasse: 'einst-zeile-feld' }),
-      zeile('Lehrplanbereich', 'Kompetenzen werden nach Bereich gruppiert angezeigt.', H.el('div', {}, [bereichFeld, datalist]), { alsLabel: true, klasse: 'einst-zeile-feld' }),
-      zeile('Gewicht', 'Zwischen 0 und 3. Gewicht 0 blendet aus, ohne bisherige Daten zu löschen.', gewichtFeld, { alsLabel: true, klasse: 'einst-zeile-auswahl' }),
+      zeile(istAsv ? 'Bereich' : 'Lehrplanbereich', istAsv ? 'Etwa Mitarbeit, Arbeitsverhalten oder Sozialverhalten.' : 'Kompetenzen werden nach Bereich gruppiert angezeigt.', H.el('div', {}, [bereichFeld, datalist]), { alsLabel: true, klasse: 'einst-zeile-feld' }),
+      zeile('Gewicht', istAsv ? 'Zwischen 0 und 3; bei „zählt zur Fachleistung“ der Standard für alle Fächer, je Fach überschreibbar.' : 'Zwischen 0 und 3. Gewicht 0 blendet aus, ohne bisherige Daten zu löschen.', gewichtFeld, { alsLabel: true, klasse: 'einst-zeile-auswahl' }),
+      fachnoteFeld ? zeile('Zählt zur Fachleistung', 'An: fließt wie eine Kompetenz in die Fachleistung des jeweiligen Fachs ein (Mündliche Mitarbeit). Aus: nur Arbeits- und Sozialverhalten, nie in der Fachnote.', fachnoteFeld, { alsLabel: true }) : null,
       zeile('Aktiv', 'Aus: wird in der Erfassung nicht angezeigt, Daten bleiben erhalten.', aktivFeld, { alsLabel: true })
     ]));
 

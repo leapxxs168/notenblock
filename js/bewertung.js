@@ -12,8 +12,10 @@
  * Schlüssel ist die erste Stunde). Hat die Klasse am Tag mehrere getrennte
  * Einheiten desselben Fachs, erscheint neben dem Datum eine Auswahl.
  *
- * Stunde: die vier Kriterien des Arbeits- und Sozialverhaltens, vorbelegt mit
- * der Standardnote (blass). Beim Verlassen eines Kindes – Weiter, Wischen,
+ * Stunde: die sechs Kriterien zu Mitarbeit, Arbeits- und Sozialverhalten,
+ * vorbelegt mit der Standardnote (blass). Jedes lässt sich für die aktuelle
+ * Einheit aussetzen – einmal für die ganze Klasse, eingeklappt und blass,
+ * ohne Vorbelegung und Übernahme; die nächste Stunde beginnt wieder vollständig. Beim Verlassen eines Kindes – Weiter, Wischen,
  * Pfeile, Verlassen des Bildschirms – werden noch offene Stundenkriterien mit
  * der Standardnote festgeschrieben (Zustand „uebernommen“, zurückhaltender
  * dargestellt); nicht bei „Fehlt“, nicht bei „keine Vorbelegung“.
@@ -425,14 +427,27 @@ NB.Bewertung = (function () {
       return;
     }
 
+    const einheit = M.einheit(z.klasseId, z.fachId, z.datum, z.stunde);
     const gruppen = z.ansicht === 'kompetenzen' ? M.nachBereich(kriterien) : [{ bereich: null, kriterien: kriterien }];
     gruppen.forEach(function (g) {
       if (g.bereich) el.matrix.appendChild(H.el('h3', { class: 'bw-bereich', text: g.bereich }));
       g.kriterien.forEach(function (krit) {
-        const anzeige = M.anzeigeNote(z.klasseId, z.fachId, z.datum, kind.id, krit.id, eintrag, z.stunde);
-        el.matrix.appendChild(zeileBauen(krit, anzeige.wert, anzeige.art, fehlt, e));
+        const anzeige = M.anzeigeNote(z.klasseId, z.fachId, z.datum, kind.id, krit.id, eintrag, z.stunde, einheit);
+        el.matrix.appendChild(zeileBauen(krit, anzeige.wert, anzeige.art, fehlt, e, {
+          aussetzbar: z.ansicht === 'stunde',
+          ausgesetzt: anzeige.art === 'ausgesetzt'
+        }));
       });
     });
+  }
+
+  /** Stundenkriterium für die aktuelle Einheit aussetzen oder wieder aufnehmen – einmal für die ganze Klasse. */
+  function aussetzenUmschalten(kriteriumId) {
+    const b = einheitOderNeu();
+    const jetztAusgesetzt = M.aussetzenUmschalten(b, kriteriumId);
+    M.einheitSpeichern(b);
+    kindRendern();
+    if (jetztAusgesetzt) NB.App.meldung('Für diese Einheit ausgesetzt – gilt für alle Kinder, die nächste Stunde beginnt wieder mit allen Kriterien.');
   }
 
   /** Beschreibung eines Wertes: Wortform nur bei benoteten Stufen. */
@@ -444,8 +459,13 @@ NB.Bewertung = (function () {
     return vorsatz + text;
   }
 
-  /** Eine Kriterienzeile mit Skala. art: 'gesetzt' | 'uebernommen' | 'vorbelegt' | 'offen' */
-  function zeileBauen(krit, wert, art, fehlt, e) {
+  /**
+   * Eine Kriterienzeile mit Skala. art: 'gesetzt' | 'uebernommen' | 'vorbelegt' | 'offen' | 'ausgesetzt'.
+   * optionen.aussetzbar zeigt den Schalter zum Aussetzen (nur Stundenkriterien).
+   */
+  function zeileBauen(krit, wert, art, fehlt, e, optionen) {
+    optionen = optionen || {};
+    const ausgesetzt = !!optionen.ausgesetzt;
     const woerter = M.notenwoerter();
     const mitNoten = benotet();
     const skala = H.el('div', {
@@ -477,17 +497,30 @@ NB.Bewertung = (function () {
       skala.setAttribute('aria-valuetext', n == null ? 'kein Wert' : (mitNoten ? n + ' – ' + woerter[n - 1] : 'Stufe ' + n) + (a === 'vorbelegt' ? ' (Vorbelegung)' : a === 'uebernommen' ? ' (übernommen)' : ''));
       text.textContent = wertText(n, a, krit);
     }
-    anzeigen(wert, art);
+    anzeigen(wert, art === 'ausgesetzt' ? 'vorbelegt' : art);
+    if (ausgesetzt) {
+      skala.setAttribute('aria-disabled', 'true');
+      skala.tabIndex = -1;
+    }
 
-    if (!fehlt) reglerVerdrahten(skala, krit, anzeigen);
+    if (!fehlt && !ausgesetzt) reglerVerdrahten(skala, krit, anzeigen);
 
-    return H.el('div', { class: 'krit' + (fehlt ? ' gesperrt' : ''), dataset: { krit: krit.id } }, [
+    const schalter = optionen.aussetzbar ? H.el('button', {
+      type: 'button', class: 'textknopf klein krit-aussetzen', 'aria-pressed': ausgesetzt ? 'true' : 'false',
+      'aria-label': (ausgesetzt ? 'Wieder aufnehmen: ' : 'Für diese Einheit aussetzen: ') + krit.name,
+      text: ausgesetzt ? 'Wieder aufnehmen' : 'Aussetzen',
+      onclick: () => aussetzenUmschalten(krit.id)
+    }) : null;
+
+    return H.el('div', { class: 'krit' + (fehlt ? ' gesperrt' : '') + (ausgesetzt ? ' ausgesetzt' : ''), dataset: { krit: krit.id } }, [
       H.el('div', { class: 'krit-kopf' }, [
         H.el('div', { class: 'krit-name', text: krit.name }),
-        H.el('div', { class: 'krit-schnitt text-klein text-schwach', hidden: true })
+        H.el('div', { class: 'krit-schnitt text-klein text-schwach', hidden: true }),
+        schalter
       ]),
-      skala,
-      e.beschreibungenAnzeigen === false ? null : text
+      ausgesetzt ? H.el('div', { class: 'krit-ausgesetzt text-klein text-schwach', text: 'Für diese Einheit ausgesetzt – keine Vorbelegung, zählt nicht.' + (wert != null ? ' Ein gesetzter Wert (' + wert + ') bleibt gespeichert.' : '') }) : null,
+      ausgesetzt ? null : skala,
+      (ausgesetzt || e.beschreibungenAnzeigen === false) ? null : text
     ]);
   }
 

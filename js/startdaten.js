@@ -22,20 +22,21 @@ NB.Startdaten = (function () {
   const SD = {};
   const H = NB.Hilfen;
 
-  SD.DATENMODELL = 2;
+  SD.DATENMODELL = 2.1;
   SD.STUFEN = ['1-2', '3-4'];
 
   /** Standardwerte aller Einstellungen. */
   SD.einstellungenStandard = function () {
     return {
       version: 3,                      // Stand der Standardwerte (für Ergänzungen beim Laden)
-      datenmodell: SD.DATENMODELL,     // Aufbau des Bestands; 2 = Stufen, Kompetenzen, Einheiten je Stunde
+      datenmodell: SD.DATENMODELL,     // Aufbau des Bestands; 2 = Stufen, Kompetenzen, Einheiten je Stunde; 2.1 = sechs Stundenkriterien mit fachnote
       // Bewertung – gilt nur für das Arbeits- und Sozialverhalten
       standardNote: 3,                 // 1–6, 'letzte' (letzte Note des Kindes) oder 'keine'
       standardNoteJeFach: {},          // fachId → Überschreibung
       skalenBeschriftung: 'ziffern',   // 'ziffern' | 'worte'
       rundung: 'kaufmaennisch',        // 'kaufmaennisch' | 'zugunsten' | 'nachkomma'
       uebernommeneZaehlen: true,       // beim Verlassen festgeschriebene Standardnoten in der Auswertung mitzählen
+      mitarbeitGewichtJeFach: {},      // fachId → Gewicht der mündlichen Mitarbeit in der Fachleistung (Standard: Gewicht des Kriteriums)
       // Darstellung
       beschreibungenAnzeigen: true,
       notizfeldAnzeigen: true,
@@ -120,16 +121,21 @@ NB.Startdaten = (function () {
     return faecher;
   };
 
-  /** Arbeits- und Sozialverhalten: vier Kriterien, gültig für beide Stufen. */
+  /**
+   * Stundenkriterien (Mitarbeit, Arbeits- und Sozialverhalten): sechs Kriterien,
+   * gültig für beide Stufen. fachnote true (Mündliche Mitarbeit) fließt in die
+   * Fachleistung ein, alle anderen nie.
+   */
   SD.arbeitsverhalten = function () {
     const a = quelle().arbeits_und_sozialverhalten || {};
     return {
-      name: a.name || 'Arbeits- und Sozialverhalten',
+      name: a.name || 'Mitarbeit, Arbeits- und Sozialverhalten',
       hinweis: a.hinweis || '',
       kriterien: (a.kriterien || []).map(k => ({
         id: k.id,
         name: k.name,
         bereich: k.bereich || 'Arbeitsverhalten',
+        fachnote: k.fachnote === true,
         gewicht: (typeof k.gewicht === 'number') ? k.gewicht : 1,
         stufen: Array.isArray(k.stufen) && k.stufen.length === 6 ? k.stufen.slice() : ['', '', '', '', '', ''],
         aktiv: true

@@ -289,7 +289,7 @@ NB.Export = (function () {
             const n = M.notenWert(e, kritId);
             if (!n) return;
             const krit = M.kriterium(kritId, fach);
-            zeilen.push(csvZeile([klasse.name, fachName, H.datumKurz(b.datum), M.einheitText(b), kind.name || '', kind.kuerzel || '', '', krit ? krit.name : kritId, n.wert, n.art === 'uebernommen' ? 'übernommen' : 'gesetzt', e.notiz || '']));
+            zeilen.push(csvZeile([klasse.name, fachName, H.datumKurz(b.datum), M.einheitText(b), kind.name || '', kind.kuerzel || '', '', krit ? krit.name : kritId, n.wert, M.ausgesetzt(b, kritId) ? 'ausgesetzt' : (n.art === 'uebernommen' ? 'übernommen' : 'gesetzt'), e.notiz || '']));
           });
         });
       });

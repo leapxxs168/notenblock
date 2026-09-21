@@ -1,6 +1,6 @@
 /*
  * Notenblock – Startbestand der Fächer, Kompetenzen und des Arbeits- und
- * Sozialverhaltens (Version 2, nach den NRW-Lehrplänen für die Primarstufe)
+ * Sozialverhaltens (Version 2.1, nach den NRW-Lehrplänen für die Primarstufe)
  *
  * Diese Datei ist eine 1:1-Einbettung von notenblock-kriterien.json, damit die
  * App ohne Server (und ohne fetch) geladen werden kann. Beide Dateien müssen
@@ -10,7 +10,8 @@
  * Aufbau: stufen['1-2'|'3-4'] mit bezeichnung, benotet, hinweis, nicht_verfuegbar
  * und faecher (je Fach id, name, hinweis, kompetenzen mit id, name, bereich und
  * sechs Beschreibungstexten unter stufen). arbeits_und_sozialverhalten enthält
- * vier Kriterien im selben Aufbau, gültig für beide Stufen.
+ * sechs Kriterien im selben Aufbau, gültig für beide Stufen; fachnote true bei
+ * Mündliche Mitarbeit (fließt in die Fachleistung ein), sonst false.
  *
  * Die Daten werden beim ersten Start und bei der Umstellung auf Version 2 in
  * die Fächerverwaltung übernommen. Danach gelten die in der App gespeicherten
@@ -19,7 +20,7 @@
 'use strict';
 window.NB = window.NB || {};
 NB.KRITERIEN_START = {
-  "version": 2,
+  "version": "2.1",
   "quelle": "Lehrpläne für die Primarstufe in Nordrhein-Westfalen, Heft 2012, 1. Auflage 2021. Formulierungen sind Vorschläge; verbindlich sind die Kompetenzerwartungen des Lehrplans.",
   "skala": [
     1,
@@ -1622,63 +1623,95 @@ NB.KRITERIEN_START = {
     }
   },
   "arbeits_und_sozialverhalten": {
-    "name": "Arbeits- und Sozialverhalten",
-    "hinweis": "Nicht Teil der Fachnote. Arbeits- und Sozialverhalten werden nach APO-GS getrennt dokumentiert, etwa unter Bemerkungen im Zeugnis.",
+    "name": "Mitarbeit, Arbeits- und Sozialverhalten",
+    "hinweis": "Wird in jeder Unterrichtsstunde neu bewertet. Die mündliche Mitarbeit gehört zu den sonstigen Leistungen im Unterricht und fließt in die Fachleistung ein. Arbeits- und Sozialverhalten fließen nicht in die Fachnote ein und werden nach APO-GS getrennt dokumentiert.",
     "gilt_fuer": [
       "1-2",
       "3-4"
     ],
     "kriterien": [
       {
-        "id": "aus-1",
+        "id": "sv-muendlich",
+        "name": "Mündliche Mitarbeit",
+        "bereich": "Mitarbeit",
+        "fachnote": true,
+        "stufen": [
+          "Beteiligt sich sehr häufig mit durchdachten Beiträgen und geht auf andere ein",
+          "Beteiligt sich regelmäßig mit passenden Beiträgen",
+          "Beteiligt sich gelegentlich, Beiträge meist passend",
+          "Beteiligt sich selten, meist erst nach Aufforderung",
+          "Beteiligt sich kaum, auch nach Aufforderung",
+          "Beteiligt sich nicht am Unterrichtsgespräch"
+        ]
+      },
+      {
+        "id": "sv-motivation",
         "name": "Arbeitsbereitschaft und Motivation",
         "bereich": "Arbeitsverhalten",
+        "fachnote": false,
         "stufen": [
-          "Arbeitet sehr motiviert und selbstständig und hilft anderen",
-          "Arbeitet motiviert und meist selbstständig",
-          "Arbeitet zuverlässig mit, braucht gelegentlich einen Anstoß",
-          "Arbeitet wenig und braucht häufig Aufforderung",
-          "Arbeitet kaum und ist sehr unmotiviert",
-          "Keine Arbeitsbereitschaft erkennbar"
+          "Zeigt großes Interesse und strengt sich auch bei schwierigen Aufgaben an",
+          "Zeigt Interesse und geht Aufgaben bereitwillig an",
+          "Geht Aufgaben an, strengt sich bei Schwierigkeiten nur zeitweise an",
+          "Beginnt Aufgaben oft erst nach Aufforderung und gibt schnell auf",
+          "Zeigt kaum Bereitschaft, sich auf Aufgaben einzulassen",
+          "Verweigert die Arbeit"
         ]
       },
       {
-        "id": "aus-2",
-        "name": "Selbstständigkeit und Zeitnutzung",
+        "id": "sv-selbststaendigkeit",
+        "name": "Selbstständigkeit",
         "bereich": "Arbeitsverhalten",
+        "fachnote": false,
         "stufen": [
-          "Arbeitet konzentriert, teilt sich die Zeit selbst ein und wird vollständig fertig",
-          "Arbeitet konzentriert und wird fertig",
-          "Wird weitgehend fertig",
-          "Wird nur teilweise fertig, arbeitet langsam",
-          "Wird kaum fertig",
-          "Beginnt nicht mit der Arbeit"
+          "Arbeitet ohne Hilfe, plant Arbeitsschritte selbst und nutzt Hilfsmittel gezielt",
+          "Arbeitet weitgehend ohne Hilfe und fragt gezielt nach",
+          "Arbeitet nach kurzer Anleitung allein weiter",
+          "Braucht häufig Hilfe, um weiterzuarbeiten",
+          "Arbeitet nur mit ständiger Begleitung",
+          "Arbeitet auch mit Begleitung nicht allein"
         ]
       },
       {
-        "id": "aus-3",
-        "name": "Zusammenarbeit und Umgang miteinander",
+        "id": "sv-zeitnutzung",
+        "name": "Zeitnutzung",
+        "bereich": "Arbeitsverhalten",
+        "fachnote": false,
+        "stufen": [
+          "Nutzt die Arbeitszeit konzentriert und vollständig, wird zuverlässig fertig",
+          "Nutzt die Arbeitszeit gut und wird meist fertig",
+          "Nutzt die Arbeitszeit überwiegend, lässt sich gelegentlich ablenken",
+          "Lässt sich häufig ablenken und wird oft nicht fertig",
+          "Nutzt die Arbeitszeit kaum",
+          "Nutzt die Arbeitszeit nicht"
+        ]
+      },
+      {
+        "id": "sv-zusammenarbeit",
+        "name": "Zusammenarbeit",
         "bereich": "Sozialverhalten",
+        "fachnote": false,
         "stufen": [
-          "Arbeitet sehr gut mit allen zusammen, übernimmt Verantwortung und bezieht andere ein",
-          "Arbeitet gut mit anderen zusammen und hält Regeln ein",
-          "Arbeitet meist gut mit",
-          "Arbeitet nur mit einzelnen Kindern zusammen",
+          "Arbeitet mit allen gut zusammen, übernimmt Aufgaben in der Gruppe und bezieht andere ein",
+          "Arbeitet gut mit anderen zusammen und hält Absprachen ein",
+          "Arbeitet meist gut mit und übernimmt eigene Aufgaben",
+          "Arbeitet nur mit einzelnen Kindern zusammen oder überlässt anderen die Arbeit",
           "Arbeitet kaum mit anderen zusammen",
-          "Keine Zusammenarbeit"
+          "Stört oder verweigert die Zusammenarbeit"
         ]
       },
       {
-        "id": "aus-4",
-        "name": "Sorgfalt, Material und Arbeitsplatz",
+        "id": "sv-sorgfalt",
+        "name": "Sorgfalt und Ordnung",
         "bereich": "Arbeitsverhalten",
+        "fachnote": false,
         "stufen": [
-          "Arbeitet sehr sorgfältig, Material und Arbeitsplatz sind immer in Ordnung",
-          "Arbeitet sorgfältig, Arbeitsplatz ist in Ordnung",
-          "Arbeitet meist sorgfältig, Arbeitsplatz etwas unordentlich",
-          "Arbeitet häufig unsorgfältig, Arbeitsplatz unordentlich",
-          "Arbeitet sehr unsorgfältig und räumt nicht auf",
-          "Kein sorgfältiges Arbeiten erkennbar, räumt nicht auf"
+          "Arbeitet sehr sauber, Material vollständig, Arbeitsplatz immer geordnet",
+          "Arbeitet sauber, Material und Arbeitsplatz in Ordnung",
+          "Arbeitet überwiegend sauber, Arbeitsplatz etwas unordentlich",
+          "Arbeitet häufig unsauber, Material unvollständig oder ungeordnet",
+          "Arbeitet sehr unsauber, Arbeitsplatz unordentlich",
+          "Arbeitet ohne erkennbare Sorgfalt, Material fehlt oder wird beschädigt"
         ]
       }
     ]
