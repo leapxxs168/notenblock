@@ -22,14 +22,14 @@ NB.Startdaten = (function () {
   const SD = {};
   const H = NB.Hilfen;
 
-  SD.DATENMODELL = 2.1;
+  SD.DATENMODELL = 2.2;
   SD.STUFEN = ['1-2', '3-4'];
 
   /** Standardwerte aller Einstellungen. */
   SD.einstellungenStandard = function () {
     return {
       version: 3,                      // Stand der Standardwerte (für Ergänzungen beim Laden)
-      datenmodell: SD.DATENMODELL,     // Aufbau des Bestands; 2 = Stufen, Kompetenzen, Einheiten je Stunde; 2.1 = sechs Stundenkriterien mit fachnote
+      datenmodell: SD.DATENMODELL,     // Aufbau des Bestands; 2 = Stufen, Kompetenzen, Einheiten je Stunde; 2.1 = Stundenkriterien mit fachnote; 2.2 = siebtes Kriterium und fachspezifische Fassungen
       // Bewertung – gilt nur für das Arbeits- und Sozialverhalten
       standardNote: 3,                 // 1–6, 'letzte' (letzte Note des Kindes) oder 'keine'
       standardNoteJeFach: {},          // fachId → Überschreibung
@@ -139,8 +139,29 @@ NB.Startdaten = (function () {
         gewicht: (typeof k.gewicht === 'number') ? k.gewicht : 1,
         stufen: Array.isArray(k.stufen) && k.stufen.length === 6 ? k.stufen.slice() : ['', '', '', '', '', ''],
         aktiv: true
-      }))
+      })),
+      fachspezifisch: SD.fachspezifisch()
     };
+  };
+
+  /**
+   * Fachspezifische Fassungen der Stundenkriterien aus dem Startbestand:
+   * { fachId: { kriteriumId: { name?, stufen: [6 Texte] } } } – dieselbe
+   * Kriteriums-id, nur andere Beschreibung. Gilt für beide Stufen.
+   */
+  SD.fachspezifisch = function () {
+    const quellFassungen = (quelle().arbeits_und_sozialverhalten || {}).fachspezifisch || {};
+    const ergebnis = {};
+    Object.keys(quellFassungen).forEach(function (fachId) {
+      const jeKriterium = quellFassungen[fachId] || {};
+      Object.keys(jeKriterium).forEach(function (kritId) {
+        const f = jeKriterium[kritId] || {};
+        if (!Array.isArray(f.stufen) || f.stufen.length !== 6) return;
+        if (!ergebnis[fachId]) ergebnis[fachId] = {};
+        ergebnis[fachId][kritId] = f.name ? { name: f.name, stufen: f.stufen.slice() } : { stufen: f.stufen.slice() };
+      });
+    });
+    return ergebnis;
   };
 
   /** Notenwörter (Wortform der Skala) aus dem Startbestand. */

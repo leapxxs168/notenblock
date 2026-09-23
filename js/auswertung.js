@@ -84,7 +84,8 @@ NB.Auswertung = (function () {
     const e = M.einstellungen();
     const einrechnen = e.uebernommeneZaehlen !== false;   // übernommene Standardnoten mitzählen
     const benotet = M.istBenotet(klasse);                 // Stufe 1–2: kein Notenvorschlag
-    const stundenkriterien = M.stundenkriterien();
+    // Stundenkriterien in der Fassung dieses Fachs (gleiche ids, ggf. eigener Name und Texte)
+    const stundenkriterien = M.stundenkriterienImFach(fach.id);
     const kriterien = stundenkriterien.concat(M.kompetenzenAlle(fach, klasse.stufe || null));
     const zaehltZurFachnote = k => !stundenkriterien.some(s => s.id === k.id) || M.istFachnote(k);
     const gewichtIn = k => (stundenkriterien.some(s => s.id === k.id) && M.istFachnote(k)) ? M.mitarbeitGewicht(fach.id, k) : gewicht(k);
@@ -176,7 +177,8 @@ NB.Auswertung = (function () {
   /**
    * Arbeits- und Sozialverhalten eines Kindes über alle Fächer der Klasse
    * (fachübergreifende Übersicht): Schnitt je Kriterium, Gesamtschnitt,
-   * Verlauf über alle Einheiten, beteiligte Fächer.
+   * Verlauf über alle Einheiten, beteiligte Fächer. Hier gilt die allgemeine
+   * Fassung der Kriterien, weil Werte aus mehreren Fächern zusammenfließen.
    */
   A.verhaltenUebergreifend = function (klasse, kindId, optionen) {
     optionen = optionen || {};

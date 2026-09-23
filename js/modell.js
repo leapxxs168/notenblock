@@ -207,9 +207,72 @@ NB.Modell = (function () {
   function gewichtVon(k) { return (typeof k.gewicht === 'number') ? k.gewicht : 1; }
   M.gewicht = gewichtVon;
 
-  /** Die Stundenkriterien (aktiv, Gewicht > 0). */
+  /** Die Stundenkriterien (aktiv, Gewicht > 0) in der allgemeinen Fassung. */
   M.stundenkriterien = function () {
     return (M.arbeitsverhalten().kriterien || []).filter(k => k.aktiv !== false && gewichtVon(k) > 0);
+  };
+
+  /* ---------- Fachspezifische Fassungen der Stundenkriterien ---------- */
+
+  /**
+   * Fassung eines Stundenkriteriums für ein Fach, sonst null. Eine Fassung ist
+   * nur eine andere Beschreibung desselben Kriteriums: gleiche id, wahlweise
+   * eigener Name und sechs eigene Stufentexte. Sie gilt für beide Stufen.
+   */
+  M.fachFassung = function (kriteriumId, fachId) {
+    const alle = M.arbeitsverhalten().fachspezifisch || {};
+    const jeFach = alle[fachId];
+    return (jeFach && jeFach[kriteriumId]) || null;
+  };
+
+  /**
+   * Stundenkriterium in der Fassung eines Fachs: gleiche id und gleiches
+   * Gewicht, aber Name und Texte der Fassung, sofern es eine gibt.
+   */
+  M.kriteriumImFach = function (kriterium, fachId) {
+    if (!kriterium || !fachId) return kriterium;
+    const f = M.fachFassung(kriterium.id, fachId);
+    if (!f) return kriterium;
+    const kopie = Object.assign({}, kriterium);
+    if (f.name) kopie.name = f.name;
+    if (Array.isArray(f.stufen) && f.stufen.length === 6) kopie.stufen = f.stufen.slice();
+    kopie.eigeneFassung = true;
+    return kopie;
+  };
+
+  /** Stundenkriterien in der Fassung eines Fachs (für Erfassung und Auswertung je Fach). */
+  M.stundenkriterienImFach = function (fachId) {
+    return M.stundenkriterien().map(k => M.kriteriumImFach(k, fachId));
+  };
+
+  /** Fächer, für die ein Kriterium eine eigene Fassung hat: [{ fachId, fach, fassung }]. */
+  M.fassungenFuerKriterium = function (kriteriumId) {
+    const alle = M.arbeitsverhalten().fachspezifisch || {};
+    const liste = [];
+    M.faecherKatalog().forEach(function (fach) {
+      const f = alle[fach.id] && alle[fach.id][kriteriumId];
+      if (f) liste.push({ fachId: fach.id, fach: fach, fassung: f });
+    });
+    // Fassungen für inzwischen gelöschte Fächer bleiben erhalten, erscheinen aber nicht
+    return liste;
+  };
+
+  /** Fassung anlegen oder ändern. */
+  M.fassungSpeichern = function (kriteriumId, fachId, fassung) {
+    const a = M.arbeitsverhalten();
+    if (!a.fachspezifisch) a.fachspezifisch = {};
+    if (!a.fachspezifisch[fachId]) a.fachspezifisch[fachId] = {};
+    a.fachspezifisch[fachId][kriteriumId] = fassung;
+    M.arbeitsverhaltenSpeichern(a);
+  };
+
+  /** Fassung entfernen – danach gilt für dieses Fach wieder die allgemeine Fassung. */
+  M.fassungEntfernen = function (kriteriumId, fachId) {
+    const a = M.arbeitsverhalten();
+    if (!a.fachspezifisch || !a.fachspezifisch[fachId]) return;
+    delete a.fachspezifisch[fachId][kriteriumId];
+    if (!Object.keys(a.fachspezifisch[fachId]).length) delete a.fachspezifisch[fachId];
+    M.arbeitsverhaltenSpeichern(a);
   };
 
   /** Fließt ein Stundenkriterium in die Fachleistung ein (etwa Mündliche Mitarbeit)? */
@@ -274,15 +337,15 @@ NB.Modell = (function () {
    * 'kompetenzen' → Kompetenzen des Fachs in der Stufe der Klasse.
    */
   M.kriterienFuer = function (klasse, fach, ansicht) {
-    if (ansicht === 'stunde') return M.stundenkriterien();
+    if (ansicht === 'stunde') return M.stundenkriterienImFach(fach ? fach.id : null);
     if (!klasse || !klasse.stufe) return [];
     return M.kompetenzen(fach, klasse.stufe, klasse);
   };
 
-  /** Kriterium nach Id (Stundenkriterium, Kompetenz oder archiviert). */
+  /** Kriterium nach Id (Stundenkriterium, Kompetenz oder archiviert); fach wählt die Fassung. */
   M.kriterium = function (kriteriumId, fach) {
     const s = (M.arbeitsverhalten().kriterien || []).find(k => k.id === kriteriumId);
-    if (s) return s;
+    if (s) return fach ? M.kriteriumImFach(s, fach.id) : s;
     const faecher = fach ? [fach] : M.faecherKatalog();
     for (let i = 0; i < faecher.length; i++) {
       const k = (faecher[i].kompetenzen || []).find(x => x.id === kriteriumId);

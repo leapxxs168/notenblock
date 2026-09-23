@@ -294,11 +294,50 @@ NB.Umstellung = (function () {
     } else if (!alt) {
       D.setzen('arbeitsverhalten', '', neu);
     }
+    hinweis = stundenkriterienErgaenzen(neu) || hinweis;
     e.datenmodell = SD.DATENMODELL;
     if (e.mitarbeitGewichtJeFach === undefined) e.mitarbeitGewichtJeFach = {};
     D.setzen('einstellungen', '', e);
     return hinweis;
   };
+
+  /**
+   * Rein hinzufügend (Datenmodell 2.2): neue Stundenkriterien des Startbestands
+   * ergänzen – in der Reihenfolge des Startbestands – und fehlende
+   * fachspezifische Fassungen übernehmen. Eigene Änderungen an Namen, Texten,
+   * Gewichten und bereits vorhandenen Fassungen bleiben unberührt; keine id
+   * ändert sich, keine Bewertung wird angefasst.
+   */
+  function stundenkriterienErgaenzen(neu) {
+    const alt = D.holen('arbeitsverhalten', '');
+    if (!alt) return null;
+    let geaendert = false;
+    const neueNamen = [];
+    if (!Array.isArray(alt.kriterien)) alt.kriterien = [];
+    neu.kriterien.forEach(function (k, i) {
+      if (alt.kriterien.some(a => a.id === k.id)) return;
+      // An die Stelle setzen, die der Startbestand vorgibt (etwa nach „Zusammenarbeit“)
+      const vorgaenger = neu.kriterien.slice(0, i).reverse().find(v => alt.kriterien.some(a => a.id === v.id));
+      const stelle = vorgaenger ? alt.kriterien.findIndex(a => a.id === vorgaenger.id) + 1 : alt.kriterien.length;
+      alt.kriterien.splice(stelle, 0, JSON.parse(JSON.stringify(k)));
+      neueNamen.push(k.name);
+      geaendert = true;
+    });
+    const fassungen = neu.fachspezifisch || {};
+    if (!alt.fachspezifisch) alt.fachspezifisch = {};
+    Object.keys(fassungen).forEach(function (fachId) {
+      Object.keys(fassungen[fachId]).forEach(function (kritId) {
+        if (alt.fachspezifisch[fachId] && alt.fachspezifisch[fachId][kritId]) return;
+        if (!alt.fachspezifisch[fachId]) alt.fachspezifisch[fachId] = {};
+        alt.fachspezifisch[fachId][kritId] = JSON.parse(JSON.stringify(fassungen[fachId][kritId]));
+        geaendert = true;
+      });
+    });
+    if (!geaendert) return null;
+    D.setzen('arbeitsverhalten', '', alt);
+    if (!neueNamen.length) return null;
+    return 'Neu bei den Stundenkriterien: ' + neueNamen.join(', ') + '. Frühere Einheiten bleiben unverändert – dort gibt es dazu keine Werte.';
+  }
 
   /* ---------- Dialoge ---------- */
 

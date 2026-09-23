@@ -1,5 +1,5 @@
 {
-  "version": "2.1",
+  "version": "2.2",
   "quelle": "Lehrpläne für die Primarstufe in Nordrhein-Westfalen, Heft 2012, 1. Auflage 2021. Formulierungen sind Vorschläge; verbindlich sind die Kompetenzerwartungen des Lehrplans.",
   "skala": [
     1,
@@ -1680,6 +1680,20 @@
         ]
       },
       {
+        "id": "sv-regeln",
+        "name": "Regeln und Fairness",
+        "bereich": "Sozialverhalten",
+        "fachnote": false,
+        "stufen": [
+          "Hält Regeln zuverlässig ein, verhält sich fair und löst Konflikte angemessen",
+          "Hält Regeln ein und verhält sich fair",
+          "Hält Regeln meist ein, braucht gelegentlich eine Erinnerung",
+          "Hält Regeln häufig erst nach Ermahnung ein",
+          "Verstößt häufig gegen Regeln und stört andere",
+          "Missachtet Regeln auch nach wiederholter Ermahnung"
+        ]
+      },
+      {
         "id": "sv-sorgfalt",
         "name": "Sorgfalt und Ordnung",
         "bereich": "Arbeitsverhalten",
@@ -1693,6 +1707,187 @@
           "Arbeitet ohne erkennbare Sorgfalt, Material fehlt oder wird beschädigt"
         ]
       }
-    ]
+    ],
+    "fachspezifisch": {
+      "sport": {
+        "sv-muendlich": {
+          "name": "Beteiligung an Besprechungen",
+          "stufen": [
+            "Bringt sich in Besprechungen und Auswertungen mit treffenden Beobachtungen ein",
+            "Beteiligt sich an Besprechungen mit passenden Beiträgen",
+            "Beteiligt sich gelegentlich an Besprechungen",
+            "Äußert sich selten, meist erst nach Aufforderung",
+            "Äußert sich kaum, auch nach Aufforderung",
+            "Beteiligt sich nicht an Besprechungen"
+          ]
+        },
+        "sv-motivation": {
+          "name": "Anstrengungsbereitschaft",
+          "stufen": [
+            "Strengt sich immer an, probiert Neues mutig aus und hält auch bei Anstrengung durch",
+            "Strengt sich an und hält meist durch",
+            "Strengt sich meist an, lässt zwischendurch nach",
+            "Strengt sich wenig an und gibt schnell auf",
+            "Strengt sich kaum an und weicht Bewegungsaufgaben aus",
+            "Verweigert die Teilnahme"
+          ]
+        },
+        "sv-selbststaendigkeit": {
+          "stufen": [
+            "Setzt Bewegungsaufgaben ohne Hilfe um und übt selbstständig weiter",
+            "Setzt Bewegungsaufgaben weitgehend ohne Hilfe um",
+            "Setzt Bewegungsaufgaben nach Vormachen oder kurzer Erklärung um",
+            "Braucht häufig Hilfe, um weiterzuüben",
+            "Übt nur mit ständiger Begleitung",
+            "Übt auch mit Begleitung nicht"
+          ]
+        },
+        "sv-zeitnutzung": {
+          "name": "Umziehen und Bewegungszeit",
+          "stufen": [
+            "Zieht sich zügig um und nutzt die Bewegungszeit durchgehend aktiv",
+            "Zieht sich zügig um und ist die meiste Zeit aktiv",
+            "Braucht beim Umziehen etwas länger, ist überwiegend aktiv",
+            "Braucht beim Umziehen lange und legt häufig grundlos Pausen ein",
+            "Ist nur kurz aktiv",
+            "Nutzt die Bewegungszeit nicht"
+          ]
+        },
+        "sv-zusammenarbeit": {
+          "name": "Zusammenspiel im Team",
+          "stufen": [
+            "Spielt und übt mit allen gut zusammen, unterstützt andere und gibt Hilfestellung",
+            "Spielt und übt gut im Team und hält Absprachen ein",
+            "Spielt und übt meist gut im Team",
+            "Spielt nur mit einzelnen Kindern zusammen",
+            "Spielt kaum im Team mit",
+            "Stört oder verweigert das Zusammenspiel"
+          ]
+        },
+        "sv-regeln": {
+          "name": "Regeln, Fairness und Sicherheit",
+          "stufen": [
+            "Hält Spiel- und Sicherheitsregeln zuverlässig ein, spielt fair und akzeptiert Entscheidungen",
+            "Hält Spiel- und Sicherheitsregeln ein und spielt fair",
+            "Hält Regeln meist ein, braucht gelegentlich eine Erinnerung",
+            "Hält Regeln häufig erst nach Ermahnung ein",
+            "Verstößt häufig gegen Spiel- oder Sicherheitsregeln",
+            "Missachtet Sicherheitsregeln und gefährdet sich oder andere"
+          ]
+        },
+        "sv-sorgfalt": {
+          "name": "Sportzeug und Geräte",
+          "stufen": [
+            "Hat immer Sportzeug dabei, hilft selbstständig beim Auf- und Abbau und geht sorgsam mit Geräten um",
+            "Hat Sportzeug dabei, hilft beim Auf- und Abbau und geht sorgsam mit Geräten um",
+            "Vergisst selten das Sportzeug, hilft nach Aufforderung beim Auf- und Abbau",
+            "Vergisst häufiger das Sportzeug und hilft selten beim Auf- und Abbau",
+            "Vergisst das Sportzeug regelmäßig und geht unachtsam mit Geräten um",
+            "Kann wegen fehlenden Sportzeugs kaum teilnehmen oder beschädigt Geräte"
+          ]
+        }
+      },
+      "musik": {
+        "sv-muendlich": {
+          "stufen": [
+            "Beteiligt sich sehr häufig am Gespräch über Musik und bringt eigene Ideen ein",
+            "Beteiligt sich regelmäßig mit passenden Beiträgen",
+            "Beteiligt sich gelegentlich am Gespräch über Musik",
+            "Beteiligt sich selten, meist erst nach Aufforderung",
+            "Beteiligt sich kaum, auch nach Aufforderung",
+            "Beteiligt sich nicht am Gespräch über Musik"
+          ]
+        },
+        "sv-motivation": {
+          "name": "Bereitschaft zum Mitmachen",
+          "stufen": [
+            "Macht beim Singen, Musizieren und Bewegen engagiert mit und übernimmt gern auch eigene Parts",
+            "Macht beim Singen, Musizieren und Bewegen bereitwillig mit",
+            "Macht meist mit, hält sich zeitweise zurück",
+            "Macht oft erst nach Aufforderung mit",
+            "Macht kaum mit",
+            "Verweigert das Mitmachen"
+          ]
+        },
+        "sv-zeitnutzung": {
+          "stufen": [
+            "Nutzt Übungs- und Probephasen konzentriert und vollständig",
+            "Nutzt Übungsphasen gut",
+            "Nutzt Übungsphasen überwiegend, lässt sich gelegentlich ablenken",
+            "Lässt sich in Übungsphasen häufig ablenken",
+            "Nutzt Übungsphasen kaum",
+            "Nutzt Übungsphasen nicht"
+          ]
+        },
+        "sv-zusammenarbeit": {
+          "stufen": [
+            "Arbeitet in Gruppen gut mit, nimmt beim gemeinsamen Musizieren Rücksicht und teilt Instrumente",
+            "Arbeitet in Gruppen gut mit und nimmt Rücksicht auf andere",
+            "Arbeitet in Gruppen meist gut mit",
+            "Arbeitet nur mit einzelnen Kindern zusammen",
+            "Arbeitet kaum mit anderen zusammen",
+            "Stört oder verweigert das gemeinsame Musizieren"
+          ]
+        },
+        "sv-regeln": {
+          "name": "Absprachen beim Musizieren",
+          "stufen": [
+            "Hält Absprachen beim Musizieren zuverlässig ein, spielt nur auf Zeichen und achtet auf andere",
+            "Hält Absprachen beim Musizieren ein",
+            "Hält Absprachen meist ein, spielt gelegentlich ungefragt",
+            "Spielt häufig ungefragt und hält Absprachen erst nach Ermahnung ein",
+            "Stört das gemeinsame Musizieren regelmäßig",
+            "Missachtet Absprachen auch nach wiederholter Ermahnung"
+          ]
+        },
+        "sv-sorgfalt": {
+          "name": "Umgang mit Instrumenten",
+          "stufen": [
+            "Geht sehr sorgsam mit Instrumenten und Material um und räumt selbstständig auf",
+            "Geht sorgsam mit Instrumenten um und räumt auf",
+            "Geht meist sorgsam mit Instrumenten um, räumt nach Aufforderung auf",
+            "Geht häufig unachtsam mit Instrumenten um",
+            "Geht sehr unachtsam mit Instrumenten um und räumt nicht auf",
+            "Beschädigt Instrumente oder Material"
+          ]
+        }
+      },
+      "kunst": {
+        "sv-sorgfalt": {
+          "name": "Umgang mit Material und Arbeitsplatz",
+          "stufen": [
+            "Geht sehr sorgsam mit Material und Werkzeug um, hält den Arbeitsplatz geordnet und räumt vollständig auf",
+            "Geht sorgsam mit Material um und räumt zuverlässig auf",
+            "Geht meist sorgsam mit Material um, räumt nach Aufforderung auf",
+            "Geht häufig unachtsam mit Material um und räumt nur teilweise auf",
+            "Verschwendet oder verschmutzt Material und räumt nicht auf",
+            "Beschädigt Material oder Werkzeug, der Arbeitsplatz bleibt unaufgeräumt"
+          ]
+        },
+        "sv-muendlich": {
+          "stufen": [
+            "Beteiligt sich sehr häufig an Bild- und Werkbesprechungen und geht auf andere ein",
+            "Beteiligt sich regelmäßig mit passenden Beiträgen",
+            "Beteiligt sich gelegentlich an Bild- und Werkbesprechungen",
+            "Beteiligt sich selten, meist erst nach Aufforderung",
+            "Beteiligt sich kaum, auch nach Aufforderung",
+            "Beteiligt sich nicht an Bild- und Werkbesprechungen"
+          ]
+        }
+      },
+      "sachunterricht": {
+        "sv-regeln": {
+          "name": "Regeln und Sicherheit",
+          "stufen": [
+            "Hält Gesprächs- und Sicherheitsregeln bei Versuchen zuverlässig ein und achtet auf andere",
+            "Hält Gesprächs- und Sicherheitsregeln ein",
+            "Hält Regeln meist ein, braucht gelegentlich eine Erinnerung",
+            "Hält Regeln häufig erst nach Ermahnung ein",
+            "Verstößt häufig gegen Regeln, auch bei Versuchen",
+            "Missachtet Sicherheitsregeln und gefährdet sich oder andere"
+          ]
+        }
+      }
+    }
   }
 }

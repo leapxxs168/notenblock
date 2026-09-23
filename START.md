@@ -76,7 +76,9 @@ Je Klasse ist unter „Klasse verwalten“ das Schuljahr hinterlegt, in dem zule
 Die Startkriterien liegen zweimal vor: lesbar in `notenblock-kriterien.json` und eingebettet in `js/kriterien-daten.js` (damit die App ohne Nachladen auskommt). Änderungen in der JSON vornehmen und die JavaScript-Datei daraus neu erzeugen:
 
 ```bash
-python3 -c "import json;d=json.load(open('notenblock-kriterien.json',encoding='utf-8'));open('js/kriterien-daten.js','w',encoding='utf-8').write(open('js/kriterien-daten.js',encoding='utf-8').read().split('NB.KRITERIEN_START = ')[0]+'NB.KRITERIEN_START = '+json.dumps(d,ensure_ascii=False,indent=2)+';\n')"
+python3 -c "import json;kopf=open('js/kriterien-daten.js',encoding='utf-8').read().split('NB.KRITERIEN_START = ')[0];d=json.load(open('notenblock-kriterien.json',encoding='utf-8'));open('js/kriterien-daten.js','w',encoding='utf-8').write(kopf+'NB.KRITERIEN_START = '+json.dumps(d,ensure_ascii=False,indent=2)+';\n')"
 ```
+
+(Zuerst lesen, dann schreiben – sonst leert der Befehl die Datei, bevor er sie liest.)
 
 Die Startkriterien werden nur beim allerersten Start übernommen. Danach gelten die in der App bearbeiteten Fächer und Kriterien (Einstellungen → Fächer und Kriterien).

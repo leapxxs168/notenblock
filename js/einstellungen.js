@@ -32,6 +32,7 @@ NB.Einstellungen = (function () {
   let aktuellerAbschnitt = null;
   let aktuellesFach = null;
   let aktuellesKriterium = null;
+  let aktuelleFassung = null;   // { kriteriumId, fachId } im Fassungs-Bildschirm
 
   /* ---------- Bausteine ---------- */
 
@@ -592,8 +593,115 @@ NB.Einstellungen = (function () {
       ]));
     }
     // Kompetenzen der Stufe 1–2: Notenmarken in der einfarbigen Stufenabstufung
-    inhalt.appendChild(gruppe('Beschreibungstexte', [H.el('div', { class: 'einst-stufen' + (benotet ? '' : ' ohne-noten') }, stufenFelder)]));
+    inhalt.appendChild(gruppe(istAsv ? 'Beschreibungstexte (allgemein)' : 'Beschreibungstexte', [H.el('div', { class: 'einst-stufen' + (benotet ? '' : ' ohne-noten') }, stufenFelder)]));
     inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Die Texte erscheinen unter der Skala und bilden die Grundlage für Textbausteine in der Auswertung.' }));
+    if (istAsv) fassungenEinfuegen(inhalt, krit, parameter);
+    wurzel.appendChild(inhalt);
+  }
+
+  /**
+   * Fachspezifische Fassungen eines Stundenkriteriums: Liste der Fächer mit
+   * eigener Fassung und Knopf zum Anlegen. Eine Fassung ist nur eine andere
+   * Beschreibung desselben Kriteriums – gleiche id, dieselben Bewertungen.
+   */
+  function fassungenEinfuegen(inhalt, krit, parameter) {
+    const fassungen = M.fassungenFuerKriterium(krit.id);
+    const liste = H.el('div', { class: 'einst-liste' });
+    if (!fassungen.length) liste.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Keine eigene Fassung – in allen Fächern gilt die allgemeine.' }));
+    fassungen.forEach(function (f) {
+      liste.appendChild(H.el('div', { class: 'einst-eintrag' }, [
+        H.el('button', {
+          type: 'button', class: 'einst-eintrag-text',
+          onclick: () => N.bildschirmOeffnen('einstellungen-fassung', { kriteriumId: krit.id, fachId: f.fachId })
+        }, [
+          H.el('span', { class: 'einst-eintrag-titel', text: f.fach.name }),
+          H.el('span', { class: 'text-klein text-schwach', text: f.fassung.name ? 'Heißt hier „' + f.fassung.name + '“' : 'Eigene Texte, allgemeiner Name' })
+        ]),
+        loeschKnopf('Fassung für ' + f.fach.name + ' entfernen', () => fassungEntfernen(krit, f, parameter))
+      ]));
+    });
+    inhalt.appendChild(gruppe('Eigene Fassungen je Fach', [liste]));
+    inhalt.appendChild(H.el('div', { class: 'knopfzeile' }, H.el('button', {
+      type: 'button', class: 'knopf', text: 'Eigene Fassung für ein Fach anlegen', onclick: () => fassungAnlegen(krit, fassungen)
+    })));
+    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'In diesen Fächern erscheinen Name und Texte der eigenen Fassung – im Bewertungsbildschirm, in der Auswertung des Fachs und in seinem Textbaustein. Bewertet wird weiterhin dasselbe Kriterium; in der fachübergreifenden Übersicht steht der allgemeine Name.' }));
+  }
+
+  async function fassungAnlegen(krit, vorhandene) {
+    const frei = M.faecherKatalog().filter(f => !vorhandene.some(v => v.fachId === f.id));
+    if (!frei.length) {
+      await NB.Dialog.hinweis({ titel: 'Alle Fächer haben eine Fassung', text: 'Für jedes Fach gibt es bereits eine eigene Fassung dieses Kriteriums.' });
+      return;
+    }
+    const wahl = await NB.Dialog.auswahl({
+      titel: 'Eigene Fassung für welches Fach?',
+      optionen: frei.map(f => ({ text: f.name, wert: f.id, untertitel: f.aktiv === false ? 'stillgelegt' : '' }))
+    });
+    if (!wahl) return;
+    // Mit den allgemeinen Texten vorbelegt – zum Überarbeiten
+    M.fassungSpeichern(krit.id, wahl, { stufen: (krit.stufen || ['', '', '', '', '', '']).slice() });
+    N.bildschirmOeffnen('einstellungen-fassung', { kriteriumId: krit.id, fachId: wahl });
+  }
+
+  async function fassungEntfernen(krit, f, parameter) {
+    const ok = await NB.Dialog.bestaetigen({
+      titel: 'Fassung für ' + f.fach.name + ' entfernen?',
+      text: 'In ' + f.fach.name + ' gelten danach wieder Name und Texte der allgemeinen Fassung. Es gehen keine Bewertungen verloren – die Werte gehören zum Kriterium, nicht zur Fassung.',
+      bestaetigen: 'Entfernen'
+    });
+    if (!ok) return;
+    M.fassungEntfernen(krit.id, f.fachId);
+    kriteriumRendern(parameter);
+  }
+
+  /** Bildschirm einer fachspezifischen Fassung: Name und sechs Texte. */
+  function fassungRendern(parameter) {
+    aktuelleFassung = parameter || {};
+    const wurzel = H.$('#bildschirm-einstellungen-fassung');
+    H.leeren(wurzel);
+    const asv = M.arbeitsverhalten();
+    const krit = (asv.kriterien || []).find(k => k.id === aktuelleFassung.kriteriumId);
+    const fach = M.fach(aktuelleFassung.fachId);
+    const fassung = M.fachFassung(aktuelleFassung.kriteriumId, aktuelleFassung.fachId);
+    if (!krit || !fach || !fassung) {
+      wurzel.appendChild(H.el('div', { class: 'leer' }, H.el('p', { text: 'Diese Fassung gibt es nicht mehr.' })));
+      return;
+    }
+    const inhalt = H.el('div', { class: 'karte-inhalt einst' });
+    const speichern = () => M.fassungSpeichern(krit.id, fach.id, fassung);
+
+    const nameFeld = H.el('input', { type: 'text', value: fassung.name || '', autocomplete: 'off', placeholder: krit.name, 'aria-label': 'Name in ' + fach.name });
+    nameFeld.addEventListener('input', H.entprellen(function () {
+      const wert = nameFeld.value.trim();
+      if (wert) fassung.name = wert; else delete fassung.name;
+      speichern();
+      N.kopfAktualisieren();
+    }, 400));
+    inhalt.appendChild(gruppe('Fassung für ' + fach.name, [
+      zeile('Name in ' + fach.name, 'Leer lassen, dann gilt der allgemeine Name „' + krit.name + '“.', nameFeld, { alsLabel: true, klasse: 'einst-zeile-feld' }),
+      zeile('Kriterium', 'Dieselbe Bewertung wie „' + krit.name + '“ – nur anders beschrieben.', null)
+    ]));
+
+    const woerter = M.notenwoerter();
+    if (!Array.isArray(fassung.stufen) || fassung.stufen.length !== 6) fassung.stufen = ['', '', '', '', '', ''];
+    const stufenFelder = [];
+    for (let n = 1; n <= 6; n++) {
+      const feld = H.el('textarea', { rows: 3, 'aria-label': 'Beschreibung für Note ' + n + ' in ' + fach.name });
+      feld.value = fassung.stufen[n - 1] || '';
+      feld.addEventListener('input', H.entprellen(function () {
+        fassung.stufen[n - 1] = feld.value;
+        speichern();
+      }, 400));
+      stufenFelder.push(H.el('label', { class: 'feld einst-stufe' }, [
+        H.el('span', { class: 'feld-name' }, [
+          H.el('span', { class: 'notenmarke', dataset: { note: String(n) }, text: String(n) }),
+          ' ' + woerter[n - 1]
+        ]),
+        feld
+      ]));
+    }
+    inhalt.appendChild(gruppe('Beschreibungstexte in ' + fach.name, [H.el('div', { class: 'einst-stufen' }, stufenFelder)]));
+    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Die Texte gelten in beiden Stufen. In Klasse 1 und 2 erscheinen sie als Stufen 1 bis 6 ohne Notenwörter.' }));
     wurzel.appendChild(inhalt);
   }
 
@@ -860,6 +968,14 @@ NB.Einstellungen = (function () {
     titel: () => (aktuellesKriterium ? aktuellesKriterium.name : 'Kriterium'),
     zurueck: true,
     zeigen: kriteriumRendern
+  });
+  N.bildschirmRegistrieren('einstellungen-fassung', {
+    titel: function () {
+      const fach = aktuelleFassung && M.fach(aktuelleFassung.fachId);
+      return fach ? 'Fassung · ' + fach.name : 'Fassung';
+    },
+    zurueck: true,
+    zeigen: fassungRendern
   });
   N.bildschirmRegistrieren('einstellungen-passphrase', { titel: 'Passphrase ändern', zurueck: true, zeigen: passphraseRendern });
 
