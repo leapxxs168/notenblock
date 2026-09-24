@@ -1525,3 +1525,43 @@ button.kl-zahl:active { background: var(--akzent-hell); }
 .kind-faecher { margin-bottom: 14px; }
 .kind-faecher .bw-fach[aria-pressed="true"] { background: var(--fachfarbe, var(--akzent)); border-color: var(--fachfarbe, var(--akzent)); }
 .aw-titel.klein { font-size: 1.05rem; }
+.aw-marke { margin-left: 6px; padding: 1px 6px; border-radius: 6px; color: var(--akzent-dunkel); background: var(--akzent-hell); font-weight: 600; white-space: nowrap; }
+
+/* Planung der Einheit im Bewertungsbildschirm: eine Zeile, aufklappbar */
+.bw-planung { margin: 8px 16px 0; background: var(--flaeche); border-radius: 8px; box-shadow: var(--schatten); }
+.bw-planung-kopf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tippziel);
+  padding: 6px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.bw-planung-kopf::-webkit-details-marker { display: none; }
+.bw-planung-kopf::after { content: "⌄"; margin-left: auto; color: var(--text-schwach); line-height: 1; }
+.bw-planung[open] .bw-planung-kopf::after { content: "⌃"; }
+.bw-planung-marke { flex: 0 0 auto; padding: 1px 6px; border-radius: 6px; background: var(--hintergrund); }
+.bw-planung-thema { flex: 1 1 auto; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bw-planung-thema.leer { font-weight: 400; color: var(--text-schwach); }
+.bw-planung-felder { display: flex; flex-direction: column; gap: 10px; padding: 4px 12px 10px; }
+.bw-planung-felder .feld-name { color: var(--text-schwach); }
+.bw-planung-fertig { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px 12px; cursor: pointer; }
+
+/* Farbwahl aus der Palette (kein freier Farbwähler) */
+.farbwahl { display: flex; flex-wrap: wrap; gap: 8px; }
+.farbfeld {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+.farbfeld[aria-checked="true"] { border-color: var(--text); box-shadow: inset 0 0 0 2px var(--flaeche); }
+.farbfeld:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+.fach-punkt { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: baseline; }
+.einst-eintrag-text.mit-punkt .einst-eintrag-titel { display: flex; align-items: center; }
+/* Aktives Fach in der Fächerleiste in seiner Farbe */
+.bw-fach[aria-pressed="true"] { background: var(--fachfarbe, var(--akzent)); border-color: var(--fachfarbe, var(--akzent)); }

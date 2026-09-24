@@ -145,7 +145,7 @@ NB.Auswertung = (function () {
     const gesamt = gg > 0 ? gs / gg : null;
     return {
       kriterien: zeilen,
-      bereiche: bereicheBilden(zeilen.filter(z => z.fachnote), fach),
+      bereiche: bereicheBilden(zeilen.filter(z => !z.stundenkriterium), fach),
       gesamt: gesamt,
       verhalten: vg > 0 ? vs / vg : null,
       verhaltenAnzahl: verlaufVerhalten.length,
@@ -160,11 +160,11 @@ NB.Auswertung = (function () {
     };
   };
 
-  /** Zeilen der Fachleistung nach Lehrplanbereich bündeln, mit gewichtetem Schnitt je Bereich. */
+  /** Kompetenzen nach Lehrplanbereich bündeln, mit gewichtetem Schnitt je Bereich. */
   function bereicheBilden(zeilen, fach) {
     const gruppen = [];
     zeilen.forEach(function (z) {
-      const name = z.stundenkriterium ? (z.kriterium.bereich || 'Mitarbeit') : (z.kriterium.bereich || 'Allgemein');
+      const name = z.kriterium.bereich || 'Allgemein';
       let g = gruppen.find(x => x.bereich === name);
       if (!g) { g = { bereich: name, zeilen: [], summe: 0, gewicht: 0, schnitt: null }; gruppen.push(g); }
       g.zeilen.push(z);
@@ -188,7 +188,7 @@ NB.Auswertung = (function () {
     optionen = optionen || {};
     const e = M.einstellungen();
     const einrechnen = e.uebernommeneZaehlen !== false;
-    const kriterien = M.stundenkriterien().filter(k => !M.istFachnote(k));
+    const kriterien = M.stundenkriterien();   // alle – der Ø unten zählt nur die, die nicht zur Note gehören
     const stunden = M.einheiten(klasse.id).filter(M.bewertungHatInhalt)
       .filter(b => !optionen.ausser || M.einheitSchluesselVon(b) !== optionen.ausser)
       .sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : (Number(a.stunde) || 0) - (Number(b.stunde) || 0)));
@@ -206,6 +206,7 @@ NB.Auswertung = (function () {
         if (!n || (n.art === 'uebernommen' && !einrechnen)) return;
         sammlung[k.id].werte.push({ datum: b.datum, note: n.wert });
         sammlung[k.id].verteilung[n.wert]++;
+        if (M.istFachnote(k)) return;            // zählt zur Fachleistung, nicht zum Verhalten
         summe += n.wert * gewicht(k);
         gesamtGewicht += gewicht(k);
       });
@@ -219,8 +220,8 @@ NB.Auswertung = (function () {
       const d = sammlung[k.id];
       const n = d.werte.length;
       const schnitt = n ? d.werte.reduce((s, w) => s + w.note, 0) / n : null;
-      if (schnitt != null) { vs += schnitt * gewicht(k); vg += gewicht(k); }
-      return { kriterium: k, schnitt: schnitt, anzahl: n, verteilung: d.verteilung, ueberwiegend: n ? ueberwiegend(d.verteilung, schnitt) : null, fachnote: false, stundenkriterium: true };
+      if (schnitt != null && !M.istFachnote(k)) { vs += schnitt * gewicht(k); vg += gewicht(k); }
+      return { kriterium: k, schnitt: schnitt, anzahl: n, verteilung: d.verteilung, ueberwiegend: n ? ueberwiegend(d.verteilung, schnitt) : null, fachnote: M.istFachnote(k), stundenkriterium: true };
     });
     return {
       kriterien: zeilen,
@@ -520,13 +521,16 @@ NB.Auswertung = (function () {
     ]));
 
     // Zeile eines Kriteriums: Name (mit Gewicht), Schnitt · Anzahl, Balken, in Stufe 1–2 der Stufentext
-    function kriteriumZeile(z, g) {
+    function kriteriumZeile(z, g, marke) {
       const stufenText = (!a.benotet && !z.stundenkriterium && z.stufenText)
         ? H.el('p', { class: 'text-klein text-schwach aw-stufentext', text: 'Stufe ' + z.naechsteStufe + ': ' + z.stufenText })
         : null;
       return H.el('div', { class: 'aw-kriterium' }, [
         H.el('div', { class: 'aw-kriterium-kopf' }, [
-          H.el('span', { class: 'aw-kriterium-name', text: z.kriterium.name + (g !== 1 ? ' (×' + String(g).replace('.', ',') + ')' : '') }),
+          H.el('span', { class: 'aw-kriterium-name' }, [
+            z.kriterium.name + (g !== 1 && !marke ? ' (×' + String(g).replace('.', ',') + ')' : '') + (marke ? ' ' : ''),
+            marke ? H.el('span', { class: 'aw-marke text-klein', text: marke }) : null
+          ]),
           H.el('span', { class: 'aw-kriterium-wert', text: z.anzahl ? A.zahlText(z.schnitt) + ' · ' + z.anzahl + '×' : '–' })
         ]),
         balken(z.schnitt, z.naechsteStufe),
@@ -534,33 +538,15 @@ NB.Auswertung = (function () {
       ]);
     }
 
-    // Fachleistung: Kompetenzen nach Lehrplanbereich (Schnitt je Bereich) und Mündliche Mitarbeit
-    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Fachleistung' }));
-    const fachKarte = H.el('div', { class: 'einst-karte' });
-    a.bereiche.forEach(function (b) {
-      fachKarte.appendChild(H.el('div', { class: 'aw-bereich' }, [
-        H.el('span', { class: 'aw-bereich-name', text: b.bereich }),
-        H.el('span', { class: 'aw-bereich-wert', text: b.schnitt == null ? '–' : 'Ø ' + A.zahlText(b.schnitt) })
-      ]));
-      b.zeilen.forEach(z => fachKarte.appendChild(kriteriumZeile(z, (z.stundenkriterium && z.fachnote) ? M.mitarbeitGewicht(fach.id, z.kriterium) : gewicht(z.kriterium))));
-    });
-    if (!a.bereiche.length) fachKarte.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Keine Kompetenzen für diese Stufe.' }));
-    inhalt.appendChild(fachKarte);
-
-    // Verlauf der Fachleistung
-    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Verlauf Fachleistung' }));
-    if (a.verlauf.length) {
-      inhalt.appendChild(H.el('div', { class: 'einst-karte aw-verlauf-karte' }, verlaufGrafik(a.verlauf)));
-    } else {
-      inhalt.appendChild(H.el('div', { class: 'einst-karte' }, H.el('p', { class: 'text-schwach einst-leer', text: 'Noch kein Verlauf – es liegen keine Werte zur Fachleistung vor.' })));
-    }
-
-    // Arbeits- und Sozialverhalten: standardmäßig dieses Fach, auf Wunsch alle Fächer der Klasse
+    // Stunde: alle Stundenkriterien; welche davon zur Note zählen, steht dabei.
+    // Standardmäßig zählt nur die Mündliche Mitarbeit (Einstellungen → Fächer
+    // und Kriterien → „Zählt zur Fachleistung“ je Kriterium).
     const alleFaecher = !!parameterKind.verhaltenAlleFaecher;
     const v = alleFaecher ? A.verhaltenUebergreifend(klasse, kind.id) : a;
-    const vZeilen = v.kriterien.filter(z => z.fachnote === false);
-    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Arbeits- und Sozialverhalten' + (v.verhalten != null ? ' · Ø ' + A.zahlText(v.verhalten) : '') }));
-    const umschalter = H.el('div', { class: 'segment aw-verhalten-sicht', role: 'group', 'aria-label': 'Arbeits- und Sozialverhalten' });
+    const stundenZeilen = v.kriterien.filter(z => z.stundenkriterium);
+    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Stunde' }));
+    const stundenKarte = H.el('div', { class: 'einst-karte' });
+    const umschalter = H.el('div', { class: 'segment aw-verhalten-sicht', role: 'group', 'aria-label': 'Stundenkriterien' });
     [[false, fach.name], [true, 'Alle Fächer']].forEach(function (o) {
       umschalter.appendChild(H.el('button', {
         type: 'button', text: o[1], 'aria-pressed': alleFaecher === o[0] ? 'true' : 'false',
@@ -570,18 +556,46 @@ NB.Auswertung = (function () {
         }
       }));
     });
-    const vKarte = H.el('div', { class: 'einst-karte' });
-    vKarte.appendChild(H.el('div', { class: 'aw-verhalten-kopf' }, [
+    stundenKarte.appendChild(H.el('div', { class: 'aw-verhalten-kopf' }, [
       umschalter,
-      H.el('p', { class: 'text-klein text-schwach', text: alleFaecher
-        ? (v.verhaltenAnzahl ? (v.verhaltenAnzahl === 1 ? '1 Einheit' : v.verhaltenAnzahl + ' Einheiten') + ' in ' + (v.faecher.length === 1 ? '1 Fach' : v.faecher.length + ' Fächern') + ' – Übersicht für Zeugnisbemerkungen; fließt nie in die Fachnote ein.' : 'Noch keine Werte in dieser Klasse.')
-        : (v.verhaltenAnzahl ? (v.verhaltenAnzahl === 1 ? '1 Einheit' : v.verhaltenAnzahl + ' Einheiten') + ' in ' + fach.name + ' – fließt nie in die Fachnote ein.' : 'Noch keine Werte in ' + fach.name + '.') })
+      H.el('p', { class: 'text-klein text-schwach', text:
+        (v.verhalten != null ? 'Arbeits- und Sozialverhalten Ø ' + A.zahlText(v.verhalten) + ' · ' : '')
+        + (alleFaecher
+          ? (v.verhaltenAnzahl ? (v.verhaltenAnzahl === 1 ? '1 Einheit' : v.verhaltenAnzahl + ' Einheiten') + ' in ' + (v.faecher.length === 1 ? '1 Fach' : v.faecher.length + ' Fächern') + ' – Übersicht für Zeugnisbemerkungen' : 'Noch keine Werte in dieser Klasse')
+          : (v.verhaltenAnzahl ? (v.verhaltenAnzahl === 1 ? '1 Einheit' : v.verhaltenAnzahl + ' Einheiten') + ' in ' + fach.name : 'Noch keine Werte in ' + fach.name)) })
     ]));
-    vZeilen.forEach(z => vKarte.appendChild(kriteriumZeile(z, gewicht(z.kriterium))));
-    if (!vZeilen.length) vKarte.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Keine Kriterien zum Arbeits- und Sozialverhalten.' }));
-    inhalt.appendChild(vKarte);
+    stundenZeilen.forEach(function (z) {
+      const zaehlt = z.fachnote === true;
+      const g = zaehlt ? M.mitarbeitGewicht(fach.id, z.kriterium) : gewicht(z.kriterium);
+      stundenKarte.appendChild(kriteriumZeile(z, zaehlt ? g : 1, zaehlt ? (alleFaecher ? 'zählt zur Note' : 'zählt zur Note' + (g !== 1 ? ' ×' + String(g).replace('.', ',') : '')) : null));
+    });
+    if (!stundenZeilen.length) stundenKarte.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Keine Stundenkriterien.' }));
+    inhalt.appendChild(stundenKarte);
+    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach einst-gruppe-hinweis', text:
+      'Das Arbeits- und Sozialverhalten fließt nie in die Fachnote ein. Welche Stundenkriterien zur Note zählen, legst du unter Einstellungen → Fächer und Kriterien fest („Zählt zur Fachleistung“).' }));
     const vVerlauf = alleFaecher ? v.verlauf : a.verlaufVerhalten;
     if (vVerlauf.length) inhalt.appendChild(H.el('div', { class: 'einst-karte aw-verlauf-karte' }, verlaufGrafik(vVerlauf)));
+
+    // Kompetenzen nach Lehrplanbereich, mit Schnitt je Bereich
+    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Kompetenzen' }));
+    const fachKarte = H.el('div', { class: 'einst-karte' });
+    a.bereiche.forEach(function (b) {
+      fachKarte.appendChild(H.el('div', { class: 'aw-bereich' }, [
+        H.el('span', { class: 'aw-bereich-name', text: b.bereich }),
+        H.el('span', { class: 'aw-bereich-wert', text: b.schnitt == null ? '–' : 'Ø ' + A.zahlText(b.schnitt) })
+      ]));
+      b.zeilen.forEach(z => fachKarte.appendChild(kriteriumZeile(z, gewicht(z.kriterium))));
+    });
+    if (!a.bereiche.length) fachKarte.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Keine Kompetenzen für diese Stufe.' }));
+    inhalt.appendChild(fachKarte);
+
+    // Verlauf der Fachleistung (Kompetenzen und zur Note zählende Stundenkriterien)
+    inhalt.appendChild(H.el('h2', { class: 'einst-gruppe-titel', text: 'Verlauf Fachleistung' }));
+    if (a.verlauf.length) {
+      inhalt.appendChild(H.el('div', { class: 'einst-karte aw-verlauf-karte' }, verlaufGrafik(a.verlauf)));
+    } else {
+      inhalt.appendChild(H.el('div', { class: 'einst-karte' }, H.el('p', { class: 'text-schwach einst-leer', text: 'Noch kein Verlauf – es liegen keine Werte zur Fachleistung vor.' })));
+    }
 
     // Textbausteine: Fachleistung und Arbeits- und Sozialverhalten getrennt
     function textKarte(text, leerText, hinweis) {

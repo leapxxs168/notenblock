@@ -116,6 +116,28 @@ NB.KlasseVerwalten = (function () {
     return box;
   }
 
+  /**
+   * Farbwahl aus der festen Palette (kein freier Farbwähler). beiWahl(farbId)
+   * wird beim Antippen gerufen.
+   */
+  KV.farbwahl = function (gewaehlt, beiWahl, label) {
+    const box = H.el('div', { class: 'farbwahl', role: 'radiogroup', 'aria-label': label || 'Farbe' });
+    M.FARBEN().forEach(function (f) {
+      const knopf = H.el('button', {
+        type: 'button', class: 'farbfeld', role: 'radio', dataset: { farbe: f.id },
+        'aria-checked': gewaehlt === f.id ? 'true' : 'false', 'aria-label': f.name, title: f.name,
+        onclick: function () {
+          gewaehlt = f.id;
+          H.$$('.farbfeld', box).forEach(x => x.setAttribute('aria-checked', x.dataset.farbe === f.id ? 'true' : 'false'));
+          beiWahl(f.id);
+        }
+      });
+      knopf.style.background = f.wert;
+      box.appendChild(knopf);
+    });
+    return box;
+  };
+
   /* ---------- Stufe ---------- */
 
   /** Stufe wählen oder ändern (Auswahldialog); liefert true, wenn sich die Stufe geändert hat. */
@@ -219,9 +241,9 @@ NB.KlasseVerwalten = (function () {
         H.el('span', { class: 'kl-zahl-wert', text: String(faecher.length) }),
         H.el('span', { class: 'kl-zahl-name text-klein text-schwach', text: faecher.length === 1 ? 'Fach' : 'Fächer' })
       ]),
-      H.el('button', { type: 'button', class: 'kl-zahl', onclick: () => NB.Auswertung.oeffnen({ klasseId: klasse.id }), 'aria-label': einheiten + ' erfasste Einheiten – Auswertung der Klasse' }, [
+      H.el('button', { type: 'button', class: 'kl-zahl', onclick: () => NB.Auswertung.oeffnen({ klasseId: klasse.id }), 'aria-label': 'Statistik der Klasse: ' + einheiten + ' erfasste Einheiten' }, [
         H.el('span', { class: 'kl-zahl-wert', text: String(einheiten) }),
-        H.el('span', { class: 'kl-zahl-name text-klein text-schwach', text: einheiten === 1 ? 'Einheit' : 'Einheiten' })
+        H.el('span', { class: 'kl-zahl-name text-klein text-schwach', text: 'Statistik' })
       ]),
       H.el('div', { class: 'kl-zahl' }, [
         H.el('span', { class: 'kl-zahl-wert klein', text: letzte.length ? H.datumKurzOhneJahr(letzte[letzte.length - 1]) : '–' }),
@@ -343,7 +365,14 @@ NB.KlasseVerwalten = (function () {
           H.el('div', { class: 'einst-beschreibung text-klein text-schwach', text: 'Dient der Löschfrist: Ein Jahr nach Ende des Kalenderjahres, in dem der Unterricht endete, erinnert Notenblock an das Löschen.' })
         ]),
         H.el('div', { class: 'einst-steuerung' }, schuljahrFeld)
-      ])
+      ]),
+      optionen.farbe ? H.el('div', { class: 'einst-zeile einst-zeile-feld' }, [
+        H.el('div', { class: 'einst-text' }, [
+          H.el('div', { class: 'einst-label', text: 'Farbe' }),
+          H.el('div', { class: 'einst-beschreibung text-klein text-schwach', text: 'Zur Unterscheidung im Kalender, im Stundenplan und in der Klassenliste – nie für Noten.' })
+        ]),
+        H.el('div', { class: 'einst-steuerung' }, KV.farbwahl(optionen.farbe.wert, optionen.farbe.beiWahl, 'Farbe der Klasse'))
+      ]) : null
     ]));
     return { nameFeld: nameFeld, schuljahrFeld: schuljahrFeld, flaechen: flaechen };
   }
@@ -375,6 +404,13 @@ NB.KlasseVerwalten = (function () {
         const geaendert = await KV.stufeSetzen(klasse, id);
         if (geaendert) werte.stufe = id;
         return geaendert;
+      },
+      farbe: {
+        wert: klasse.farbe,
+        beiWahl: function (farbId) {
+          klasse.farbe = farbId;
+          M.klasseSpeichern(klasse);
+        }
       }
     });
     inhalt.appendChild(fehler);

@@ -269,12 +269,14 @@ NB.Einstellungen = (function () {
       const i = faecher.indexOf(fach);
       const anzahl = M.kompetenzenAlle(fach, gewaehlteStufe).length;
       const ruht = fach.aktiv === false;
+      const farbPunkt = H.el('span', { class: 'fach-punkt', 'aria-hidden': 'true' });
+      farbPunkt.style.background = M.fachFarbe(fach);
       liste.appendChild(H.el('div', { class: 'einst-eintrag' + (ruht ? ' ausgeblendet' : '') }, [
         H.el('button', {
-          type: 'button', class: 'einst-eintrag-text',
+          type: 'button', class: 'einst-eintrag-text mit-punkt',
           onclick: () => N.bildschirmOeffnen('einstellungen-fach', { fachId: fach.id, stufe: gewaehlteStufe })
         }, [
-          H.el('span', { class: 'einst-eintrag-titel', text: fach.name + (ruht ? ' (stillgelegt)' : '') }),
+          H.el('span', { class: 'einst-eintrag-titel' }, [farbPunkt, fach.name + (ruht ? ' (stillgelegt)' : '')]),
           H.el('span', { class: 'text-klein text-schwach', text: (anzahl === 1 ? '1 Kompetenz' : anzahl + ' Kompetenzen') + (fach.eigen ? ' · selbst angelegt' : '') })
         ]),
         pfeilKnopf(fach.name + ' nach oben', -1, i > 0, function () {
@@ -396,6 +398,8 @@ NB.Einstellungen = (function () {
         });
         kopfZeilen.push(zeile('Stufen', 'In welchen Stufen das Fach angeboten wird. Kompetenzen gehören jeweils zu einer Stufe.', stufenBox, { klasse: 'einst-zeile-segment' }));
       }
+      kopfZeilen.push(zeile('Farbe', 'Zur Unterscheidung in der Fächerleiste und in der Auswertung – nie für Noten.',
+        NB.KlasseVerwalten.farbwahl(fach.farbe, function (farbId) { fach.farbe = farbId; speichern(); }, 'Farbe des Fachs'), { klasse: 'einst-zeile-feld' }));
       if (M.fachHinweis(fach, stufe)) kopfZeilen.push(zeile('Hinweis aus dem Lehrplan', M.fachHinweis(fach, stufe), null));
       M.fachnoteKriterien().forEach(function (mk) {
         const gewichtFeld = H.el('select', { 'aria-label': 'Gewicht von ' + mk.name + ' in ' + fach.name });

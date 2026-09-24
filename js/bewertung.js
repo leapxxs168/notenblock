@@ -42,6 +42,11 @@
  * Ein Tipp auf den Namen öffnet das Kinderprofil mit dem Fach, in dem gerade
  * bewertet wird; der Zurück-Pfeil führt an dieselbe Stelle zurück.
  *
+ * Unter der Kopfzeile steht die Planung der Einheit: zugeklappt nur das Thema,
+ * aufgeklappt Verlauf, Material, Hausaufgabe und „Planung fertig“ – direkt
+ * bearbeitbar. Der Zustand wird gemerkt, vorbelegt ist eingeklappt, damit das
+ * Bewerten schnell bleibt.
+ *
  * Wischen links/rechts wechselt das Kind, nicht aber auf einer Reglerzeile.
  * Pfeiltasten wechseln das Kind, Ziffern 1–6 setzen den Wert im fokussierten Regler.
  * Alles speichert sofort. Die Position (Klasse, Fach, Datum, Einheit, Kind) wird gemerkt.
@@ -58,7 +63,7 @@ NB.Bewertung = (function () {
   const KURZWORTE = ['sehr gut', 'gut', 'befr.', 'ausr.', 'mangelh.', 'ungen.'];
 
   // Zustand des Bildschirms (wird in 'zustand' gemerkt)
-  let z = { klasseId: null, fachId: null, datum: null, datumGewaehltAm: null, stunde: null, stundeBis: null, stundeManuellFuer: null, ansicht: 'stunde', kindIndex: 0 };
+  let z = { klasseId: null, fachId: null, datum: null, datumGewaehltAm: null, stunde: null, stundeBis: null, stundeManuellFuer: null, ansicht: 'stunde', kindIndex: 0, planungOffen: false };
   let kinder = [];        // Kinder der aktuellen Klasse in Anzeigereihenfolge
   let el = null;          // DOM-Referenzen des aufgebauten Bildschirms
   let zuletztHeute = null;
@@ -361,6 +366,10 @@ NB.Bewertung = (function () {
     H.leeren(wurzel);
     el = {};
 
+    el.planung = H.el('details', { class: 'bw-planung', hidden: true });
+    el.planung.addEventListener('toggle', function () {
+      if (!el.planung.hidden) { z.planungOffen = el.planung.open; zustandMerken(); }
+    });
     el.hinweis = H.el('div', { class: 'bw-hinweis', hidden: true });
 
     el.kindname = H.el('button', {
@@ -404,7 +413,7 @@ NB.Bewertung = (function () {
 
     el.leer = H.el('div', { class: 'leer', hidden: true });
 
-    H.anhaengen(wurzel, [el.hinweis, el.kindzeile, el.faecher, el.ansicht, el.fehltHinweis, el.fachHinweis, el.matrix, el.notizzeile, el.leer]);
+    H.anhaengen(wurzel, [el.planung, el.hinweis, el.kindzeile, el.faecher, el.ansicht, el.fehltHinweis, el.fachHinweis, el.matrix, el.notizzeile, el.leer]);
 
     // Fußleiste
     el.balken = H.el('span');
@@ -433,11 +442,72 @@ NB.Bewertung = (function () {
     fachPruefen();
     statistikBerechnen();
     N.kopfAktualisieren();
+    planungRendern();
     hinweisAktualisieren();
     faecherRendern();
     ansichtRendern();
     kindRendern();
     N.fussAktualisieren();
+  }
+
+  /**
+   * Einzeilige, einklappbare Planung der Einheit unter der Kopfzeile:
+   * zugeklappt das Thema (oder „Thema eintragen“), aufgeklappt Verlauf,
+   * Material und Hausaufgabe – direkt bearbeitbar, ohne den Bildschirm zu
+   * verlassen. Der Zustand wird gemerkt, vorbelegt ist eingeklappt.
+   */
+  function planungRendern() {
+    if (!el) return;
+    H.leeren(el.planung);
+    el.planung.hidden = !kinder.length || !z.klasseId || !z.fachId || !z.datum;
+    if (el.planung.hidden) return;
+    const vorhanden = M.planung(z.datum, z.stunde, z.klasseId, z.fachId);
+    const thema = (vorhanden && vorhanden.thema || '').trim();
+    el.planung.open = z.planungOffen === true;
+
+    const zusammenfassung = H.el('summary', { class: 'bw-planung-kopf' }, [
+      H.el('span', { class: 'bw-planung-marke text-klein text-schwach', text: 'Stunde' }),
+      H.el('span', { class: 'bw-planung-thema' + (thema ? '' : ' leer'), text: thema || 'Thema eintragen' })
+    ]);
+    el.planung.appendChild(zusammenfassung);
+    if (!el.planung.open) return;   // Felder erst bauen, wenn aufgeklappt
+
+    const p = M.planungOderNeu(z.datum, z.stunde, z.klasseId, z.fachId);
+    const speichern = () => M.planungSpeichern(p);
+    const speichernVerzoegert = H.entprellen(speichern, 400);
+    function feld(name, label, mehrzeilig, platzhalter) {
+      const eingabe = mehrzeilig
+        ? H.el('textarea', { rows: 3, placeholder: platzhalter || '', autocomplete: 'off', 'aria-label': label })
+        : H.el('input', { type: 'text', placeholder: platzhalter || '', autocomplete: 'off', 'aria-label': label });
+      eingabe.value = p[name] || '';
+      eingabe.addEventListener('input', function () {
+        p[name] = eingabe.value;
+        speichernVerzoegert();
+        if (name === 'thema') H.$('.bw-planung-thema', el.planung).textContent = eingabe.value.trim() || 'Thema eintragen';
+      });
+      eingabe.addEventListener('change', function () { p[name] = eingabe.value; speichern(); });
+      return H.el('label', { class: 'feld' }, [H.el('span', { class: 'feld-name text-klein', text: label }), eingabe]);
+    }
+    const fertig = H.el('input', { type: 'checkbox', class: 'schalter', role: 'switch', 'aria-label': 'Planung fertig' });
+    fertig.checked = !!p.fertig;
+    fertig.setAttribute('aria-checked', fertig.checked ? 'true' : 'false');
+    fertig.addEventListener('change', function () {
+      p.fertig = fertig.checked;
+      fertig.setAttribute('aria-checked', p.fertig ? 'true' : 'false');
+      speichern();
+    });
+    H.anhaengen(el.planung, [
+      H.el('div', { class: 'bw-planung-felder' }, [
+        feld('thema', 'Thema der Stunde', false, 'zum Beispiel Wortarten: Nomen erkennen'),
+        feld('verlauf', 'Verlauf', true, 'Einstieg, Erarbeitung, Sicherung …'),
+        feld('material', 'Material', true, 'Arbeitsblätter, Bücher, Geräte …'),
+        feld('hausaufgabe', 'Hausaufgabe', false, '')
+      ]),
+      H.el('label', { class: 'bw-planung-fertig' }, [
+        H.el('span', { class: 'text-klein', text: 'Planung fertig' }),
+        fertig
+      ])
+    ]);
   }
 
   function faecherRendern() {
@@ -448,6 +518,7 @@ NB.Bewertung = (function () {
         type: 'button', class: 'bw-fach', text: fach.name, 'aria-pressed': aktiv ? 'true' : 'false',
         onclick: () => fachSetzen(fach.id)
       });
+      knopf.style.setProperty('--fachfarbe', M.fachFarbe(fach));   // aktives Fach in seiner Farbe
       el.faecher.appendChild(knopf);
       if (aktiv) setTimeout(function () {
         try { knopf.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* egal */ }
@@ -804,6 +875,7 @@ NB.Bewertung = (function () {
     } else {
       statistikBerechnen();
       N.kopfAktualisieren();
+      planungRendern();
       hinweisAktualisieren();
       faecherRendern();
       kindRendern();
@@ -826,6 +898,7 @@ NB.Bewertung = (function () {
     zustandMerken();
     statistikBerechnen();
     N.kopfAktualisieren();
+    planungRendern();
     kindRendern();
     N.fussAktualisieren();
   }
