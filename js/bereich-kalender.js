@@ -5,12 +5,20 @@
  * aller Klassen – die Summe der Klassenpläne), danach jede Klasse mit ihrem
  * vollständigen Plan, fremde Stunden blass und ohne Haken. Beim Start gilt
  * „Mein Plan“; die Wahl bleibt beim Tageswechsel und für Tag und Woche.
+ * Darunter die Ansicht: Tag, Woche oder Monat. Beide Einstellungen (Sicht und
+ * Ansicht) bleiben beim Wechsel erhalten.
  * Tagesansicht: Kopfzeile mit Datum und Pfeilen (Tipp auf das Datum öffnet den
- * Monatskalender, Wischen wechselt den Tag), Stand des Tages, Stunden des
- * Tages als Liste mit Haken „Planung fertig“ und Marke „bewertet“,
+ * Monatskalender, Wischen wechselt den Tag), Stand des Tages, ganztägige
+ * Termine als Band, Stunden des Tages als Liste mit Haken „Planung fertig“
+ * und Marke „bewertet“, Termine mit Uhrzeit an ihrer Stelle dazwischen,
  * Freistunden als schmale Lücke, Ferien und Feiertage als Hinweis.
  * Wochenansicht: Raster Wochentage × Stunden, Doppelstunden als ein Block,
- * geplante Stunden ruhig hinterlegt.
+ * eigene Stunden in der Farbe ihrer Klasse, geplante ruhig hinterlegt,
+ * ganztägige Termine als Band oben in der Spalte.
+ * Monatsansicht: Monatsraster mit der Anzahl eigener Stunden je Tag und
+ * Terminen als Punkte in der Farbe ihrer Art; ein Tipp öffnet den Tag.
+ * In allen Ansichten steht der eigene Unterricht im Vordergrund, Termine sind
+ * Beiwerk. Neue Termine über „+ Termin“ (Tag, Woche) bzw. am gewählten Tag.
  * Stundenplanung (nur eigene Stunden): Thema, Verlauf, Material, Hausaufgabe,
  * „Planung fertig“, „Stunde bewerten“, „Planung übernehmen von“. Alles
  * speichert sofort. Aufgaben mit Fälligkeit stehen unter dem Stundenplan.
@@ -35,10 +43,12 @@ NB.BereichKalender = (function () {
   function zustandLaden() {
     const zs = D.holen('zustand', '') || {};
     if (zs.kalender && zs.kalender.ansicht) z.ansicht = zs.kalender.ansicht;
+    if (zs.kalender && zs.kalender.sicht) z.sicht = zs.kalender.sicht;
+    if (['tag', 'woche', 'monat'].indexOf(z.ansicht) < 0) z.ansicht = 'tag';
   }
 
   function zustandMerken() {
-    N.zustandMerken({ kalender: { ansicht: z.ansicht } });
+    N.zustandMerken({ kalender: { ansicht: z.ansicht, sicht: z.sicht } });
   }
 
   function datumSetzen(iso, bewusst) {
@@ -134,6 +144,20 @@ NB.BereichKalender = (function () {
     return (iso === H.heute() ? 'Heute, ' : H.WOCHENTAGE_KURZ[H.wochentag(iso) - 1] + ', ') + H.datumKurz(iso).slice(0, 6);
   }
 
+  function monatsTitel(iso) {
+    const d = H.isoZuDatum(iso);
+    return H.MONATE[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  /** Erster Tag des Monats, in dem iso liegt, um n Monate verschoben. */
+  function monatVerschieben(iso, n) {
+    const d = H.isoZuDatum(iso);
+    const ziel = new Date(d.getFullYear(), d.getMonth() + n, 1);
+    const letzter = new Date(ziel.getFullYear(), ziel.getMonth() + 1, 0).getDate();
+    ziel.setDate(Math.min(d.getDate(), letzter));
+    return H.datumZuIso(ziel);
+  }
+
   function hakenSymbol(fertig) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 24 24');
@@ -162,18 +186,21 @@ NB.BereichKalender = (function () {
   /* ---------- Kopfzeile des Bereichs ---------- */
 
   function kopfLinks() {
-    const istWoche = z.ansicht === 'woche';
+    const zurueck = { tag: 'Vorheriger Tag', woche: 'Vorherige Woche', monat: 'Vorheriger Monat' }[z.ansicht];
+    const vor = { tag: 'Nächster Tag', woche: 'Nächste Woche', monat: 'Nächster Monat' }[z.ansicht];
+    const titel = z.ansicht === 'woche' ? wochenTitel(z.datum) : z.ansicht === 'monat' ? monatsTitel(z.datum) : tagesTitel(z.datum);
     return [
-      H.el('button', { type: 'button', class: 'symbolknopf', 'aria-label': istWoche ? 'Vorherige Woche' : 'Vorheriger Tag', onclick: () => schritt(-1) },
+      H.el('button', { type: 'button', class: 'symbolknopf', 'aria-label': zurueck, onclick: () => schritt(-1) },
         H.el('span', { class: 'pfeil-zurueck', 'aria-hidden': 'true', text: '‹' })),
       H.el('button', { type: 'button', class: 'kopf-knopf kal-datum', 'aria-label': 'Datum wählen: ' + H.datumLang(z.datum), onclick: monatOeffnen },
-        H.el('span', { class: 'kopf-knopf-text', text: istWoche ? wochenTitel(z.datum) : tagesTitel(z.datum) })),
-      H.el('button', { type: 'button', class: 'symbolknopf', 'aria-label': istWoche ? 'Nächste Woche' : 'Nächster Tag', onclick: () => schritt(1) },
+        H.el('span', { class: 'kopf-knopf-text', text: titel })),
+      H.el('button', { type: 'button', class: 'symbolknopf', 'aria-label': vor, onclick: () => schritt(1) },
         H.el('span', { class: 'pfeil-zurueck', 'aria-hidden': 'true', text: '›' }))
     ];
   }
 
   function schritt(richtung) {
+    if (z.ansicht === 'monat') { datumSetzen(monatVerschieben(z.datum, richtung), true); return; }
     datumSetzen(H.tageAddieren(z.datum, richtung * (z.ansicht === 'woche' ? 7 : 1)), true);
   }
 
@@ -227,6 +254,8 @@ NB.BereichKalender = (function () {
           onclick: function () {
             if (z.sicht === eintrag.id) return;
             z.sicht = eintrag.id;
+            zustandMerken();
+            N.kopfAktualisieren();
             inhaltRendern();
           }
         });
@@ -238,9 +267,9 @@ NB.BereichKalender = (function () {
       wurzel.appendChild(leiste);
     }
 
-    // Umschaltung Tag / Woche
+    // Umschaltung Tag / Woche / Monat
     const umschalter = H.el('div', { class: 'bw-filter kal-umschalter', role: 'group', 'aria-label': 'Ansicht' });
-    [['tag', 'Tag'], ['woche', 'Woche']].forEach(function (a) {
+    [['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat']].forEach(function (a) {
       umschalter.appendChild(H.el('button', {
         type: 'button', text: a[1], 'aria-pressed': z.ansicht === a[0] ? 'true' : 'false',
         onclick: function () {
@@ -255,7 +284,26 @@ NB.BereichKalender = (function () {
     wurzel.appendChild(umschalter);
 
     if (z.ansicht === 'woche') wocheRendern(wurzel);
+    else if (z.ansicht === 'monat') monatRendern(wurzel);
     else tagRendern(wurzel);
+  }
+
+  /* ---------- Termine ---------- */
+
+  /** Termine eines Tages in der gewählten Sicht (Klasse: nur ihre, Mein Plan: alle). */
+  function termineAmTag(iso) {
+    return M.termineAmTag(iso, z.sicht === 'mein' ? null : z.sicht);
+  }
+
+  function neuerTermin(datum) {
+    NB.Termine.neu(datum, z.sicht === 'mein' ? null : z.sicht, inhaltRendern);
+  }
+
+  /** Knopf „+ Termin“ für Tages- und Wochenansicht. */
+  function terminKnopf(datum, text) {
+    return H.el('div', { class: 'knopfzeile kal-termin-knopf' }, H.el('button', {
+      type: 'button', class: 'knopf', text: text || '+ Termin', onclick: () => neuerTermin(datum)
+    }));
   }
 
   /* Tagesansicht */
@@ -313,10 +361,26 @@ NB.BereichKalender = (function () {
       wurzel.appendChild(H.el('div', { class: 'leer kal-leer' }, H.el('p', { text: H.wochentag(datum) >= 6 ? 'Wochenende.' : (sichtKlasse() ? 'Laut Stundenplan hat die ' + sichtKlasse().name + ' an diesem Tag keine Stunden.' : 'Laut Stundenplan hast du an diesem Tag keine Stunden.') })));
     }
 
-    if (stunden.length) {
+    // Ganztägige Termine als schmales Band über dem Stundenplan
+    const termine = termineAmTag(datum);
+    const ganztags = termine.filter(t => t.ganztags !== false || !t.von);
+    const mitZeit = termine.filter(t => t.ganztags === false && t.von).sort((a, b) => a.von.localeCompare(b.von));
+    if (ganztags.length) {
+      const band = H.el('div', { class: 'kal-termin-band' });
+      ganztags.forEach(t => band.appendChild(NB.Termine.karte(t, inhaltRendern, { mitKlasse: z.sicht === 'mein' })));
+      wurzel.appendChild(band);
+    }
+
+    if (stunden.length || mitZeit.length) {
       const liste = H.el('div', { class: 'kal-stunden' });
       let vorherige = null;
+      let offen = mitZeit.slice();
       stunden.forEach(function (s) {
+        // Termine mit Uhrzeit an ihrer Stelle zwischen den Stunden
+        const beginn = NB.Stundenplan.stundenzeiten()[String(s.stunde)];
+        while (offen.length && beginn && beginn.von && offen[0].von <= beginn.von) {
+          liste.appendChild(NB.Termine.karte(offen.shift(), inhaltRendern, { mitKlasse: z.sicht === 'mein' }));
+        }
         if (vorherige != null && s.stunde - vorherige > 1) {
           const anzahl = s.stunde - vorherige - 1;
           liste.appendChild(H.el('div', { class: 'kal-luecke text-klein text-schwach', text: anzahl === 1 ? 'Freistunde' : anzahl + ' Freistunden' }));
@@ -324,8 +388,10 @@ NB.BereichKalender = (function () {
         if (vorherige == null || s.stundeBis > vorherige) vorherige = s.stundeBis;
         liste.appendChild(stundenKarte(s, datum));
       });
+      offen.forEach(t => liste.appendChild(NB.Termine.karte(t, inhaltRendern, { mitKlasse: z.sicht === 'mein' })));
       wurzel.appendChild(liste);
     }
+    wurzel.appendChild(terminKnopf(datum));
 
     // Platz für Aufgaben mit Fälligkeit (Schritt 6)
     const aufgaben = H.el('div', { class: 'kal-aufgaben' });
@@ -408,6 +474,26 @@ NB.BereichKalender = (function () {
       ]));
     });
 
+    // Ganztägige Termine als Band oben in der jeweiligen Spalte
+    const termineJeTag = tage.slice(0, spalten).map(iso => termineAmTag(iso).filter(t => t.ganztags !== false || !t.von));
+    if (termineJeTag.some(liste => liste.length)) {
+      raster.appendChild(H.el('div', { class: 'wo-ecke' }));
+      termineJeTag.forEach(function (liste, i) {
+        const zelle = H.el('div', { class: 'wo-termine' });
+        liste.forEach(function (t) {
+          const art = M.terminArt(t.art);
+          const knopf = H.el('button', {
+            type: 'button', class: 'wo-termin', text: t.titel || art.name,
+            'aria-label': 'Termin am ' + H.datumLang(tage[i]) + ': ' + (t.titel || art.name),
+            onclick: () => NB.Termine.oeffnen({ id: t.id }, inhaltRendern)
+          });
+          knopf.style.setProperty('--termin-farbe', art.wert);
+          zelle.appendChild(knopf);
+        });
+        raster.appendChild(zelle);
+      });
+    }
+
     for (let stunde = 1; stunde <= maxStunde; stunde++) {
       const zeit = SP.uhrzeitText(stunde);
       raster.appendChild(H.el('div', { class: 'wo-zeile-kopf', role: 'rowheader' }, [
@@ -435,19 +521,75 @@ NB.BereichKalender = (function () {
           }
           const fertig = M.planungFertig(iso, s.stunde, s.klasseId, s.fachId);
           const bewertet = istBewertet(s, iso);
-          zelle.appendChild(H.el('button', {
-            type: 'button', class: 'wo-stunde' + (fertig ? ' geplant' : '') + (bewertet ? ' bewertet' : '') + (stunde > s.stunde ? ' fortsetzung' : '') + (stunde < s.stundeBis ? ' weiter' : ''),
+          const stundeKnopf = H.el('button', {
+            type: 'button', class: 'wo-stunde eigene' + (fertig ? ' geplant' : '') + (bewertet ? ' bewertet' : '') + (stunde > s.stunde ? ' fortsetzung' : '') + (stunde < s.stundeBis ? ' weiter' : ''),
             'aria-label': H.WOCHENTAGE[i] + ', ' + stunde + '. Stunde, ' + klassenName(s.klasseId) + ' ' + fachName(s.fachId) + (fertig ? ', geplant' : ', ungeplant') + (bewertet ? ', bewertet' : ''),
             onclick: () => B.planungOeffnen({ datum: iso, stunde: s.stunde, klasseId: s.klasseId, fachId: s.fachId })
           }, stunde > s.stunde ? null : (klasse
             ? [H.el('span', { class: 'wo-klasse', text: fachName(s.fachId) }), s.raum ? H.el('span', { class: 'wo-fach', text: SP.raumText(s.raum) }) : null]
-            : [H.el('span', { class: 'wo-klasse', text: klassenName(s.klasseId) }), H.el('span', { class: 'wo-fach', text: fachName(s.fachId) })])));
+            : [H.el('span', { class: 'wo-klasse', text: klassenName(s.klasseId) }), H.el('span', { class: 'wo-fach', text: fachName(s.fachId) })]));
+          // Farbe der Klasse – im Wochenraster stehen mehrere Klassen nebeneinander
+          stundeKnopf.style.setProperty('--klassenfarbe', M.klassenFarbe(M.klasse(s.klasseId)));
+          zelle.appendChild(stundeKnopf);
         });
         raster.appendChild(zelle);
       });
     }
     wurzel.appendChild(raster);
-    wurzel.appendChild(H.el('p', { class: 'text-klein text-schwach kal-legende', text: 'Ruhig hinterlegt: Planung fertig. Punkt: Bewertung erfasst.' + (klasse ? ' Blass: fremde Stunden.' : '') + ' Ein Tipp auf einen Wochentag öffnet die Tagesansicht.' }));
+    wurzel.appendChild(terminKnopf(z.datum, '+ Termin in dieser Woche'));
+    wurzel.appendChild(H.el('p', { class: 'text-klein text-schwach kal-legende', text: 'Farbe: Klasse. Ruhig hinterlegt: Planung fertig. Punkt: Bewertung erfasst.' + (klasse ? ' Blass: fremde Stunden.' : '') + ' Ein Tipp auf einen Wochentag öffnet die Tagesansicht.' }));
+  }
+
+  /* Monatsansicht: Raster des Monats mit Anzahl eigener Stunden und Terminpunkten */
+  function monatRendern(wurzel) {
+    const heute = H.heute();
+    const d = H.isoZuDatum(z.datum);
+    const jahr = d.getFullYear(), monat = d.getMonth();
+    const ersterTag = new Date(jahr, monat, 1);
+    const versatz = (ersterTag.getDay() + 6) % 7;      // Montag = 0
+    const tage = new Date(jahr, monat + 1, 0).getDate();
+    const klasse = sichtKlasse();
+
+    const raster = H.el('div', { class: 'mo-raster', role: 'grid', 'aria-label': monatsTitel(z.datum) });
+    H.WOCHENTAGE_KURZ.forEach(function (wt) {
+      raster.appendChild(H.el('div', { class: 'mo-wt', role: 'columnheader', text: wt }));
+    });
+    for (let i = 0; i < versatz; i++) raster.appendChild(H.el('div', { class: 'mo-leer', 'aria-hidden': 'true' }));
+
+    let stundenImMonat = 0, termineImMonat = 0;
+    for (let tag = 1; tag <= tage; tag++) {
+      const iso = H.datumZuIso(new Date(jahr, monat, tag));
+      const stunden = stundenAmTag(iso).filter(s => s.art === 'eigene');
+      const termine = termineAmTag(iso);
+      const frei = freierTagSicht(iso);
+      stundenImMonat += stunden.length;
+      termineImMonat += termine.length;
+      const punkte = H.el('span', { class: 'mo-punkte', 'aria-hidden': 'true' });
+      termine.slice(0, 4).forEach(function (t) {
+        const punkt = H.el('span', { class: 'mo-punkt' });
+        punkt.style.background = M.terminArt(t.art).wert;
+        punkte.appendChild(punkt);
+      });
+      const beschreibung = [H.datumLang(iso),
+        stunden.length ? (stunden.length === 1 ? '1 Stunde' : stunden.length + ' Stunden') : null,
+        termine.length ? (termine.length === 1 ? '1 Termin' : termine.length + ' Termine') : null,
+        frei ? frei.text : null].filter(Boolean).join(', ');
+      raster.appendChild(H.el('button', {
+        type: 'button', role: 'gridcell',
+        class: 'mo-tag' + (iso === heute ? ' heute' : '') + (iso === z.datum ? ' gewaehlt' : '') + (frei ? ' frei' : '') + (!SP.imSchuljahr(iso) ? ' ausserhalb' : ''),
+        'aria-label': beschreibung,
+        onclick: function () { z.ansicht = 'tag'; zustandMerken(); datumSetzen(iso, true); }
+      }, [
+        H.el('span', { class: 'mo-zahl', text: String(tag) }),
+        stunden.length ? H.el('span', { class: 'mo-stunden', text: String(stunden.length) }) : null,
+        termine.length ? punkte : null
+      ]));
+    }
+    wurzel.appendChild(raster);
+    wurzel.appendChild(terminKnopf(z.datum, '+ Termin am ' + H.datumKurzOhneJahr(z.datum)));
+    wurzel.appendChild(H.el('p', { class: 'text-klein text-schwach kal-legende', text:
+      'Zahl: eigene Stunden an diesem Tag. Punkte: Termine in der Farbe ihrer Art. Ein Tipp auf einen Tag öffnet die Tagesansicht. '
+      + 'Im ' + H.MONATE[monat] + ': ' + stundenImMonat + (stundenImMonat === 1 ? ' eigene Stunde' : ' eigene Stunden') + ', ' + termineImMonat + (termineImMonat === 1 ? ' Termin' : ' Termine') + (klasse ? ' in der ' + klasse.name : '') + '.' }));
   }
 
   /* ---------- Wischen und Tastatur ---------- */

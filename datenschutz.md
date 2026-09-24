@@ -12,7 +12,7 @@ Notenblock ist eine Web-App für Grundschullehrkräfte zur Unterrichtsplanung un
 
 ## 3. Zweck der Verarbeitung
 
-- Planung des Unterrichts (Stundenplan, Tages- und Wochenübersicht, Planung einzelner Stunden).
+- Planung des Unterrichts (Stundenplan, Tages-, Wochen- und Monatsübersicht, Termine wie Ausflüge oder Konferenzen, Planung einzelner Stunden).
 - Laufende Beobachtung und Bewertung der Leistungen einzelner Kinder als Grundlage für Zeugnisnoten und Elterngespräche.
 - Notizen zu Beobachtungen und Absprachen, Aufgabenliste der Lehrkraft.
 
@@ -34,6 +34,7 @@ Schülerinnen und Schüler der von der Lehrkraft unterrichteten Klassen. Mittelb
 | Stundenplanungen | Thema, Verlauf, Material, Hausaufgabe je Stunde (keine personenbezogenen Daten, sofern die Lehrkraft dort keine Namen einträgt) |
 | Notizen | Titel, Text, Datum, wahlweise Zuordnung zu Klasse, Kind und Fach |
 | Aufgaben | Text, Fälligkeit, wahlweise Klasse |
+| Termine | Titel, Datum, Uhrzeit oder ganztägig, Art, wahlweise Ort, Notiz und Klasse; Kennzeichen „Unterricht fällt aus“ (Freitext; die Lehrkraft entscheidet, was sie einträgt) |
 | Einstellungen | Bedienungseinstellungen, kein Personenbezug |
 
 Nicht gespeichert werden: Geburtsdaten, Adressen, Kontaktdaten, Fotos, Gesundheitsdaten oder andere besondere Kategorien. Notizen sind Freitext; die Lehrkraft entscheidet, was sie einträgt.

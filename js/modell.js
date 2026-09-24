@@ -424,6 +424,7 @@ NB.Modell = (function () {
     D.alle('planung').filter(p => p.klasseId === klasseId).forEach(p => D.entfernen('planung', p.schluessel));
     D.alle('notiz').filter(n => n.klasseId === klasseId).forEach(n => D.entfernen('notiz', n.id));
     D.alle('aufgabe').filter(a => a.klasseId === klasseId).forEach(a => D.entfernen('aufgabe', a.id));
+    D.alle('termin').filter(t => t.klasseId === klasseId).forEach(t => D.entfernen('termin', t.id));
     const zustand = D.holen('zustand', '');
     if (zustand && zustand.positionen && zustand.positionen[klasseId]) {
       delete zustand.positionen[klasseId];
@@ -485,6 +486,112 @@ NB.Modell = (function () {
     });
   };
   M.kriteriumLoeschen = M.kompetenzLoeschen;
+
+  /* ---------- Farben von Klassen und Fächern ---------- */
+
+  M.FARBEN = () => NB.Startdaten.FARBEN;
+
+  /** Farbwert zu einer Farb-Id, sonst die erste Farbe der Palette. */
+  M.farbwert = function (farbId) {
+    const f = NB.Startdaten.FARBEN.find(x => x.id === farbId);
+    return (f || NB.Startdaten.FARBEN[0]).wert;
+  };
+
+  /** Farbe einer Klasse bzw. eines Fachs (vergibt beim ersten Zugriff keine – siehe farbenErgaenzen). */
+  M.klassenFarbe = klasse => M.farbwert(klasse && klasse.farbe);
+  M.fachFarbe = fach => M.farbwert(fach && fach.farbe);
+
+  /** Nächste noch freie Farbe der Palette; sind alle belegt, reihum weiter. */
+  M.freieFarbe = function (belegt) {
+    const palette = NB.Startdaten.FARBEN;
+    const frei = palette.find(f => belegt.indexOf(f.id) < 0);
+    return (frei || palette[belegt.length % palette.length]).id;
+  };
+
+  /**
+   * Allen Klassen und Fächern ohne Farbe eine zuweisen (beim Start, rein
+   * hinzufügend). Liefert true, wenn etwas vergeben wurde.
+   */
+  M.farbenErgaenzen = function () {
+    let geaendert = false;
+    const klassen = M.klassen();
+    const belegtK = klassen.map(k => k.farbe).filter(Boolean);
+    klassen.forEach(function (k) {
+      if (k.farbe) return;
+      k.farbe = M.freieFarbe(belegtK);
+      belegtK.push(k.farbe);
+      M.klasseSpeichern(k);
+      geaendert = true;
+    });
+    const faecher = M.faecherKatalog();
+    const belegtF = faecher.map(f => f.farbe).filter(Boolean);
+    let fachGeaendert = false;
+    faecher.forEach(function (f) {
+      if (f.farbe) return;
+      f.farbe = M.freieFarbe(belegtF);
+      belegtF.push(f.farbe);
+      fachGeaendert = true;
+    });
+    if (fachGeaendert) { M.faecherSpeichern(faecher); geaendert = true; }
+    return geaendert;
+  };
+
+  /* ---------- Termine ---------- */
+
+  M.TERMIN_ARTEN = () => NB.Startdaten.TERMIN_ARTEN;
+
+  M.terminArt = function (artId) {
+    const arten = NB.Startdaten.TERMIN_ARTEN;
+    return arten.find(a => a.id === artId) || arten[arten.length - 1];
+  };
+
+  /** Alle Termine, nach Datum und Beginn. */
+  M.termine = function (klasseId) {
+    return D.alle('termin')
+      .filter(t => !klasseId || t.klasseId === klasseId)
+      .sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : (a.von || '') < (b.von || '') ? -1 : 1));
+  };
+
+  M.termin = id => D.holen('termin', id);
+  M.terminSpeichern = function (termin) {
+    if (!termin.id) termin.id = H.neueId();
+    D.setzen('termin', termin.id, termin);
+    return termin;
+  };
+  M.terminLoeschen = id => D.entfernen('termin', id);
+
+  /** Neuer Termin mit Vorgaben. */
+  M.neuerTermin = function (datum, klasseId) {
+    return {
+      id: H.neueId(), titel: '', datum: datum || H.heute(), ganztags: true, von: '', bis: '',
+      ort: '', notiz: '', klasseId: klasseId || null, art: 'sonstiges', unterrichtFaelltAus: false
+    };
+  };
+
+  /**
+   * Termine eines Tages. klasseId null = alle („Mein Plan“), sonst nur Termine
+   * dieser Klasse. Ganztägige zuerst, danach nach Uhrzeit.
+   */
+  M.termineAmTag = function (iso, klasseId) {
+    return D.alle('termin')
+      .filter(t => t.datum === iso && (!klasseId || t.klasseId === klasseId))
+      .sort((a, b) => (a.ganztags === b.ganztags ? (a.von || '').localeCompare(b.von || '') : (a.ganztags ? -1 : 1)));
+  };
+
+  /** Termine eines Zeitraums (für Wochen- und Monatsansicht sowie die Klassenübersicht). */
+  M.termineImZeitraum = function (vonIso, bisIso, klasseId) {
+    return M.termine(klasseId).filter(t => t.datum >= vonIso && t.datum <= bisIso);
+  };
+
+  /**
+   * Fällt an diesem Tag der Unterricht wegen eines Termins aus?
+   * Ein Termin ohne Klasse gilt für alle eigenen Stunden, einer mit Klasse nur
+   * für diese. Liefert den Termin oder null.
+   */
+  M.ausfallTermin = function (iso, klasseId) {
+    return D.alle('termin').find(t => t.datum === iso && t.unterrichtFaelltAus
+      && (!t.klasseId || !klasseId || t.klasseId === klasseId)) || null;
+  };
 
   /* ---------- Stundenplanungen ---------- */
 

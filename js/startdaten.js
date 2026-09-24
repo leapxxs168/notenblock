@@ -22,14 +22,14 @@ NB.Startdaten = (function () {
   const SD = {};
   const H = NB.Hilfen;
 
-  SD.DATENMODELL = 2.2;
+  SD.DATENMODELL = 2.3;
   SD.STUFEN = ['1-2', '3-4'];
 
   /** Standardwerte aller Einstellungen. */
   SD.einstellungenStandard = function () {
     return {
       version: 3,                      // Stand der Standardwerte (für Ergänzungen beim Laden)
-      datenmodell: SD.DATENMODELL,     // Aufbau des Bestands; 2 = Stufen, Kompetenzen, Einheiten je Stunde; 2.1 = Stundenkriterien mit fachnote; 2.2 = siebtes Kriterium und fachspezifische Fassungen
+      datenmodell: SD.DATENMODELL,     // Aufbau des Bestands; 2 = Stufen, Kompetenzen, Einheiten je Stunde; 2.1 = Stundenkriterien mit fachnote; 2.2 = fachspezifische Fassungen; 2.3 = Termine und Farben
       // Bewertung – gilt nur für das Arbeits- und Sozialverhalten
       standardNote: 3,                 // 1–6, 'letzte' (letzte Note des Kindes) oder 'keine'
       standardNoteJeFach: {},          // fachId → Überschreibung
@@ -163,6 +163,34 @@ NB.Startdaten = (function () {
     });
     return ergebnis;
   };
+
+  /**
+   * Farbpalette für Klassen und Fächer: zehn gedeckte Töne, auf hellem Grund
+   * gut lesbar und deutlich unterscheidbar. Nur zur Orientierung (Kalender,
+   * Stundenplan, Klassenliste, Fächerleiste) – nie für Noten oder Stufen.
+   */
+  SD.FARBEN = [
+    { id: 'blau', name: 'Blau', wert: '#3b6ea5' },
+    { id: 'petrol', name: 'Petrol', wert: '#2f7f7a' },
+    { id: 'gruen', name: 'Grün', wert: '#4a7c3f' },
+    { id: 'oliv', name: 'Oliv', wert: '#7a7a2e' },
+    { id: 'ocker', name: 'Ocker', wert: '#a8762c' },
+    { id: 'terrakotta', name: 'Terrakotta', wert: '#b35c3a' },
+    { id: 'himbeer', name: 'Himbeer', wert: '#a8456b' },
+    { id: 'violett', name: 'Violett', wert: '#6f5aa8' },
+    { id: 'taubenblau', name: 'Taubenblau', wert: '#5b7c99' },
+    { id: 'graubraun', name: 'Graubraun', wert: '#7a6a5d' }
+  ];
+
+  /** Arten von Terminen mit ihrer Farbe (ruhiger als die Klassenfarben). */
+  SD.TERMIN_ARTEN = [
+    { id: 'ausflug', name: 'Ausflug', wert: '#4a7c3f' },
+    { id: 'konferenz', name: 'Konferenz', wert: '#5b7c99' },
+    { id: 'elternabend', name: 'Elternabend', wert: '#a8762c' },
+    { id: 'fortbildung', name: 'Fortbildung', wert: '#6f5aa8' },
+    { id: 'sprechtag', name: 'Sprechtag', wert: '#2f7f7a' },
+    { id: 'sonstiges', name: 'Sonstiges', wert: '#7a6a5d' }
+  ];
 
   /** Notenwörter (Wortform der Skala) aus dem Startbestand. */
   SD.notenwoerter = function () {

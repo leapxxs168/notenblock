@@ -20,6 +20,7 @@
  *   'bewertung'     klasseId|fachId|datum
  *   'notiz'         notiz.id
  *   'aufgabe'       aufgabe.id
+ *   'termin'        termin.id
  *   'einstellungen' ''
  *   'zustand'       ''  (wo die App zuletzt stand)
  *

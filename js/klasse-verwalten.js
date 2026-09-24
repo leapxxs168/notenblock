@@ -472,6 +472,7 @@ NB.KlasseVerwalten = (function () {
           // Ohne vorgewählte Fächer: Schritt 2 beginnt leer
           const neu = NB.Startdaten.leereKlasse(name, werte.stufe);
           neu.letztesSchuljahr = werte.letztesSchuljahr.trim();
+          neu.farbe = M.freieFarbe(M.klassen().map(k => k.farbe).filter(Boolean));
           M.klasseSpeichern(neu);
           M.klassenFaecherLeerFestlegen(neu);
           anlage.klasseId = neu.id;

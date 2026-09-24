@@ -733,14 +733,30 @@ NB.Bewertung = (function () {
     M.einheitSpeichern(b);
   }
 
+  /** Hat die Lehrerin bei diesem Kind in der Einheit selbst etwas erfasst? */
+  function selbstErfasst(kindId) {
+    const b = M.einheit(z.klasseId, z.fachId, z.datum, z.stunde);
+    const e = b && b.kinder ? b.kinder[kindId] : null;
+    if (!e) return false;
+    if (e.fehlt || (e.notiz && e.notiz.trim())) return true;
+    return !!(e.noten && Object.keys(e.noten).some(id => e.noten[id] && e.noten[id].art === 'gesetzt'));
+  }
+
   /**
    * Beim Verlassen eines Kindes: Notiz sichern und offene Stundenkriterien mit
    * der Standardnote festschreiben (nur Arbeits- und Sozialverhalten).
+   * Steht an diesem Tag laut Plan keine Stunde des Fachs, entsteht dabei nichts,
+   * solange die Lehrerin nichts gesetzt und keine Stunde gewählt hat – sonst
+   * legte schon das Durchblättern eine Einheit mit Standardnoten an.
    */
   function kindVerlassen() {
     const kind = aktuellesKind();
     if (!kind || !z.klasseId || !z.fachId || !z.datum) return;
     notizSpeichern();
+    const nurAngesehen = keineStundeLautPlan()
+      && z.stundeManuellFuer !== z.datum + '|' + z.fachId
+      && !selbstErfasst(kind.id);
+    if (nurAngesehen) return;
     const b = einheitOderNeu();
     if (M.vorbelegungUebernehmen(b, kind.id)) M.einheitSpeichern(b);
   }

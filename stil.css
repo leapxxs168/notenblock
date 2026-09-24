@@ -1370,3 +1370,80 @@ input[type="time"] {
 .anlage-schritt.aktuell { border-top-color: var(--akzent); color: var(--akzent); font-weight: 600; }
 .anlage-schritt.erledigt { border-top-color: var(--akzent); }
 .anlage-knoepfe { margin-top: 16px; }
+
+/* Termine: ruhiger als der eigene Unterricht, Farbe nach Art */
+.kal-termin-band { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.termin-karte {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tippziel);
+  padding: 8px 12px;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: var(--flaeche);
+  border: none;
+  border-left: 3px solid var(--termin-farbe, var(--linie-stark));
+  border-radius: 8px;
+  cursor: pointer;
+}
+.termin-karte:active { background: var(--akzent-hell); }
+.termin-punkt { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--termin-farbe, var(--linie-stark)); }
+.termin-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.termin-titel { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.termin-text .text-klein { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.termin-ausfall { flex: 0 0 auto; padding: 2px 6px; border-radius: 6px; color: var(--text-schwach); background: var(--hintergrund); }
+.kal-termin-knopf { margin: 12px 0 0; }
+
+/* Wochenansicht: Terminband oben in der Spalte, Klassenfarbe der eigenen Stunden */
+.wo-termine { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wo-termin {
+  min-height: 22px;
+  padding: 2px 4px;
+  font: inherit;
+  font-size: 0.62rem;
+  line-height: 1.1;
+  color: var(--text);
+  text-align: left;
+  background: color-mix(in srgb, var(--termin-farbe) 16%, var(--flaeche));
+  border: none;
+  border-left: 3px solid var(--termin-farbe);
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.wo-stunde.eigene { border-left: 3px solid var(--klassenfarbe, var(--akzent)); }
+.wo-stunde.eigene.geplant { background: color-mix(in srgb, var(--klassenfarbe) 12%, var(--flaeche)); border-color: var(--klassenfarbe, var(--akzent)); }
+.wo-stunde.eigene.bewertet::after { background: var(--klassenfarbe, var(--akzent)); }
+
+/* Monatsansicht */
+.mo-raster { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-bottom: 4px; }
+.mo-wt { text-align: center; font-size: 0.72rem; font-weight: 600; color: var(--text-schwach); padding-bottom: 2px; }
+.mo-leer { min-height: 54px; }
+.mo-tag {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 54px;
+  padding: 4px 2px;
+  font: inherit;
+  color: var(--text);
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.mo-tag.ausserhalb { opacity: 0.5; }
+.mo-tag.frei { background: repeating-linear-gradient(135deg, var(--flaeche) 0 5px, var(--linie) 5px 6px); }
+.mo-tag.heute .mo-zahl { color: var(--akzent); font-weight: 700; }
+.mo-tag.gewaehlt { border-color: var(--akzent); box-shadow: inset 0 0 0 1px var(--akzent); }
+.mo-zahl { font-size: 0.85rem; }
+.mo-stunden { font-size: 0.7rem; font-weight: 600; color: var(--text-schwach); }
+.mo-punkte { display: flex; gap: 2px; margin-top: auto; }
+.mo-punkt { width: 5px; height: 5px; border-radius: 50%; }

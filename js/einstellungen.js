@@ -308,7 +308,7 @@ NB.Einstellungen = (function () {
     });
     if (!wahl) return;
     const faecher = M.faecherKatalog();
-    const fach = { id: 'fach-' + H.neueId(), name: name, aktiv: true, eigen: true, stufen: wahl === 'beide' ? M.STUFEN.slice() : [wahl], hinweise: {}, nichtVerfuegbar: {}, kompetenzen: [] };
+    const fach = { id: 'fach-' + H.neueId(), name: name, aktiv: true, eigen: true, farbe: M.freieFarbe(faecher.map(f => f.farbe).filter(Boolean)), stufen: wahl === 'beide' ? M.STUFEN.slice() : [wahl], hinweise: {}, nichtVerfuegbar: {}, kompetenzen: [] };
     faecher.push(fach);
     M.faecherSpeichern(faecher);
     N.bildschirmOeffnen('einstellungen-fach', { fachId: fach.id, stufe: wahl === 'beide' ? gewaehlteStufe : wahl });

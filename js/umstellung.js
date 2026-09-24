@@ -295,6 +295,8 @@ NB.Umstellung = (function () {
       D.setzen('arbeitsverhalten', '', neu);
     }
     hinweis = stundenkriterienErgaenzen(neu) || hinweis;
+    // Farben (Datenmodell 2.3): jede Klasse und jedes Fach bekommt eine aus der Palette
+    try { M.farbenErgaenzen(); } catch (fehler) { console.error(fehler); }
     e.datenmodell = SD.DATENMODELL;
     if (e.mitarbeitGewichtJeFach === undefined) e.mitarbeitGewichtJeFach = {};
     D.setzen('einstellungen', '', e);

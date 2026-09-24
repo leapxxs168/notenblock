@@ -61,12 +61,13 @@ NB.Export = (function () {
       kinder: klassen.reduce((s, k) => s + (k.kinder || []).length, 0),
       stunden: D.alle('bewertung').filter(M.bewertungHatInhalt).length,
       notizen: D.alle('notiz').length,
-      aufgaben: D.alle('aufgabe').length
+      aufgaben: D.alle('aufgabe').length,
+      termine: D.alle('termin').length
     };
   }
 
   function zusammenfassungText(z) {
-    return z.klassen + (z.klassen === 1 ? ' Klasse' : ' Klassen') + ' mit ' + z.kinder + ' Kindern, ' + z.stunden + ' bewertete Stunden, ' + z.notizen + ' Notizen, ' + z.aufgaben + ' Aufgaben';
+    return z.klassen + (z.klassen === 1 ? ' Klasse' : ' Klassen') + ' mit ' + z.kinder + ' Kindern, ' + z.stunden + ' bewertete Stunden, ' + z.notizen + ' Notizen, ' + z.aufgaben + ' Aufgaben, ' + (z.termine || 0) + ' Termine';
   }
 
   /** Fragt nach Passphrase (zweimal) oder erlaubt den unverschlüsselten Weg. Liefert { passphrase } | { unverschluesselt: true } | null. */

@@ -91,6 +91,9 @@ NB.Stundenplan = (function () {
     if (f) return { art: 'ferien', text: f.name || 'Ferien' };
     const ft = SP.feiertag(iso);
     if (ft) return { art: 'feiertag', text: (typeof ft === 'string' ? '' : ft.name) || 'Feiertag' };
+    // Termin ohne Klasse mit „Unterricht fällt aus“ (etwa Konferenztag)
+    const t = M.ausfallTermin ? M.ausfallTermin(iso, null) : null;
+    if (t && !t.klasseId) return { art: 'termin', text: t.titel || 'Unterricht fällt aus' };
     return null;
   };
 
@@ -105,6 +108,9 @@ NB.Stundenplan = (function () {
     if (frei) return frei;
     const a = SP.ausfallTag(klasse, iso);
     if (a) return { art: 'ausfall', text: a.grund || 'Unterricht fällt aus' };
+    // Termin dieser Klasse (oder ohne Klasse) mit „Unterricht fällt aus“
+    const t = (klasse && M.ausfallTermin) ? M.ausfallTermin(iso, klasse.id) : null;
+    if (t) return { art: 'termin', text: t.titel || 'Unterricht fällt aus' };
     return null;
   };
 

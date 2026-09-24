@@ -114,6 +114,8 @@ NB.App = (function () {
         // Hinweis zu einer stillen Anhebung – eine Neuigkeit, kein Fehler
         try { const hinweis = NB.Umstellung.kleineAnhebungen(); if (hinweis) A.meldung(hinweis); } catch (fehler) { console.error(fehler); }
       }
+      // Klassen und Fächer ohne Farbe bekommen eine aus der Palette (auch im frischen Bestand)
+      try { NB.Modell.farbenErgaenzen(); } catch (fehler) { console.error(fehler); }
       NB.Navigation.start();        // Seitenstart oder Neuanfang
       if (NB.Speicher.backend === 'localstorage' && !hinweisGezeigt) {
         hinweisGezeigt = true;

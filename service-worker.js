@@ -9,7 +9,7 @@
  */
 'use strict';
 
-const CACHE_NAME = 'notenblock-v39';
+const CACHE_NAME = 'notenblock-v41';
 const DATEIEN = [
   './',
   './index.html',
@@ -30,6 +30,7 @@ const DATEIEN = [
   './js/kalender-modul.js',
   './js/sperre.js',
   './js/navigation.js',
+  './js/termine.js',
   './js/bereich-kalender.js',
   './js/bereich-klassen.js',
   './js/klasse-verwalten.js',
