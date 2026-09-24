@@ -87,12 +87,18 @@ NB.Auswertung = (function () {
     optionen = optionen || {};
     const e = M.einstellungen();
     const einrechnen = e.uebernommeneZaehlen !== false;   // übernommene Standardnoten mitzählen
+    const alleZaehlen = e.alleStundenkriterienZaehlen === true;  // auch die übrigen Stundenleistungen in die Note
     const benotet = M.istBenotet(klasse);                 // Stufe 1–2: kein Notenvorschlag
     // Stundenkriterien in der Fassung dieses Fachs (gleiche ids, ggf. eigener Name und Texte)
     const stundenkriterien = M.stundenkriterienImFach(fach.id);
     const kriterien = stundenkriterien.concat(M.kompetenzenAlle(fach, klasse.stufe || null));
-    const zaehltZurFachnote = k => !stundenkriterien.some(s => s.id === k.id) || M.istFachnote(k);
-    const gewichtIn = k => (stundenkriterien.some(s => s.id === k.id) && M.istFachnote(k)) ? M.mitarbeitGewicht(fach.id, k) : gewicht(k);
+    const istStunde = k => stundenkriterien.some(s => s.id === k.id);
+    // Zur Note zählen: Kompetenzen, Kriterien mit „Zählt zur Fachleistung“ und –
+    // wenn die Einstellung an ist – alle übrigen Stundenkriterien.
+    const zaehltZurFachnote = k => !istStunde(k) || M.istFachnote(k) || alleZaehlen;
+    // Zum Arbeits- und Sozialverhalten zählt weiterhin alles außer den Fachnote-Kriterien
+    const istVerhalten = k => istStunde(k) && !M.istFachnote(k);
+    const gewichtIn = k => (istStunde(k) && M.istFachnote(k)) ? M.mitarbeitGewicht(fach.id, k) : gewicht(k);
     // optionen.ausser: Schlüssel der laufenden Einheit – sie zählt nicht (Statistik am Kind)
     const stunden = A.stunden(klasse.id, fach.id).filter(b => !optionen.ausser || M.einheitSchluesselVon(b) !== optionen.ausser);
     const sammlung = {};
@@ -112,7 +118,8 @@ NB.Auswertung = (function () {
         const note = n.wert;
         sammlung[k.id].werte.push({ datum: b.datum, note: note });
         sammlung[k.id].verteilung[note]++;
-        if (!zaehltZurFachnote(k)) { vSumme += note * gewicht(k); vGewicht += gewicht(k); return; }
+        if (istVerhalten(k)) { vSumme += note * gewicht(k); vGewicht += gewicht(k); }
+        if (!zaehltZurFachnote(k)) return;
         summe += note * gewichtIn(k);
         gesamtGewicht += gewichtIn(k);
       });
@@ -129,7 +136,7 @@ NB.Auswertung = (function () {
       const fachnote = zaehltZurFachnote(k);
       if (schnitt != null) {
         if (fachnote) { gs += schnitt * gewichtIn(k); gg += gewichtIn(k); }
-        else { vs += schnitt * gewicht(k); vg += gewicht(k); }
+        if (istVerhalten(k)) { vs += schnitt * gewicht(k); vg += gewicht(k); }
       }
       // Ohne Noten: die Stufe, die dem Durchschnitt am nächsten liegt (mit ihrem
       // Beschreibungstext); bei genau ,5 die bessere Stufe
@@ -137,7 +144,7 @@ NB.Auswertung = (function () {
       return {
         kriterium: k, schnitt: schnitt, anzahl: n, verteilung: d.verteilung,
         ueberwiegend: n ? ueberwiegend(d.verteilung, schnitt) : null,
-        fachnote: fachnote, stundenkriterium: stundenkriterien.some(s => s.id === k.id),
+        fachnote: fachnote, verhalten: istVerhalten(k), stundenkriterium: istStunde(k),
         naechsteStufe: naechsteStufe,
         stufenText: naechsteStufe ? ((k.stufen && k.stufen[naechsteStufe - 1]) || '') : ''
       };
@@ -221,7 +228,8 @@ NB.Auswertung = (function () {
       const n = d.werte.length;
       const schnitt = n ? d.werte.reduce((s, w) => s + w.note, 0) / n : null;
       if (schnitt != null && !M.istFachnote(k)) { vs += schnitt * gewicht(k); vg += gewicht(k); }
-      return { kriterium: k, schnitt: schnitt, anzahl: n, verteilung: d.verteilung, ueberwiegend: n ? ueberwiegend(d.verteilung, schnitt) : null, fachnote: M.istFachnote(k), stundenkriterium: true };
+      return { kriterium: k, schnitt: schnitt, anzahl: n, verteilung: d.verteilung, ueberwiegend: n ? ueberwiegend(d.verteilung, schnitt) : null,
+        fachnote: M.istFachnote(k) || e.alleStundenkriterienZaehlen === true, verhalten: !M.istFachnote(k), stundenkriterium: true };
     });
     return {
       kriterien: zeilen,
@@ -249,7 +257,7 @@ NB.Auswertung = (function () {
   A.textbaustein = function (kind, fach, auswertung, art) {
     const verhalten = art === 'verhalten';
     const saetze = auswertung.kriterien
-      .filter(z => z.ueberwiegend != null && (verhalten ? z.fachnote === false : z.fachnote !== false))
+      .filter(z => z.ueberwiegend != null && (verhalten ? z.verhalten === true : z.fachnote !== false))
       .map(function (z) {
         const text = (z.kriterium.stufen && z.kriterium.stufen[z.ueberwiegend - 1] || '').trim();
         if (!text) return null;
@@ -572,7 +580,9 @@ NB.Auswertung = (function () {
     if (!stundenZeilen.length) stundenKarte.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Keine Stundenkriterien.' }));
     inhalt.appendChild(stundenKarte);
     inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach einst-gruppe-hinweis', text:
-      'Das Arbeits- und Sozialverhalten fließt nie in die Fachnote ein. Welche Stundenkriterien zur Note zählen, legst du unter Einstellungen → Fächer und Kriterien fest („Zählt zur Fachleistung“).' }));
+      M.einstellungen().alleStundenkriterienZaehlen === true
+        ? 'Alle Stundenleistungen zählen zur Note (Einstellung „Bewertung“). Das Arbeits- und Sozialverhalten wird trotzdem getrennt ausgewiesen.'
+        : 'Zur Note zählen die Kompetenzen und die Kriterien mit „Zählt zur Fachleistung“ (Einstellungen → Fächer und Kriterien). Alle Stundenleistungen einbeziehen: Einstellungen → Bewertung.' }));
     const vVerlauf = alleFaecher ? v.verlauf : a.verlaufVerhalten;
     if (vVerlauf.length) inhalt.appendChild(H.el('div', { class: 'einst-karte aw-verlauf-karte' }, verlaufGrafik(vVerlauf)));
 

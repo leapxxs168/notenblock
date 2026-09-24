@@ -203,9 +203,12 @@ NB.Einstellungen = (function () {
         ])
     ]));
 
+    const fachnoteNamen = M.fachnoteKriterien().map(k => k.name).join(', ');
     inhalt.appendChild(gruppe('Auswertung', [
       schalter('uebernommeneZaehlen', 'Übernommene Standardnoten mitzählen',
-        'An: Beim Verlassen eines Kindes festgeschriebene Standardnoten des Arbeits- und Sozialverhaltens zählen in der Auswertung mit. Aus: Nur selbst angetippte Werte zählen.')
+        'An: Beim Verlassen eines Kindes festgeschriebene Standardnoten des Arbeits- und Sozialverhaltens zählen in der Auswertung mit. Aus: Nur selbst angetippte Werte zählen.'),
+      schalter('alleStundenkriterienZaehlen', 'Alle Stundenleistungen in die Note',
+        'Aus: In die Fachnote fließen die Kompetenzen' + (fachnoteNamen ? ' und ' + fachnoteNamen : '') + ' ein. An: Auch die übrigen Stundenkriterien zählen mit ihrem Gewicht zur Note. Das Arbeits- und Sozialverhalten wird weiterhin getrennt ausgewiesen.')
     ]));
   }
 

@@ -196,6 +196,7 @@ NB.Umstellung = (function () {
     const standard = SD.einstellungenStandard();
     e.datenmodell = SD.DATENMODELL;
     if (e.uebernommeneZaehlen === undefined) e.uebernommeneZaehlen = standard.uebernommeneZaehlen;
+    if (e.alleStundenkriterienZaehlen === undefined) e.alleStundenkriterienZaehlen = standard.alleStundenkriterienZaehlen;
     if (e.durchschnittAnzeigen === undefined) e.durchschnittAnzeigen = standard.durchschnittAnzeigen;
     delete e.standardnotenEinrechnen;
     Object.keys(standard).forEach(function (name) { if (e[name] === undefined) e[name] = standard[name]; });
