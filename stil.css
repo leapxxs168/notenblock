@@ -1254,35 +1254,10 @@ input[type="time"] {
 @media (min-width: 640px) {
   .krit-kopf { grid-area: name; margin: 0; flex-direction: column; align-items: flex-start; gap: 2px; }
 }
-/* Einheit neben dem Datum (Kopfzeile) und – bei mehreren Einheiten – die Auswahl in der Zeile darunter */
+/* Einheit neben dem Datum: feste Angabe oder antippbarer Knopf mit Auswahl */
 .bw-einheit { white-space: nowrap; font-weight: 500; color: var(--text-schwach); padding: 0 8px 0 4px; }
-.bw-einheiten-zeile { display: flex; align-items: center; gap: 10px; margin: 8px 16px 0; }
-.bw-einheiten-titel { flex: 0 0 auto; }
-.bw-einheiten {
-  display: flex;
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-  background: var(--flaeche);
-  border: 1px solid var(--linie-stark);
-  border-radius: 8px;
-}
-.bw-einheiten::-webkit-scrollbar { display: none; }
-.bw-einheiten button {
-  flex: 0 0 auto;
-  min-height: 40px;
-  padding: 0 8px;
-  font: inherit;
-  font-size: var(--schrift-klein);
-  white-space: nowrap;
-  color: var(--text-schwach);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
-.bw-einheiten button + button { border-left: 1px solid var(--linie); }
-.bw-einheiten button[aria-pressed="true"] { color: var(--akzent); background: var(--akzent-hell); font-weight: 600; }
+.bw-einheit.waehlbar { color: var(--akzent); font-weight: 600; padding: 6px 2px; margin-right: 2px; max-width: 38vw; }
+.bw-einheit.waehlbar .kopf-knopf-text { overflow: hidden; text-overflow: ellipsis; }
 .einst-bereich { margin: 8px 14px 2px; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-schwach); }
 /* Doppelstunde als ein zusammenhängender Block: erste Zelle unten offen, Fortsetzung oben offen, Lücke geschlossen */
 .wo-stunde.weiter { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }

@@ -2,8 +2,7 @@
  * Notenblock – Bewertungsbildschirm
  *
  * Aufbau (von oben): Kopfzeile mit Klasse (links, antippbar), Datum
- * (antippbar) und Einheit („1.–2. Std.“) rechts · bei mehreren Einheiten des
- * Fachs am Tag eine kleine Auswahl darunter · Name des Kindes mit Pfeilen und
+ * (antippbar) und Einheit (antippbar, wenn es etwas zu wählen gibt) · Name des Kindes mit Pfeilen und
  * Position · Fächerleiste der Klasse · Umschaltung Stunde | Kompetenzen ·
  * Matrix (Kriterium, Skala 1–6, Beschreibungstext; Kompetenzen nach
  * Lehrplanbereich gruppiert, Fachhinweis einklappbar) · Fußleiste mit
@@ -11,8 +10,11 @@
  *
  * Bewertet wird jede Unterrichtsstunde einzeln: Eine Bewertungseinheit gehört
  * zu Klasse, Fach, Datum und Stundennummer (Doppelstunde = eine Einheit,
- * Schlüssel ist die erste Stunde). Der Sprung aus dem Kalender setzt die
- * Einheit direkt; ohne Stundenplan gibt es je Klasse, Fach und Tag eine Einheit.
+ * Schlüssel ist die erste Stunde). Die Einheit steht immer in der Kopfzeile:
+ * bei mehreren Einheiten des Tages antippbar mit Auswahl, bei „Keine Stunde
+ * laut Plan“ antippbar für eine Vertretungsstunde (1 bis 10), sonst als feste
+ * Angabe. Der Sprung aus dem Kalender setzt die Einheit direkt; ohne
+ * Stundenplan gibt es je Klasse, Fach und Tag eine Einheit („Ganzer Tag“).
  *
  * Klassen der Stufe 1–2 werden nicht benotet: die Skala heißt „Stufe“, ohne
  * Wortform („sehr gut“ …) und ohne Notenvorschlag.
@@ -53,7 +55,7 @@ NB.Bewertung = (function () {
   const KURZWORTE = ['sehr gut', 'gut', 'befr.', 'ausr.', 'mangelh.', 'ungen.'];
 
   // Zustand des Bildschirms (wird in 'zustand' gemerkt)
-  let z = { klasseId: null, fachId: null, datum: null, datumGewaehltAm: null, stunde: null, stundeBis: null, ansicht: 'stunde', kindIndex: 0 };
+  let z = { klasseId: null, fachId: null, datum: null, datumGewaehltAm: null, stunde: null, stundeBis: null, stundeManuellFuer: null, ansicht: 'stunde', kindIndex: 0 };
   let kinder = [];        // Kinder der aktuellen Klasse in Anzeigereihenfolge
   let el = null;          // DOM-Referenzen des aufgebauten Bildschirms
   let zuletztHeute = null;
@@ -110,8 +112,11 @@ NB.Bewertung = (function () {
   }
 
   /**
-   * Wählbare Einheiten des Tages: laut Stundenplan der Klasse plus bereits
-   * gespeicherte Einheiten (etwa „Tag“ ohne Stundenplan).
+   * Wählbare Einheiten des Tages: laut Stundenplan der Klasse, dazu bereits
+   * gespeicherte Einheiten und eine von Hand gewählte Vertretungsstunde.
+   * Ohne Stundenplan gibt es genau eine Einheit je Tag („Ganzer Tag“).
+   * Eine leere Liste heißt: Die Klasse hat an diesem Tag laut Plan keine
+   * Stunde in diesem Fach.
    */
   function einheitenDesTages() {
     const SP = NB.Stundenplan;
@@ -120,20 +125,48 @@ NB.Bewertung = (function () {
     M.einheitenAmTag(z.klasseId, z.fachId, z.datum).forEach(function (b) {
       if (!liste.some(e => Number(e.stunde) === Number(b.stunde))) liste.push({ stunde: Number(b.stunde), stundeBis: Number(b.stundeBis == null ? b.stunde : b.stundeBis) });
     });
-    if (!liste.length || !SP.klasseHatPlan(k)) {
-      if (!liste.some(e => e.stunde === M.OHNE_STUNDE)) liste.push({ stunde: M.OHNE_STUNDE, stundeBis: M.OHNE_STUNDE });
+    // Von Hand gewählte Stunde (Vertretung) – nur für dieses Fach an diesem Tag
+    if (z.stundeManuellFuer === z.datum + '|' + z.fachId && z.stunde > 0 && !liste.some(e => Number(e.stunde) === Number(z.stunde))) {
+      liste.push({ stunde: Number(z.stunde), stundeBis: Number(z.stundeBis || z.stunde) });
+    }
+    if (!hatPlan() && !liste.some(e => e.stunde === M.OHNE_STUNDE)) {
+      liste.push({ stunde: M.OHNE_STUNDE, stundeBis: M.OHNE_STUNDE });
     }
     liste.sort((a, b) => a.stunde - b.stunde);
     return liste;
   }
 
-  /** Einheit bestimmen: gewünschte, sonst die bisherige, sonst die aktuelle bzw. zuletzt vergangene. */
-  function einheitBestimmen(gewuenscht) {
+  /** Hat die Klasse überhaupt einen Stundenplan mit eigenen Stunden? */
+  function hatPlan() {
+    return NB.Stundenplan.klasseHatPlan(klasse());
+  }
+
+  /**
+   * Steht an diesem Tag laut Stundenplan keine Stunde dieses Fachs?
+   * Dann lässt sich über die Kopfzeile eine Stundennummer wählen – auch wenn
+   * dort schon etwas erfasst wurde (etwa als „Ganzer Tag“).
+   */
+  function keineStundeLautPlan() {
+    const k = klasse();
+    return hatPlan() && !!k && NB.Stundenplan.einheitenAmTag(k, z.datum, z.fachId).length === 0;
+  }
+
+  /**
+   * Einheit bestimmen: gewünschte (auch eine Stunde außerhalb des Plans),
+   * sonst die bisherige, sonst die aktuelle bzw. zuletzt vergangene.
+   * Ohne Stunde laut Plan bleibt es bei der Tages-Einheit, bis die Lehrerin
+   * über die Kopfzeile eine Stundennummer wählt.
+   */
+  function einheitBestimmen(gewuenscht, manuell) {
     const SP = NB.Stundenplan;
     const liste = einheitenDesTages();
     let e = null;
-    if (gewuenscht != null) e = liste.find(x => x.stunde === Number(gewuenscht)) || null;
-    if (!e && z.stunde != null && gewuenscht == null) e = liste.find(x => x.stunde === Number(z.stunde)) || null;
+    if (gewuenscht != null) {
+      e = liste.find(x => x.stunde === Number(gewuenscht))
+        || { stunde: Number(gewuenscht), stundeBis: Number(gewuenscht) };   // Vertretungs- oder Zusatzstunde
+      if (manuell) z.stundeManuellFuer = z.datum + '|' + z.fachId;
+    }
+    if (!e && z.stunde != null) e = liste.find(x => x.stunde === Number(z.stunde)) || null;
     if (!e) {
       const aktuell = klasse() ? SP.aktuelleEinheit(klasse(), z.datum, z.fachId) : null;
       e = aktuell ? liste.find(x => x.stunde === aktuell.stunde) : null;
@@ -143,7 +176,14 @@ NB.Bewertung = (function () {
     z.stundeBis = e.stundeBis;
   }
 
-  function einheitTextAktuell() {
+  /**
+   * Beschriftung der Einheit: „1.–2. Std.“ · „Ganzer Tag“ (ohne Stundenplan) ·
+   * „Keine Stunde laut Plan“. In der schmalen Kopfzeile steht die Kurzform
+   * „Keine Stunde“; der ganze Satz steht im Hinweis darunter und im Vorlesetext.
+   */
+  function einheitTextAktuell(kurz) {
+    if (!einheitenDesTages().length) return kurz ? 'Keine Stunde' : 'Keine Stunde laut Plan';
+    if (z.stunde === M.OHNE_STUNDE) return 'Ganzer Tag';
     return NB.Stundenplan.stundenText(z.stunde, z.stundeBis);
   }
 
@@ -318,7 +358,6 @@ NB.Bewertung = (function () {
     H.leeren(wurzel);
     el = {};
 
-    el.einheiten = H.el('div', { class: 'bw-einheiten-zeile', hidden: true });
     el.hinweis = H.el('div', { class: 'bw-hinweis', hidden: true });
 
     el.kindname = H.el('div', { class: 'bw-kindname' });
@@ -354,7 +393,7 @@ NB.Bewertung = (function () {
 
     el.leer = H.el('div', { class: 'leer', hidden: true });
 
-    H.anhaengen(wurzel, [el.einheiten, el.hinweis, el.kindzeile, el.faecher, el.ansicht, el.fehltHinweis, el.fachHinweis, el.matrix, el.notizzeile, el.leer]);
+    H.anhaengen(wurzel, [el.hinweis, el.kindzeile, el.faecher, el.ansicht, el.fehltHinweis, el.fachHinweis, el.matrix, el.notizzeile, el.leer]);
 
     // Fußleiste
     el.balken = H.el('span');
@@ -383,36 +422,11 @@ NB.Bewertung = (function () {
     fachPruefen();
     statistikBerechnen();
     N.kopfAktualisieren();
-    einheitenRendern();
     hinweisAktualisieren();
     faecherRendern();
     ansichtRendern();
     kindRendern();
     N.fussAktualisieren();
-  }
-
-  /**
-   * Kleine Auswahl der Einheiten des Tages („1.–2. Std.“ | „5. Std.“), nur wenn
-   * die Klasse am Tag mehrere getrennte Einheiten desselben Fachs hat.
-   */
-  function einheitenRendern() {
-    if (!el) return;
-    const SP = NB.Stundenplan;
-    const liste = einheitenDesTages();
-    H.leeren(el.einheiten);
-    el.einheiten.hidden = liste.length < 2 || !kinder.length;
-    if (el.einheiten.hidden) return;
-    const auswahl = H.el('div', { class: 'bw-einheiten', role: 'group', 'aria-label': 'Einheit am ' + H.datumKurzOhneJahr(z.datum) });
-    liste.forEach(function (e) {
-      const aktiv = Number(e.stunde) === Number(z.stunde);
-      const uhrzeit = e.stunde ? SP.uhrzeitTextBereich(e.stunde, e.stundeBis) : 'ohne Stundenplan';
-      auswahl.appendChild(H.el('button', {
-        type: 'button', text: SP.stundenText(e.stunde, e.stundeBis), 'aria-pressed': aktiv ? 'true' : 'false',
-        'aria-label': SP.stundenText(e.stunde, e.stundeBis) + (uhrzeit ? ', ' + uhrzeit : ''), title: uhrzeit,
-        onclick: () => einheitSetzen(e.stunde)
-      }));
-    });
-    H.anhaengen(el.einheiten, [H.el('span', { class: 'bw-einheiten-titel text-klein text-schwach', text: 'Einheit' }), auswahl]);
   }
 
   function faecherRendern() {
@@ -762,7 +776,6 @@ NB.Bewertung = (function () {
     } else {
       statistikBerechnen();
       N.kopfAktualisieren();
-      einheitenRendern();
       hinweisAktualisieren();
       faecherRendern();
       kindRendern();
@@ -777,15 +790,16 @@ NB.Bewertung = (function () {
     kindRendern();
   }
 
-  function einheitSetzen(stunde) {
-    if (Number(stunde) === Number(z.stunde)) return;
+  /** Einheit wechseln: Werte des Kindes sichern, Einheit setzen, alles neu laden. */
+  function einheitSetzen(stunde, manuell) {
+    if (Number(stunde) === Number(z.stunde) && !manuell) return;
     kindVerlassen();
-    einheitBestimmen(stunde);
+    einheitBestimmen(stunde, manuell);
     zustandMerken();
     statistikBerechnen();
     N.kopfAktualisieren();
-    einheitenRendern();
     kindRendern();
+    N.fussAktualisieren();
   }
 
   async function klasseWechseln() {
@@ -909,24 +923,82 @@ NB.Bewertung = (function () {
   }
 
   /**
-   * Rechts in der Kopfzeile: Datum und daneben die Einheit („1.–2. Std.“).
-   * Gibt es mehrere getrennte Einheiten, steht die Auswahl in der Zeile
-   * direkt darunter (siehe einheitenRendern) – in der Kopfzeile wäre auf einem
-   * Telefon kein Platz.
+   * Rechts in der Kopfzeile: Datum und daneben immer die Einheit – in jedem
+   * Fach und an jedem Tag. Bei mehreren getrennten Einheiten und bei „Keine
+   * Stunde laut Plan“ ist sie antippbar und öffnet eine Auswahl; eine einzelne
+   * Einheit und „Ganzer Tag“ stehen unveränderlich da.
    */
   function kopfRechts() {
     const SP = NB.Stundenplan;
     const heute = H.heute();
-    const datumText = (z.datum === heute ? 'Heute, ' : H.WOCHENTAGE_KURZ[H.wochentag(z.datum) - 1] + ', ') + H.datumKurz(z.datum).slice(0, 6);
-    const teile = [
+    const liste = einheitenDesTages();
+    const text = einheitTextAktuell(true);
+    // Bei langer Einheitsangabe (etwa „Keine Stunde“) das Datum knapp halten
+    const datumText = (text.length > 9 ? '' : (z.datum === heute ? 'Heute, ' : H.WOCHENTAGE_KURZ[H.wochentag(z.datum) - 1] + ', ')) + H.datumKurz(z.datum).slice(0, 6);
+    const langText = einheitTextAktuell();
+    const waehlbar = liste.length !== 1 || keineStundeLautPlan();
+    const uhrzeit = (z.stunde && liste.length) ? SP.uhrzeitTextBereich(z.stunde, z.stundeBis) : '';
+    return [
       H.el('button', { type: 'button', class: 'kopf-knopf', 'aria-label': 'Datum wählen: ' + H.datumLang(z.datum), onclick: datumWaehlen },
-        H.el('span', { class: 'kopf-knopf-text', text: datumText }))
+        H.el('span', { class: 'kopf-knopf-text', text: datumText })),
+      waehlbar
+        ? H.el('button', {
+          type: 'button', class: 'kopf-knopf bw-einheit waehlbar',
+          'aria-label': (liste.length ? 'Einheit wählen: ' + langText : 'Stunde wählen – ' + langText) + (uhrzeit ? ', ' + uhrzeit : ''), title: uhrzeit || langText,
+          onclick: einheitWaehlen
+        }, [
+          H.el('span', { class: 'kopf-knopf-text', text: text }),
+          H.el('span', { class: 'kopf-knopf-pfeil', 'aria-hidden': 'true', text: '⌄' })
+        ])
+        : H.el('span', { class: 'bw-einheit', 'aria-label': 'Einheit: ' + langText + (uhrzeit ? ', ' + uhrzeit : ''), title: uhrzeit || langText, text: text })
     ];
-    if (z.stunde !== M.OHNE_STUNDE || einheitenDesTages().length > 1) {
-      const uhrzeit = z.stunde ? SP.uhrzeitTextBereich(z.stunde, z.stundeBis) : '';
-      teile.push(H.el('span', { class: 'bw-einheit', 'aria-label': 'Einheit: ' + einheitTextAktuell() + (uhrzeit ? ', ' + uhrzeit : ''), title: uhrzeit, text: einheitTextAktuell() }));
+  }
+
+  /**
+   * Auswahl der Einheit: bei mehreren Einheiten die Einheiten des Tages,
+   * ohne Stunde laut Plan die Stundennummern 1 bis 10 (Vertretung, Zusatz).
+   */
+  async function einheitWaehlen() {
+    const SP = NB.Stundenplan;
+    const liste = einheitenDesTages();
+    if (liste.length && !keineStundeLautPlan()) {
+      const wahl = await NB.Dialog.auswahl({
+        titel: 'Einheit am ' + H.datumKurzOhneJahr(z.datum),
+        optionen: liste.map(e => ({
+          text: e.stunde === M.OHNE_STUNDE ? 'Ganzer Tag' : SP.stundenText(e.stunde, e.stundeBis),
+          untertitel: e.stunde === M.OHNE_STUNDE ? 'Ohne Stundenplan' : (SP.uhrzeitTextBereich(e.stunde, e.stundeBis) || ''),
+          wert: String(e.stunde), aktiv: Number(e.stunde) === Number(z.stunde)
+        }))
+      });
+      if (wahl == null) return;
+      einheitSetzen(Number(wahl));
+      return;
     }
-    return teile;
+    // Keine Stunde laut Plan: vorhandene Einheiten zuerst, danach die Stundennummern
+    const k = klasse();
+    const fach = M.fach(z.fachId);
+    const optionen = liste.map(e => ({
+      text: e.stunde === M.OHNE_STUNDE ? 'Ganzer Tag' : SP.stundenText(e.stunde, e.stundeBis),
+      untertitel: 'bereits erfasst',
+      wert: String(e.stunde), aktiv: Number(e.stunde) === Number(z.stunde)
+    }));
+    for (let stunde = 1; stunde <= 10; stunde++) {
+      if (optionen.some(o => Number(o.wert) === stunde)) continue;
+      const zeit = SP.uhrzeitText(stunde);
+      const andere = k ? SP.klassenStundenAmTag(k, z.datum).find(x => Number(x.stunde) === stunde) : null;
+      const belegt = andere ? 'laut Plan ' + (andere.art === 'fremd' ? (andere.bezeichnung || 'fremde Stunde') : ((M.fach(andere.fachId) || {}).name || 'eigene Stunde')) : null;
+      optionen.push({
+        text: stunde + '. Stunde',
+        untertitel: [zeit, belegt].filter(Boolean).join(' · '),
+        wert: String(stunde), aktiv: Number(z.stunde) === stunde
+      });
+    }
+    const wahl = await NB.Dialog.auswahl({
+      titel: (fach ? fach.name : 'Fach') + ' am ' + H.datumKurzOhneJahr(z.datum) + ' erfassen',
+      optionen: optionen
+    });
+    if (wahl == null) return;
+    einheitSetzen(Number(wahl), true);
   }
 
   /* ---------- Registrierung ---------- */
