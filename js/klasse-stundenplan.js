@@ -174,6 +174,20 @@ NB.KlasseStundenplan = (function () {
   }
 
   /**
+   * Kompaktes Wochenraster nur zur Ansicht (Klassenübersicht): keine Zelle ist
+   * ein eigenes Ziel, der ganze Block führt zum Bearbeiten.
+   */
+  KS.rasterAnsicht = function (klasse) {
+    const gebaut = rasterBauen(klasse, function () { KS.oeffnen(klasse.id); });
+    gebaut.raster.classList.add('nur-ansicht');
+    H.$$('.plan-zelle', gebaut.raster).forEach(function (zelle) {
+      zelle.tabIndex = -1;
+      zelle.setAttribute('aria-hidden', 'true');
+    });
+    return gebaut.raster;
+  };
+
+  /**
    * Raster, Ausfall- und Zusatztermine der Klasse in einen Container einfügen.
    * neuZeichnen() wird nach Änderungen an Ausfällen/Zusatzterminen gerufen.
    */

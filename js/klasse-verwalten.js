@@ -1,8 +1,13 @@
 /*
  * Notenblock – Klasse verwalten und anlegen
  *
- * Übersicht einer Klasse mit vier Abschnitten: Klasse (Name, Stufe,
- * Schuljahr), Fächer, Stundenplan (NB.KlasseStundenplan), Kinder.
+ * Die Klassenübersicht ist der Zwischenschritt zwischen Klassenliste und
+ * Bewertung: Kopf in der Farbe der Klasse, Stundenplan als kompaktes
+ * Wochenraster (Tipp zum Bearbeiten), die nächsten Termine der Klasse,
+ * Kennzahlen (Fächer, erfasste Einheiten, zuletzt erfasst), die Namensliste
+ * der Kinder (Tipp öffnet das Kinderprofil) und die Schaltfläche
+ * „Stunde bewerten“. Die Abschnitte Klasse (Name, Stufe, Schuljahr), Fächer,
+ * Stundenplan und Kinder sind von hier aus erreichbar.
  *
  * Neue Klasse: geführte Anlage in vier Schritten mit Schrittanzeige, Zurück
  * und Weiter – 1 Klasse (Name, Stufe als zwei große Flächen, Schuljahr für
@@ -158,24 +163,153 @@ NB.KlasseVerwalten = (function () {
       wurzel.appendChild(H.el('div', { class: 'leer' }, H.el('p', { text: 'Diese Klasse gibt es nicht mehr.' })));
       return;
     }
+    const SP = NB.Stundenplan;
     const stufe = klasse.stufe ? M.stufe(klasse.stufe) : null;
     const faecher = M.klassenFaecher(klasse);
-    const kinder = (klasse.kinder || []).length;
-    const plan = NB.Stundenplan.klassenplan(klasse);
-    const eigene = plan.filter(e => e.art !== 'fremd').length;
-    const fremde = plan.length - eigene;
-    const planText = !plan.length ? 'Noch kein Stundenplan'
-      : (eigene === 1 ? '1 eigene Stunde' : eigene + ' eigene Stunden') + (fremde ? ', ' + (fremde === 1 ? '1 fremde' : fremde + ' fremde') : '');
-    const liste = H.el('div', { class: 'einst-abschnitte' }, [
-      abschnitt('Klasse', [stufe ? stufe.bezeichnung : 'Stufe noch nicht festgelegt', klasse.letztesSchuljahr ? 'Schuljahr ' + klasse.letztesSchuljahr : null].filter(Boolean).join(' · '), () => KV.daten(klasse.id)),
-      abschnitt('Fächer', faecher.length ? faecher.map(f => f.name).join(', ') : 'Noch keine Fächer gewählt', () => KV.faecher(klasse.id)),
-      abschnitt('Stundenplan', planText, () => NB.KlasseStundenplan.oeffnen(klasse.id)),
-      abschnitt('Kinder', kinder === 0 ? 'Noch keine Kinder' : kinder === 1 ? '1 Kind' : kinder + ' Kinder', () => NB.BereichKlassen.kinderVerwalten(klasse.id))
+    const kinder = M.kinderSortiert(klasse);
+    const inhalt = H.el('div', { class: 'karte-inhalt' });
+    const neuZeichnen = () => uebersichtRendern(aktuell);
+
+    // Kopf in der Farbe der Klasse; der Stift führt zu Name, Stufe und Schuljahr
+    const kopf = H.el('div', { class: 'kl-kopf' }, [
+      H.el('div', { class: 'kl-kopf-text' }, [
+        H.el('h2', { class: 'kl-name', text: klasse.name }),
+        H.el('p', { class: 'kl-stufe', text: [stufe ? stufe.bezeichnung : 'Stufe noch nicht festgelegt', klasse.letztesSchuljahr ? 'Schuljahr ' + klasse.letztesSchuljahr : null].filter(Boolean).join(' · ') })
+      ]),
+      H.el('button', { type: 'button', class: 'symbolknopf kl-bearbeiten', 'aria-label': 'Klasse bearbeiten', title: 'Name, Stufe, Schuljahr', onclick: () => KV.daten(klasse.id) },
+        H.el('span', { 'aria-hidden': 'true', text: '✎' }))
     ]);
-    wurzel.appendChild(H.el('div', { class: 'karte-inhalt' }, [
-      H.el('h2', { class: 'aw-titel', text: klasse.name }),
-      liste
-    ]));
+    kopf.style.setProperty('--klassenfarbe', M.klassenFarbe(klasse));
+    inhalt.appendChild(kopf);
+
+    // Stundenplan als kompaktes Wochenraster – der ganze Block führt zum Bearbeiten
+    const plan = SP.klassenplan(klasse);
+    inhalt.appendChild(H.el('h3', { class: 'einst-gruppe-titel', text: 'Stundenplan' }));
+    if (plan.length) {
+      inhalt.appendChild(H.el('button', {
+        type: 'button', class: 'kl-plan', 'aria-label': 'Stundenplan der ' + klasse.name + ' bearbeiten',
+        onclick: () => NB.KlasseStundenplan.oeffnen(klasse.id)
+      }, NB.KlasseStundenplan.rasterAnsicht(klasse)));
+    } else {
+      inhalt.appendChild(H.el('div', { class: 'einst-karte' }, H.el('div', { class: 'einst-eintrag' }, H.el('button', {
+        type: 'button', class: 'einst-eintrag-text einst-hinzu', text: '+ Stundenplan anlegen',
+        onclick: () => NB.KlasseStundenplan.oeffnen(klasse.id)
+      }))));
+    }
+
+    // Die nächsten Termine dieser Klasse (höchstens drei)
+    const heute = H.heute();
+    const naechste = M.termine(klasse.id).filter(t => t.datum >= heute).slice(0, 3);
+    inhalt.appendChild(H.el('h3', { class: 'einst-gruppe-titel', text: 'Nächste Termine' }));
+    const terminKarte = H.el('div', { class: 'kl-termine' });
+    if (!naechste.length) terminKarte.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Keine Termine für diese Klasse.' }));
+    naechste.forEach(function (t) {
+      terminKarte.appendChild(NB.Termine.karte(t, neuZeichnen, { mitKlasse: false, klasse: 'kl-termin' }));
+    });
+    terminKarte.appendChild(H.el('div', { class: 'knopfzeile kal-termin-knopf' }, H.el('button', {
+      type: 'button', class: 'knopf', text: '+ Termin', onclick: () => NB.Termine.neu(heute, klasse.id, neuZeichnen)
+    })));
+    inhalt.appendChild(terminKarte);
+
+    // Kennzahlen
+    const einheiten = M.anzahlEinheiten(klasse.id, null);
+    const letzte = M.einheiten(klasse.id).filter(M.bewertungHatInhalt).map(b => b.datum).sort();
+    const zahlen = H.el('div', { class: 'kl-zahlen' }, [
+      H.el('button', { type: 'button', class: 'kl-zahl', onclick: () => KV.faecher(klasse.id), 'aria-label': faecher.length + ' Fächer – Fächer der Klasse bearbeiten' }, [
+        H.el('span', { class: 'kl-zahl-wert', text: String(faecher.length) }),
+        H.el('span', { class: 'kl-zahl-name text-klein text-schwach', text: faecher.length === 1 ? 'Fach' : 'Fächer' })
+      ]),
+      H.el('button', { type: 'button', class: 'kl-zahl', onclick: () => NB.Auswertung.oeffnen({ klasseId: klasse.id }), 'aria-label': einheiten + ' erfasste Einheiten – Auswertung der Klasse' }, [
+        H.el('span', { class: 'kl-zahl-wert', text: String(einheiten) }),
+        H.el('span', { class: 'kl-zahl-name text-klein text-schwach', text: einheiten === 1 ? 'Einheit' : 'Einheiten' })
+      ]),
+      H.el('div', { class: 'kl-zahl' }, [
+        H.el('span', { class: 'kl-zahl-wert klein', text: letzte.length ? H.datumKurzOhneJahr(letzte[letzte.length - 1]) : '–' }),
+        H.el('span', { class: 'kl-zahl-name text-klein text-schwach', text: 'zuletzt erfasst' })
+      ])
+    ]);
+    inhalt.appendChild(zahlen);
+
+    // Kinder: ein Tipp öffnet das Kinderprofil
+    inhalt.appendChild(H.el('h3', { class: 'einst-gruppe-titel', text: kinder.length === 1 ? '1 Kind' : kinder.length + ' Kinder' }));
+    const kinderListe = H.el('div', { class: 'einst-liste einst-karte' });
+    if (!kinder.length) kinderListe.appendChild(H.el('p', { class: 'text-schwach einst-leer', text: 'Noch keine Kinder eingetragen.' }));
+    kinder.forEach(function (kind) {
+      kinderListe.appendChild(H.el('div', { class: 'einst-eintrag' }, [
+        H.el('button', {
+          type: 'button', class: 'einst-eintrag-text',
+          onclick: () => NB.Auswertung.kindOeffnen({ klasseId: klasse.id, kindId: kind.id })
+        }, [
+          H.el('span', { class: 'einst-eintrag-titel', text: M.kindName(kind) }),
+          kind.name && kind.kuerzel ? H.el('span', { class: 'text-klein text-schwach', text: kind.kuerzel }) : null
+        ]),
+        H.el('span', { class: 'einst-pfeil', 'aria-hidden': 'true', text: '›' })
+      ]));
+    });
+    kinderListe.appendChild(H.el('div', { class: 'einst-eintrag' }, H.el('button', {
+      type: 'button', class: 'einst-eintrag-text einst-hinzu', text: kinder.length ? 'Kinder verwalten' : '+ Kinder eintragen',
+      onclick: () => NB.BereichKlassen.kinderVerwalten(klasse.id)
+    })));
+    inhalt.appendChild(kinderListe);
+
+    // Bewerten
+    inhalt.appendChild(H.el('div', { class: 'knopfzeile kl-bewerten' }, H.el('button', {
+      type: 'button', class: 'knopf primaer gross', text: 'Stunde bewerten', onclick: () => bewertenStarten(klasse)
+    })));
+    wurzel.appendChild(inhalt);
+  }
+
+  /**
+   * „Stunde bewerten“: mit Fach und Einheit von heute öffnen. Gibt es heute
+   * keine eigene Stunde, erst nach Fach und Datum fragen.
+   */
+  async function bewertenStarten(klasse) {
+    const SP = NB.Stundenplan;
+    const heute = H.heute();
+    const faecher = M.klassenFaecher(klasse);
+    if (!faecher.length) {
+      await NB.Dialog.hinweis({ titel: 'Noch kein Fach', text: 'Wähle zuerst die Fächer der Klasse – dann lässt sich bewerten.' });
+      KV.faecher(klasse.id);
+      return;
+    }
+    const einheitenHeute = SP.einheitenAmTag(klasse, heute).filter(e => faecher.some(f => f.id === e.fachId));
+    if (einheitenHeute.length === 1) {
+      const e = einheitenHeute[0];
+      NB.Bewertung.oeffnen({ klasseId: klasse.id, fachId: e.fachId, datum: heute, stunde: e.stunde });
+      return;
+    }
+    if (einheitenHeute.length > 1) {
+      const wahl = await NB.Dialog.auswahl({
+        titel: 'Welche Stunde heute?',
+        optionen: einheitenHeute.map(e => ({
+          text: (M.fach(e.fachId) || {}).name || 'Fach',
+          untertitel: SP.stundenText(e.stunde, e.stundeBis) + (SP.uhrzeitTextBereich(e.stunde, e.stundeBis) ? ' · ' + SP.uhrzeitTextBereich(e.stunde, e.stundeBis) : ''),
+          wert: e.fachId + '|' + e.stunde
+        }))
+      });
+      if (!wahl) return;
+      const teile = wahl.split('|');
+      NB.Bewertung.oeffnen({ klasseId: klasse.id, fachId: teile[0], datum: heute, stunde: Number(teile[1]) });
+      return;
+    }
+    // Heute keine Stunde: nach Fach und Datum fragen
+    const fachWahl = await NB.Dialog.auswahl({
+      titel: 'Welches Fach?',
+      optionen: faecher.map(f => ({ text: f.name, wert: f.id, untertitel: letzterUnterrichtText(klasse, f.id) }))
+    });
+    if (!fachWahl) return;
+    NB.Kalender.oeffnen({
+      datum: SP.letzterUnterrichtstag(klasse.id, fachWahl, heute) || heute,
+      markierungen: (jahr, monat) => SP.kalenderMarkierungen(jahr, monat, klasse.id, fachWahl),
+      beiAuswahl: function (iso) {
+        NB.Bewertung.oeffnen({ klasseId: klasse.id, fachId: fachWahl, datum: iso });
+      }
+    });
+  }
+
+  function letzterUnterrichtText(klasse, fachId) {
+    const iso = NB.Stundenplan.letzterUnterrichtstag(klasse.id, fachId, H.heute());
+    return iso ? 'zuletzt ' + H.datumKurzOhneJahr(iso) : '';
   }
 
   /* ---------- Abschnitt Klasse: Name, Stufe, Schuljahr ---------- */
@@ -530,7 +664,7 @@ NB.KlasseVerwalten = (function () {
   });
 
   N.bildschirmRegistrieren('klasse', {
-    titel: 'Klasse verwalten',
+    titel: 'Klasse',
     zurueck: true,
     zeigen: uebersichtRendern
   });

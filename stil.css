@@ -395,9 +395,11 @@ input:disabled { background: var(--hintergrund); color: var(--text-schwach); }
 .klassenliste { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
 .klasse-karte {
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  gap: 4px;
   background: var(--flaeche);
   border-radius: var(--radius);
+  border-left: 5px solid var(--klassenfarbe, var(--akzent));
   box-shadow: var(--schatten);
   overflow: hidden;
 }
@@ -408,7 +410,7 @@ input:disabled { background: var(--hintergrund); color: var(--text-schwach); }
   align-items: flex-start;
   gap: 2px;
   min-height: 64px;
-  padding: 12px 16px;
+  padding: 12px 14px;
   font: inherit;
   color: var(--text);
   text-align: left;
@@ -416,9 +418,10 @@ input:disabled { background: var(--hintergrund); color: var(--text-schwach); }
   border: none;
   cursor: pointer;
 }
+.klasse-oeffnen .einst-pfeil { position: absolute; right: 14px; }
+.klasse-karte.klasse-oeffnen { position: relative; padding-right: 32px; border-left: 5px solid var(--klassenfarbe, var(--akzent)); }
 .klasse-oeffnen:active { background: var(--akzent-hell); }
 .klasse-name { font-weight: 600; font-size: 1.05rem; }
-.klasse-stift { align-self: center; margin-right: 8px; flex: 0 0 auto; }
 
 /* ---------- Bewertung ---------- */
 .bewertung { touch-action: pan-y; }
@@ -436,7 +439,23 @@ input:disabled { background: var(--hintergrund); color: var(--text-schwach); }
 .bw-pfeil { width: 48px; height: 48px; font-size: 2rem; line-height: 1; flex: 0 0 auto; }
 .bw-pfeil span { margin-top: -6px; }
 .bw-name { flex: 1 1 auto; min-width: 0; text-align: center; }
-.bw-kindname { font-size: 1.45rem; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bw-kindname {
+  max-width: 100%;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.bw-kindname:active { background: var(--akzent-hell); }
 .bw-position { font-size: var(--schrift-klein); }
 
 .bw-faecher {
@@ -1447,3 +1466,62 @@ input[type="time"] {
 .mo-stunden { font-size: 0.7rem; font-weight: 600; color: var(--text-schwach); }
 .mo-punkte { display: flex; gap: 2px; margin-top: auto; }
 .mo-punkt { width: 5px; height: 5px; border-radius: 50%; }
+
+/* ---------- Klassenübersicht ---------- */
+.kl-kopf {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 14px 16px;
+  margin-bottom: 16px;
+  background: var(--flaeche);
+  border-left: 5px solid var(--klassenfarbe, var(--akzent));
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+}
+.kl-kopf-text { flex: 1 1 auto; min-width: 0; }
+.kl-name { margin: 0; font-size: 1.3rem; }
+.kl-stufe { margin: 2px 0 0; color: var(--text-schwach); font-size: var(--schrift-klein); }
+.kl-bearbeiten { flex: 0 0 auto; }
+.kl-plan {
+  display: block;
+  width: 100%;
+  padding: 10px 8px 4px;
+  background: var(--flaeche);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  cursor: pointer;
+}
+.kl-plan:active { background: var(--akzent-hell); }
+.plan-raster.nur-ansicht .plan-zelle { pointer-events: none; }
+.kl-termine { display: flex; flex-direction: column; gap: 6px; }
+.kl-termin { box-shadow: var(--schatten); }
+.kl-zahlen { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 18px; }
+.kl-zahl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 64px;
+  padding: 10px 4px;
+  font: inherit;
+  color: var(--text);
+  background: var(--flaeche);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+}
+button.kl-zahl { cursor: pointer; }
+button.kl-zahl:active { background: var(--akzent-hell); }
+.kl-zahl-wert { font-size: 1.4rem; font-weight: 700; line-height: 1.1; }
+.kl-zahl-wert.klein { font-size: 1rem; padding-top: 6px; }
+.kl-zahl-name { text-align: center; }
+.kl-bewerten { margin-top: 20px; }
+.knopf.gross { min-height: 56px; font-size: 1.05rem; }
+
+/* Kinderprofil */
+.kind-kopf { margin-bottom: 10px; border-left: 5px solid var(--klassenfarbe, var(--akzent)); }
+.kind-faecher { margin-bottom: 14px; }
+.kind-faecher .bw-fach[aria-pressed="true"] { background: var(--fachfarbe, var(--akzent)); border-color: var(--fachfarbe, var(--akzent)); }
+.aw-titel.klein { font-size: 1.05rem; }

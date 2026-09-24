@@ -1,10 +1,11 @@
 /*
  * Notenblock – Bereich Klassen
  *
- * Einstieg: Liste der Klassen. Tipp auf eine Klasse → Bewertungsbildschirm.
- * Stiftsymbol → Klasse verwalten (NB.KlasseVerwalten: Klasse, Fächer,
- * Stundenplan, Kinder). „Neue Klasse anlegen“ → geführte Anlage in vier
- * Schritten (ebenfalls NB.KlasseVerwalten).
+ * Einstieg: Liste der Klassen mit Name, Stufe und Anzahl der Kinder; die
+ * Farbe der Klasse steht links. Ein Tipp öffnet die Klassenübersicht
+ * (NB.KlasseVerwalten), nicht mehr direkt die Bewertung.
+ * „Neue Klasse anlegen“ → geführte Anlage in vier Schritten (ebenfalls
+ * NB.KlasseVerwalten).
  * Kinder verwalten: Liste, ein Kind pro Zeile: „Nachname, Vorname | Kürzel“.
  * Beim Speichern behalten bestehende Kinder ihre Id, damit ihre Bewertungen
  * erhalten bleiben (Abgleich über Name, sonst Kürzel). Die Bausteine
@@ -18,39 +19,6 @@ NB.BereichKlassen = (function () {
   const N = NB.Navigation;
 
   /* ---------- Klassenliste ---------- */
-
-  function stiftSymbol() {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('width', '22');
-    svg.setAttribute('height', '22');
-    svg.setAttribute('aria-hidden', 'true');
-    const pfad = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    pfad.setAttribute('d', 'M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3zM13.5 7.5l3 3');
-    pfad.setAttribute('fill', 'none');
-    pfad.setAttribute('stroke', 'currentColor');
-    pfad.setAttribute('stroke-width', '2');
-    pfad.setAttribute('stroke-linecap', 'round');
-    pfad.setAttribute('stroke-linejoin', 'round');
-    svg.appendChild(pfad);
-    return svg;
-  }
-
-  function diagrammSymbol() {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('width', '22');
-    svg.setAttribute('height', '22');
-    svg.setAttribute('aria-hidden', 'true');
-    const pfad = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    pfad.setAttribute('d', 'M4 20h16M6 16v-5M11 16V7M16 16v-3M21 16V4');
-    pfad.setAttribute('fill', 'none');
-    pfad.setAttribute('stroke', 'currentColor');
-    pfad.setAttribute('stroke-width', '2');
-    pfad.setAttribute('stroke-linecap', 'round');
-    svg.appendChild(pfad);
-    return svg;
-  }
 
   function kinderText(anzahl) {
     if (anzahl === 0) return 'Noch keine Kinder';
@@ -71,25 +39,18 @@ NB.BereichKlassen = (function () {
       const liste = H.el('div', { class: 'klassenliste' });
       klassen.forEach(function (klasse) {
         const anzahl = (klasse.kinder || []).length;
-        liste.appendChild(H.el('div', { class: 'klasse-karte' }, [
-          H.el('button', {
-            type: 'button', class: 'klasse-oeffnen',
-            onclick: () => NB.Bewertung.oeffnen({ klasseId: klasse.id })
-          }, [
-            H.el('span', { class: 'klasse-name', text: klasse.name }),
-            H.el('span', { class: 'klasse-info text-schwach text-klein', text: kinderText(anzahl) + (klasse.letztesSchuljahr ? ' · Schuljahr ' + klasse.letztesSchuljahr : '') })
-          ]),
-          H.el('button', {
-            type: 'button', class: 'symbolknopf klasse-stift',
-            'aria-label': 'Auswertung von ' + klasse.name, title: 'Auswertung',
-            onclick: () => NB.Auswertung.oeffnen({ klasseId: klasse.id })
-          }, diagrammSymbol()),
-          H.el('button', {
-            type: 'button', class: 'symbolknopf klasse-stift',
-            'aria-label': klasse.name + ' verwalten', title: 'Klasse verwalten',
-            onclick: () => NB.KlasseVerwalten.oeffnen(klasse.id)
-          }, stiftSymbol())
-        ]));
+        const stufe = klasse.stufe ? M.stufe(klasse.stufe) : null;
+        const karte = H.el('button', {
+          type: 'button', class: 'klasse-karte klasse-oeffnen',
+          'aria-label': klasse.name + (stufe ? ', ' + stufe.bezeichnung : '') + ', ' + kinderText(anzahl),
+          onclick: () => NB.KlasseVerwalten.oeffnen(klasse.id)
+        }, [
+          H.el('span', { class: 'klasse-name', text: klasse.name }),
+          H.el('span', { class: 'klasse-info text-schwach text-klein', text: [stufe ? stufe.kurz : 'Stufe offen', kinderText(anzahl)].join(' · ') }),
+          H.el('span', { class: 'einst-pfeil', 'aria-hidden': 'true', text: '›' })
+        ]);
+        karte.style.setProperty('--klassenfarbe', M.klassenFarbe(klasse));
+        liste.appendChild(karte);
       });
       wurzel.appendChild(liste);
     }

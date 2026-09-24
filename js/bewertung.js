@@ -39,6 +39,9 @@
  * Lehrerin sie ausdrücklich setzt – sie werden nicht in jeder Stunde
  * beobachtet, automatische Werte würden jeden Durchschnitt entwerten.
  *
+ * Ein Tipp auf den Namen öffnet das Kinderprofil mit dem Fach, in dem gerade
+ * bewertet wird; der Zurück-Pfeil führt an dieselbe Stelle zurück.
+ *
  * Wischen links/rechts wechselt das Kind, nicht aber auf einer Reglerzeile.
  * Pfeiltasten wechseln das Kind, Ziffern 1–6 setzen den Wert im fokussierten Regler.
  * Alles speichert sofort. Die Position (Klasse, Fach, Datum, Einheit, Kind) wird gemerkt.
@@ -360,7 +363,15 @@ NB.Bewertung = (function () {
 
     el.hinweis = H.el('div', { class: 'bw-hinweis', hidden: true });
 
-    el.kindname = H.el('div', { class: 'bw-kindname' });
+    el.kindname = H.el('button', {
+      type: 'button', class: 'bw-kindname', title: 'Profil des Kindes',
+      onclick: function () {
+        const kind = aktuellesKind();
+        if (!kind) return;
+        kindVerlassen();
+        NB.Auswertung.kindOeffnen({ klasseId: z.klasseId, kindId: kind.id, fachId: z.fachId });
+      }
+    });
     el.position = H.el('div', { class: 'bw-position text-schwach' });
     el.statistik = H.el('div', { class: 'bw-statistik text-klein text-schwach', hidden: true });
     el.kindzeile = H.el('div', { class: 'bw-kind' }, [
@@ -476,6 +487,7 @@ NB.Bewertung = (function () {
     }
 
     el.kindname.textContent = M.kindName(kind);
+    el.kindname.setAttribute('aria-label', M.kindName(kind) + ' – Profil öffnen');
     el.position.textContent = (z.kindIndex + 1) + ' von ' + kinder.length;
     statistikRendern(kind);
 
@@ -950,7 +962,7 @@ NB.Bewertung = (function () {
     const liste = einheitenDesTages();
     const text = einheitTextAktuell(true);
     // Bei langer Einheitsangabe (etwa „Keine Stunde“) das Datum knapp halten
-    const datumText = (text.length > 9 ? '' : (z.datum === heute ? 'Heute, ' : H.WOCHENTAGE_KURZ[H.wochentag(z.datum) - 1] + ', ')) + H.datumKurz(z.datum).slice(0, 6);
+    const datumText = (text.length > 11 ? '' : (z.datum === heute ? 'Heute, ' : H.WOCHENTAGE_KURZ[H.wochentag(z.datum) - 1] + ', ')) + H.datumKurz(z.datum).slice(0, 6);
     const langText = einheitTextAktuell();
     const waehlbar = liste.length !== 1 || keineStundeLautPlan();
     const uhrzeit = (z.stunde && liste.length) ? SP.uhrzeitTextBereich(z.stunde, z.stundeBis) : '';

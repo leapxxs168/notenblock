@@ -12,6 +12,10 @@
  *   Textbausteine für Fachleistung und Verhalten aus den Beschreibungstexten
  *   der überwiegend vergebenen Noten; Notizen mit Zuordnung zu diesem Kind.
  *   Je Klasse und Fach: alle Kinder untereinander mit ihrem Gesamtwert.
+ *   Kinderprofil (Bildschirm „kind“): alles zu einem Kind – Fächerleiste der
+ *   Klasse, zum gewählten Fach Fachleistung, Arbeits- und Sozialverhalten und
+ *   Textbausteine, darunter die fachübergreifende Übersicht und die Notizen.
+ *   Die frühere Auswertung je Kind geht darin auf; es gibt nur diesen Weg.
  *   Statistik am Kind (Bewertungsbildschirm): dieselbe Rechnung ohne die
  *   laufende Einheit (optionen.ausser).
  *
@@ -345,6 +349,16 @@ NB.Auswertung = (function () {
     N.bildschirmOeffnen('auswertung', parameter);
   };
 
+  /**
+   * Kinderprofil öffnen. { klasseId, kindId, fachId? } – ohne fachId gilt das
+   * erste Fach der Klasse. Der Zurück-Pfeil führt dorthin zurück, wo man
+   * hergekommen ist (Klassenübersicht oder laufende Bewertung).
+   */
+  A.kindOeffnen = function (parameter) {
+    if (N.aktiverBereich() !== 'klassen') N.zeigen('klassen');
+    N.bildschirmOeffnen('kind', parameter);
+  };
+
   function klasseRendern(parameter) {
     parameterKlasse = Object.assign({}, parameter || {});
     const wurzel = H.$('#bildschirm-auswertung');
@@ -405,7 +419,7 @@ NB.Auswertung = (function () {
       liste.appendChild(H.el('button', {
         type: 'button', class: 'aw-zeile',
         'aria-label': M.kindName(z.kind) + ': Gesamtwert ' + A.zahlText(z.gesamt) + (benotet ? ', Vorschlag ' + A.vorschlagText(z.vorschlag) : ''),
-        onclick: () => N.bildschirmOeffnen('auswertung-kind', { klasseId: klasse.id, fachId: fach.id, kindId: z.kind.id })
+        onclick: () => A.kindOeffnen({ klasseId: klasse.id, fachId: fach.id, kindId: z.kind.id })
       }, [
         H.el('span', { class: 'aw-zeile-name' }, [
           H.el('span', { class: 'aw-name', text: M.kindName(z.kind) }),
@@ -433,29 +447,68 @@ NB.Auswertung = (function () {
     return 'kaufmännisch gerundet';
   }
 
-  /* ---------- Bildschirm: Kind ---------- */
+  /* ---------- Bildschirm: Kinderprofil ---------- */
 
   function kindRendern(parameter) {
     parameterKind = Object.assign({}, parameter || {});
-    const wurzel = H.$('#bildschirm-auswertung-kind');
+    const wurzel = H.$('#bildschirm-kind');
     H.leeren(wurzel);
     const klasse = M.klasse(parameterKind.klasseId);
-    const fach = M.fach(parameterKind.fachId);
     const kind = klasse ? M.kind(klasse, parameterKind.kindId) : null;
-    if (!klasse || !fach || !kind) {
+    if (!klasse || !kind) {
       wurzel.appendChild(H.el('div', { class: 'leer' }, H.el('p', { text: 'Dieses Kind gibt es nicht mehr.' })));
       return;
     }
+    // Fächerleiste: alle Fächer der Klasse, unabhängig vom zuvor gewählten
+    const faecher = M.klassenFaecher(klasse, { mitStillgelegten: true }).filter(f => f.aktiv !== false || M.anzahlEinheiten(klasse.id, f.id));
+    const fach = faecher.find(f => f.id === parameterKind.fachId) || faecher[0];
+    if (!fach) {
+      wurzel.appendChild(H.el('div', { class: 'karte-inhalt' }, [
+        H.el('h2', { class: 'aw-titel', text: M.kindName(kind) }),
+        H.el('div', { class: 'leer' }, [
+          H.el('p', { class: 'leer-titel', text: 'Diese Klasse hat noch kein Fach' }),
+          H.el('p', { text: 'Wähle die Fächer der Klasse, dann erscheinen hier Fachleistung und Verhalten.' })
+        ])
+      ]));
+      return;
+    }
+    parameterKind.fachId = fach.id;
     const a = A.kind(klasse, fach, kind.id);
     const inhalt = H.el('div', { class: 'karte-inhalt aw' + (a.benotet ? '' : ' ohne-noten') });
 
-    // Kopf: Gesamtwert und Vorschlag
-    inhalt.appendChild(H.el('div', { class: 'einst-karte aw-kopf' }, [
+    // Kopf: Name, Kürzel, Klasse
+    const kopf = H.el('div', { class: 'einst-karte aw-kopf kind-kopf' }, [
       H.el('div', { class: 'aw-kopf-text' }, [
         H.el('div', { class: 'aw-titel', text: M.kindName(kind) }),
-        H.el('div', { class: 'text-schwach', text: klasse.name + ' · ' + fach.name }),
+        H.el('div', { class: 'text-schwach', text: [kind.name && kind.kuerzel ? kind.kuerzel : null, klasse.name, klasse.stufe ? M.stufe(klasse.stufe).kurz : null].filter(Boolean).join(' · ') })
+      ])
+    ]);
+    kopf.style.setProperty('--klassenfarbe', M.klassenFarbe(klasse));
+    inhalt.appendChild(kopf);
+
+    // Fächerleiste der Klasse; das aktive Fach in seiner Farbe
+    const leiste = H.el('div', { class: 'bw-faecher kind-faecher', role: 'group', 'aria-label': 'Fach' });
+    faecher.forEach(function (f) {
+      const aktiv = f.id === fach.id;
+      const knopf = H.el('button', {
+        type: 'button', class: 'bw-fach' + (f.aktiv === false ? ' ruht' : ''), text: f.name + (f.aktiv === false ? ' (stillgelegt)' : ''),
+        'aria-pressed': aktiv ? 'true' : 'false',
+        onclick: () => kindRendern(Object.assign({}, parameterKind, { fachId: f.id, verhaltenAlleFaecher: false }))
+      });
+      knopf.style.setProperty('--fachfarbe', M.fachFarbe(f));
+      leiste.appendChild(knopf);
+      if (aktiv) setTimeout(function () {
+        try { knopf.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* egal */ }
+      }, 0);
+    });
+    inhalt.appendChild(leiste);
+
+    // Stand im gewählten Fach: Gesamtwert, Vorschlag, Zahl der Einheiten
+    inhalt.appendChild(H.el('div', { class: 'einst-karte aw-kopf' }, [
+      H.el('div', { class: 'aw-kopf-text' }, [
+        H.el('div', { class: 'aw-titel klein', text: fach.name }),
         H.el('div', { class: 'text-klein text-schwach', text: a.anwesend
-          ? (a.anwesend === 1 ? '1 erfasste Stunde' : a.anwesend + ' erfasste Stunden') + (a.gefehlt ? ' · ' + a.gefehlt + '× gefehlt' : '')
+          ? (a.anwesend === 1 ? '1 erfasste Einheit' : a.anwesend + ' erfasste Einheiten') + (a.gefehlt ? ' · ' + a.gefehlt + '× gefehlt' : '')
           : 'Noch keine Einträge' + (a.gefehlt ? ' · ' + a.gefehlt + '× gefehlt' : '') })
       ]),
       H.el('div', { class: 'aw-kopf-werte' }, [
@@ -595,7 +648,7 @@ NB.Auswertung = (function () {
     function springen(richtung) {
       const ziel = kinder[i + richtung];
       if (!ziel) return;
-      N.bildschirmOeffnen('auswertung-kind', { klasseId: klasse.id, fachId: parameterKind.fachId, kindId: ziel.id });
+      kindRendern({ klasseId: klasse.id, fachId: parameterKind.fachId, kindId: ziel.id });
     }
     return [
       H.el('button', { type: 'button', class: 'symbolknopf', 'aria-label': 'Vorheriges Kind', disabled: i <= 0, onclick: () => springen(-1) }, H.el('span', { class: 'pfeil-zurueck', 'aria-hidden': 'true', text: '‹' })),
@@ -610,11 +663,11 @@ NB.Auswertung = (function () {
     zurueck: true,
     zeigen: klasseRendern
   });
-  N.bildschirmRegistrieren('auswertung-kind', {
+  N.bildschirmRegistrieren('kind', {
     titel: function () {
       const klasse = parameterKind && M.klasse(parameterKind.klasseId);
       const kind = klasse && M.kind(klasse, parameterKind.kindId);
-      return kind ? M.kindName(kind) : 'Auswertung';
+      return kind ? M.kindName(kind) : 'Kind';
     },
     zurueck: true,
     kopfRechts: kindKopfRechts,
