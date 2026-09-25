@@ -405,6 +405,21 @@ NB.Modell = (function () {
     return klasse.kinder.find(k => k.id === kindId) || null;
   };
 
+  /**
+   * Wird dieses Kind benotet? Aus (kind.ohneNote === true) heißt: erfassen ja,
+   * Note nein – keine Vorbelegung, keine Übernahme beim Weiterspringen, kein
+   * Gesamtwert und kein Notenvorschlag. Gilt für alle Fächer.
+   */
+  M.kindOhneNote = kind => !!(kind && kind.ohneNote === true);
+
+  /** „Wird nicht benotet“ für ein Kind setzen oder aufheben. */
+  M.kindOhneNoteSetzen = function (klasse, kindId, ohneNote) {
+    const kind = M.kind(klasse, kindId);
+    if (!kind) return;
+    if (ohneNote) kind.ohneNote = true; else delete kind.ohneNote;
+    M.klasseSpeichern(klasse);
+  };
+
   /** Kind aus der Klasse, aus allen Einheiten der Klasse und aus den Notizen entfernen. */
   M.kindEntfernen = function (klasse, kindId) {
     klasse.kinder = (klasse.kinder || []).filter(k => k.id !== kindId);
@@ -755,6 +770,8 @@ NB.Modell = (function () {
     if (einheit && M.ausgesetzt(einheit, kriteriumId)) return { wert: vorhanden ? vorhanden.wert : null, art: 'ausgesetzt' };
     if (vorhanden) return vorhanden;
     if (!M.istStundenkriterium(kriteriumId)) return { wert: null, art: 'offen' };
+    // Kinder ohne Note bekommen keine Vorbelegung – nur selbst gesetzte Werte
+    if (M.kindOhneNote(M.kind(M.klasse(klasseId), kindId))) return { wert: null, art: 'offen' };
     const standard = M.standardNote(fachId);
     if (typeof standard === 'number') return { wert: standard, art: 'vorbelegt' };
     if (standard === 'letzte') {
@@ -772,6 +789,7 @@ NB.Modell = (function () {
   M.vorbelegungUebernehmen = function (b, kindId) {
     const eintrag = b.kinder ? b.kinder[kindId] : null;
     if (eintrag && eintrag.fehlt) return false;
+    if (M.kindOhneNote(M.kind(M.klasse(b.klasseId), kindId))) return false;   // kein automatischer Wert
     const standard = M.standardNote(b.fachId);
     if (standard === 'keine') return false;
     let geschrieben = false;

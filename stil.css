@@ -1565,3 +1565,5 @@ button.kl-zahl:active { background: var(--akzent-hell); }
 .einst-eintrag-text.mit-punkt .einst-eintrag-titel { display: flex; align-items: center; }
 /* Aktives Fach in der Fächerleiste in seiner Farbe */
 .bw-fach[aria-pressed="true"] { background: var(--fachfarbe, var(--akzent)); border-color: var(--fachfarbe, var(--akzent)); }
+.kind-benotung { margin-bottom: 14px; }
+.bw-position.ohne-note { color: var(--akzent-dunkel); }

@@ -308,12 +308,12 @@ NB.Export = (function () {
   };
 
   X.csvAuswertungText = function () {
-    const zeilen = [csvZeile(['Klasse', 'Fach', 'Kind', 'Kürzel', 'Erfasste Stunden', 'Gefehlt', 'Gesamtwert', 'Notenvorschlag', 'Arbeits- und Sozialverhalten'])];
+    const zeilen = [csvZeile(['Klasse', 'Fach', 'Kind', 'Kürzel', 'Erfasste Stunden', 'Gefehlt', 'Gesamtwert', 'Notenvorschlag', 'Arbeits- und Sozialverhalten', 'Hinweis'])];
     M.klassen().forEach(function (klasse) {
       M.klassenFaecher(klasse, { mitStillgelegten: true }).forEach(function (fach) {
         if (!NB.Auswertung.stunden(klasse.id, fach.id).length) return;
         NB.Auswertung.klasse(klasse, fach).forEach(function (z) {
-          zeilen.push(csvZeile([klasse.name, fach.name, z.kind.name || '', z.kind.kuerzel || '', z.anwesend, z.gefehlt, csvZahl(z.gesamt), z.vorschlag == null ? '' : csvZahl(z.vorschlag), csvZahl(z.verhalten)]));
+          zeilen.push(csvZeile([klasse.name, fach.name, z.kind.name || '', z.kind.kuerzel || '', z.anwesend, z.gefehlt, csvZahl(z.gesamt), z.vorschlag == null ? '' : csvZahl(z.vorschlag), csvZahl(z.verhalten), z.ohneNote ? 'wird nicht benotet' : '']));
         });
       });
     });

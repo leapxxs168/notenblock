@@ -88,7 +88,8 @@ NB.Auswertung = (function () {
     const e = M.einstellungen();
     const einrechnen = e.uebernommeneZaehlen !== false;   // übernommene Standardnoten mitzählen
     const alleZaehlen = e.alleStundenkriterienZaehlen === true;  // auch die übrigen Stundenleistungen in die Note
-    const benotet = M.istBenotet(klasse);                 // Stufe 1–2: kein Notenvorschlag
+    const ohneNote = M.kindOhneNote(M.kind(klasse, kindId));  // Kind wird nicht benotet
+    const benotet = M.istBenotet(klasse);                 // Stufe der Klasse (1–2: Stufen statt Noten)
     // Stundenkriterien in der Fassung dieses Fachs (gleiche ids, ggf. eigener Name und Texte)
     const stundenkriterien = M.stundenkriterienImFach(fach.id);
     const kriterien = stundenkriterien.concat(M.kompetenzenAlle(fach, klasse.stufe || null));
@@ -149,14 +150,15 @@ NB.Auswertung = (function () {
         stufenText: naechsteStufe ? ((k.stufen && k.stufen[naechsteStufe - 1]) || '') : ''
       };
     });
-    const gesamt = gg > 0 ? gs / gg : null;
+    const gesamt = (gg > 0 && !ohneNote) ? gs / gg : null;   // ohne Note: kein Gesamtwert
     return {
       kriterien: zeilen,
+      ohneNote: ohneNote,
       bereiche: bereicheBilden(zeilen.filter(z => !z.stundenkriterium), fach),
       gesamt: gesamt,
       verhalten: vg > 0 ? vs / vg : null,
       verhaltenAnzahl: verlaufVerhalten.length,
-      vorschlag: benotet ? A.notenvorschlag(gesamt, e.rundung) : null,
+      vorschlag: (benotet && !ohneNote) ? A.notenvorschlag(gesamt, e.rundung) : null,
       benotet: benotet,
       anwesend: anwesend,
       gefehlt: gefehlt,
@@ -245,7 +247,7 @@ NB.Auswertung = (function () {
   A.klasse = function (klasse, fach) {
     return M.kinderSortiert(klasse).map(function (kind) {
       const a = A.kind(klasse, fach, kind.id);
-      return { kind: kind, gesamt: a.gesamt, vorschlag: a.vorschlag, benotet: a.benotet, verhalten: a.verhalten, anwesend: a.anwesend, gefehlt: a.gefehlt };
+      return { kind: kind, gesamt: a.gesamt, vorschlag: a.vorschlag, benotet: a.benotet, ohneNote: a.ohneNote, verhalten: a.verhalten, anwesend: a.anwesend, gefehlt: a.gefehlt };
     });
   };
 
@@ -427,18 +429,20 @@ NB.Auswertung = (function () {
     zeilen.forEach(function (z) {
       liste.appendChild(H.el('button', {
         type: 'button', class: 'aw-zeile',
-        'aria-label': M.kindName(z.kind) + ': Gesamtwert ' + A.zahlText(z.gesamt) + (benotet ? ', Vorschlag ' + A.vorschlagText(z.vorschlag) : ''),
+        'aria-label': M.kindName(z.kind) + (z.ohneNote ? ': wird nicht benotet' : ': Gesamtwert ' + A.zahlText(z.gesamt) + (benotet ? ', Vorschlag ' + A.vorschlagText(z.vorschlag) : '')),
         onclick: () => A.kindOeffnen({ klasseId: klasse.id, fachId: fach.id, kindId: z.kind.id })
       }, [
         H.el('span', { class: 'aw-zeile-name' }, [
           H.el('span', { class: 'aw-name', text: M.kindName(z.kind) }),
           H.el('span', { class: 'text-klein text-schwach', text: (z.anwesend ? (z.anwesend === 1 ? '1 Stunde' : z.anwesend + ' Stunden') : 'keine Einträge') + (z.gefehlt ? ', ' + z.gefehlt + '× gefehlt' : '') })
         ]),
-        balken(z.gesamt),
-        H.el('span', { class: 'aw-werte' }, [
-          H.el('span', { class: 'aw-gesamt', text: A.zahlText(z.gesamt) }),
-          benotet ? H.el('span', { class: 'aw-vorschlag ' + noteKlasse(z.vorschlag), text: A.vorschlagText(z.vorschlag), title: 'Notenvorschlag' }) : null
-        ])
+        z.ohneNote ? null : balken(z.gesamt),
+        H.el('span', { class: 'aw-werte' }, z.ohneNote
+          ? H.el('span', { class: 'text-klein text-schwach', text: 'ohne Note' })
+          : [
+            H.el('span', { class: 'aw-gesamt', text: A.zahlText(z.gesamt) }),
+            benotet ? H.el('span', { class: 'aw-vorschlag ' + noteKlasse(z.vorschlag), text: A.vorschlagText(z.vorschlag), title: 'Notenvorschlag' }) : null
+          ])
       ]));
     });
     inhalt.appendChild(liste);
@@ -495,6 +499,38 @@ NB.Auswertung = (function () {
     kopf.style.setProperty('--klassenfarbe', M.klassenFarbe(klasse));
     inhalt.appendChild(kopf);
 
+    // „Wird benotet“: aus für Kinder, die nicht benotet werden (etwa bei
+    // Förderbedarf). Erfassen bleibt möglich, es entsteht nur keine Note.
+    const ohneNote = M.kindOhneNote(kind);
+    const notenSchalter = H.el('input', { type: 'checkbox', class: 'schalter', role: 'switch', 'aria-label': 'Wird benotet' });
+    notenSchalter.checked = !ohneNote;
+    notenSchalter.setAttribute('aria-checked', notenSchalter.checked ? 'true' : 'false');
+    notenSchalter.addEventListener('change', async function () {
+      if (!notenSchalter.checked) {
+        const ok = await NB.Dialog.bestaetigen({
+          titel: M.kindName(kind) + ' nicht benoten?',
+          text: 'Du kannst weiter beobachten und Werte setzen. Es entstehen aber keine Vorbelegung und keine übernommenen Standardnoten mehr, und in Auswertung, Profil und CSV erscheinen kein Gesamtwert und kein Notenvorschlag. Bereits erfasste Werte bleiben erhalten.',
+          bestaetigen: 'Nicht benoten'
+        });
+        if (!ok) {
+          notenSchalter.checked = true;
+          notenSchalter.setAttribute('aria-checked', 'true');
+          return;
+        }
+      }
+      M.kindOhneNoteSetzen(klasse, kind.id, !notenSchalter.checked);
+      kindRendern(parameterKind);
+    });
+    inhalt.appendChild(H.el('label', { class: 'einst-karte einst-zeile kind-benotung' }, [
+      H.el('div', { class: 'einst-text' }, [
+        H.el('div', { class: 'einst-label', text: 'Wird benotet' }),
+        H.el('div', { class: 'einst-beschreibung text-klein text-schwach', text: ohneNote
+          ? 'Aus: Dieses Kind wird nicht benotet – erfasst wird weiter, Gesamtwert und Notenvorschlag entfallen in allen Fächern.'
+          : 'Aus schalten, wenn das Kind nicht benotet wird (etwa bei Förderbedarf). Gilt für alle Fächer.' })
+      ]),
+      H.el('div', { class: 'einst-steuerung' }, notenSchalter)
+    ]));
+
     // Fächerleiste der Klasse; das aktive Fach in seiner Farbe
     const leiste = H.el('div', { class: 'bw-faecher kind-faecher', role: 'group', 'aria-label': 'Fach' });
     faecher.forEach(function (f) {
@@ -520,12 +556,14 @@ NB.Auswertung = (function () {
           ? (a.anwesend === 1 ? '1 erfasste Einheit' : a.anwesend + ' erfasste Einheiten') + (a.gefehlt ? ' · ' + a.gefehlt + '× gefehlt' : '')
           : 'Noch keine Einträge' + (a.gefehlt ? ' · ' + a.gefehlt + '× gefehlt' : '') })
       ]),
-      H.el('div', { class: 'aw-kopf-werte' }, [
-        H.el('div', { class: 'aw-gesamt-gross', text: A.zahlText(a.gesamt) }),
-        H.el('div', { class: 'text-klein text-schwach', text: 'Gesamtwert' }),
-        a.benotet ? H.el('div', { class: 'aw-vorschlag gross ' + noteKlasse(a.vorschlag), text: A.vorschlagText(a.vorschlag) }) : null,
-        a.benotet ? H.el('div', { class: 'text-klein text-schwach', text: 'Vorschlag' }) : null
-      ])
+      H.el('div', { class: 'aw-kopf-werte' }, a.ohneNote
+        ? H.el('div', { class: 'text-klein text-schwach', text: 'wird nicht benotet' })
+        : [
+          H.el('div', { class: 'aw-gesamt-gross', text: A.zahlText(a.gesamt) }),
+          H.el('div', { class: 'text-klein text-schwach', text: 'Gesamtwert' }),
+          a.benotet ? H.el('div', { class: 'aw-vorschlag gross ' + noteKlasse(a.vorschlag), text: A.vorschlagText(a.vorschlag) }) : null,
+          a.benotet ? H.el('div', { class: 'text-klein text-schwach', text: 'Vorschlag' }) : null
+        ])
     ]));
 
     // Zeile eines Kriteriums: Name (mit Gewicht), Schnitt · Anzahl, Balken, in Stufe 1–2 der Stufentext

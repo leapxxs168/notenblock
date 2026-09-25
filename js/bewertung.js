@@ -559,7 +559,9 @@ NB.Bewertung = (function () {
 
     el.kindname.textContent = M.kindName(kind);
     el.kindname.setAttribute('aria-label', M.kindName(kind) + ' – Profil öffnen');
-    el.position.textContent = (z.kindIndex + 1) + ' von ' + kinder.length;
+    // Kind ohne Note: Hinweis unter dem Namen, keine Vorbelegung, keine Übernahme
+    el.position.classList.toggle('ohne-note', M.kindOhneNote(kind));
+    el.position.textContent = (z.kindIndex + 1) + ' von ' + kinder.length + (M.kindOhneNote(kind) ? ' · wird nicht benotet' : '');
     statistikRendern(kind);
 
     const b = M.einheit(z.klasseId, z.fachId, z.datum, z.stunde);
