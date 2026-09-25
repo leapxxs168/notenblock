@@ -21,7 +21,8 @@ NB.Einstellungen = (function () {
     { id: 'faecher', titel: 'Fächer und Kriterien', text: 'Anlegen, umbenennen, sortieren, Gewichte' },
     { id: 'darstellung', titel: 'Darstellung', text: 'Beschreibungen, Notizfeld, Schriftgröße, Wischen' },
     { id: 'datenschutz', titel: 'Datenschutz', text: 'Kürzel, automatische Sperre, Passphrase' },
-    { id: 'daten', titel: 'Daten', text: 'Sicherung, Löschen' }
+    { id: 'daten', titel: 'Daten', text: 'Sicherung, Löschen' },
+    { id: 'hilfe', titel: 'Hilfe', text: 'Einführung und alle Funktionen im Überblick' }
   ];
 
   const NOTEN_OPTIONEN = function () {
@@ -149,8 +150,75 @@ NB.Einstellungen = (function () {
       case 'darstellung': darstellungRendern(inhalt); break;
       case 'datenschutz': datenschutzRendern(inhalt); break;
       case 'daten': datenRendern(inhalt); break;
+      case 'hilfe': hilfeRendern(inhalt); break;
       default: break;
     }
+  }
+
+  /* ---------- Hilfe ---------- */
+
+  /** Themen der Hilfeseite: Titel und Absätze, jeweils einklappbar. */
+  const HILFE = [
+    ['Erste Schritte', [
+      'Lege unter „Klassen“ deine erste Klasse an: Name und Stufe, dann Fächer, Stundenplan und die Kinder. Die Schritte 2 bis 4 lassen sich überspringen und später in der Klassenübersicht nachholen.',
+      'Die Stufe entscheidet über Fächer und Kompetenzen. In Klasse 1 und 2 gibt es keine Noten, sondern sechs Stufen mit Beschreibungstexten.',
+      'Alles speichert sofort. Einen Speichern-Knopf gibt es nicht.'
+    ]],
+    ['Kalender, Stundenplan und Termine', [
+      'Oben im Kalender wählst du „Mein Plan“ oder eine Klasse, darunter Tag, Woche oder Monat. Dein eigener Plan ist die Summe aller eigenen Stunden aller Klassen; gepflegt wird der Plan je Klasse (Klassenübersicht → Stundenplan).',
+      'Eine Stunde kann eine eigene Stunde sein (Fach, Raum, Turnus jede/A/B) oder eine fremde Stunde einer anderen Lehrkraft – letztere dient nur der Übersicht.',
+      'Zwei unmittelbar aufeinanderfolgende eigene Stunden desselben Fachs bilden eine Bewertungseinheit (Doppelstunde).',
+      'Termine sind alles, was kein Unterricht ist: Ausflug, Konferenz, Elternabend, Fortbildung, Sprechtag. Ein Termin kann ganztägig sein oder eine Uhrzeit haben, zu einer Klasse gehören und mit dem Schalter „Unterricht fällt an diesem Tag aus“ den Unterricht entfallen lassen.',
+      'Uhrzeiten, Schuljahr, A-Woche, Ferien und Feiertage gelten für alle Klassen: Einstellungen → Stundenplan.'
+    ]],
+    ['Bewerten', [
+      'Der Bewertungsbildschirm zeigt ein Kind nach dem anderen. In der Kopfzeile stehen Klasse, Datum und die Einheit; gibt es am Tag mehrere Einheiten des Fachs, lässt sich die Einheit dort antippen und wechseln. Steht laut Plan keine Stunde an, kannst du eine Stundennummer wählen (Vertretung).',
+      '„Stunde“ zeigt die sieben Kriterien zu Mitarbeit, Arbeits- und Sozialverhalten, „Kompetenzen“ die Fachinhalte nach Lehrplanbereich.',
+      'Die Skala bedienst du durch Tippen oder Ziehen; die Ziffern 1 bis 6 auf der Tastatur gehen auch. Wischen nach links und rechts wechselt das Kind.',
+      '„Weiter“ schreibt offene Stundenkriterien mit der Standardnote fest – das Kind gilt damit als bewertet. Die Pfeile ‹ › überspringen das Kind, ohne etwas festzuschreiben.',
+      '„Fehlt“ nimmt das Kind aus dieser Stunde heraus. „Aussetzen“ blendet ein Kriterium für diese eine Einheit aus – für alle Kinder.',
+      '„Bewertung zurücknehmen …“ unter den Kriterien löscht wahlweise die Einträge des aktuellen Kindes in dieser Stunde oder die ganze Stunde.',
+      'Oben lässt sich die Planung der Stunde aufklappen: Thema, Verlauf, Material, Hausaufgabe und „Planung fertig“.'
+    ]],
+    ['Noten und Auswertung', [
+      'Gespeichert werden immer einzelne, datierte Werte. Die Note entsteht erst in der Auswertung: gewichteter Durchschnitt, eine Nachkommastelle, daraus der Notenvorschlag (Rundung unter Einstellungen → Bewertung).',
+      'In die Fachnote fließen die Kompetenzen ein und die Stundenkriterien mit „Zählt zur Fachleistung“ – standardmäßig die Mündliche Mitarbeit, deren Gewicht du je Fach festlegen kannst. Mit dem Schalter „Alle Stundenleistungen in die Note“ zählen auch die übrigen Kriterien.',
+      'Das Arbeits- und Sozialverhalten wird getrennt ausgewiesen, je Fach und über alle Fächer – für Zeugnisbemerkungen.',
+      'Das Kinderprofil erreichst du über die Namensliste der Klasse oder mit einem Tipp auf den Namen beim Bewerten. Dort stehen Fachleistung, Verhalten, Verlauf, Textbausteine und Notizen.',
+      'Soll ein Kind nicht benotet werden (etwa bei Förderbedarf), stellst du im Profil „Wird benotet“ aus: Erfassen bleibt möglich, Gesamtwert und Notenvorschlag entfallen.'
+    ]],
+    ['Notizen und Aufgaben', [
+      'Notizen können zu einer Klasse, einem Kind und einem Fach gehören; im Kinderprofil erscheinen sie automatisch beim richtigen Kind.',
+      'Aufgaben sind kurze Merker mit Fälligkeit; fällige Aufgaben erscheinen in der Tagesansicht des Kalenders.'
+    ]],
+    ['Fächer, Kriterien und Farben', [
+      'Unter Einstellungen → Fächer und Kriterien bearbeitest du die Stundenkriterien und je Stufe die Fächer mit ihren Kompetenzen: Name, Lehrplanbereich, Gewicht, Aktiv und die sechs Beschreibungstexte.',
+      'Ein Kriterium kann je Fach eine eigene Fassung haben – anderer Name, andere Texte, dieselbe Bewertung (etwa „Sportzeug und Geräte“ in Sport).',
+      'Fächer lassen sich stilllegen statt löschen; sie verschwinden aus der Erfassung, alle Daten bleiben und sind in der Auswertung weiter erreichbar.',
+      'Klassen und Fächer haben eine Farbe aus einer festen Palette. Sie dient nur der Orientierung – Noten und Stufen behalten ihre eigenen Farben.'
+    ]],
+    ['Daten, Sicherheit und Löschfristen', [
+      'Alle Daten liegen ausschließlich auf diesem Gerät, verschlüsselt mit deiner Passphrase. Es gibt keinen Server, keine Cloud und keine Anmeldung.',
+      'Nach fünf Minuten ohne Bedienung sperrt sich die App (Einstellungen → Datenschutz). Ohne Passphrase sind die Daten nicht lesbar – auch nicht für den Hersteller.',
+      'Sicherungen erstellst du unter Einstellungen → Daten; sie sind ebenfalls verschlüsselt. CSV-Dateien sind unverschlüsselt und für Tabellenprogramme gedacht.',
+      'Je Klasse ist das Schuljahr hinterlegt, in dem zuletzt unterrichtet wurde. Ein Jahr nach Ablauf erinnert Notenblock an das Löschen; gelöscht wird nur auf Tipp.'
+    ]]
+  ];
+
+  function hilfeRendern(inhalt) {
+    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Kurz zum Einstieg oder ausführlich zum Nachschlagen – die Einführung lässt sich jederzeit erneut ansehen.' }));
+    inhalt.appendChild(H.el('div', { class: 'knopfzeile' }, H.el('button', {
+      type: 'button', class: 'knopf primaer', text: 'Einführung ansehen', onclick: () => NB.Einfuehrung.oeffnen()
+    })));
+    const liste = H.el('div', { class: 'hilfe-liste' });
+    HILFE.forEach(function (thema) {
+      liste.appendChild(H.el('details', { class: 'hilfe-thema' }, [
+        H.el('summary', { text: thema[0] }),
+        H.el('div', { class: 'hilfe-text' }, thema[1].map(t => H.el('p', { text: t })))
+      ]));
+    });
+    inhalt.appendChild(gruppe('Funktionen im Überblick', [liste]));
+    inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Weitere Unterlagen liegen im Notenblock-Ordner: START.md erklärt das Starten und Aktualisieren, datenschutz.md beschreibt die Daten für das Verzeichnis der Verarbeitungstätigkeiten.' }));
   }
 
   /* ---------- Bewertung ---------- */

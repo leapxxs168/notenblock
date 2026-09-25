@@ -116,6 +116,8 @@ NB.App = (function () {
       }
       // Klassen und Fächer ohne Farbe bekommen eine aus der Palette (auch im frischen Bestand)
       try { NB.Modell.farbenErgaenzen(); } catch (fehler) { console.error(fehler); }
+      // Beim allerersten Start die Einführung zeigen
+      try { if (NB.Einfuehrung) NB.Einfuehrung.beimStartPruefen(); } catch (fehler) { console.error(fehler); }
       NB.Navigation.start();        // Seitenstart oder Neuanfang
       if (NB.Speicher.backend === 'localstorage' && !hinweisGezeigt) {
         hinweisGezeigt = true;

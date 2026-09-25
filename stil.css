@@ -1568,3 +1568,36 @@ button.kl-zahl:active { background: var(--akzent-hell); }
 .kind-benotung { margin-bottom: 14px; }
 .bw-position.ohne-note { color: var(--akzent-dunkel); }
 .bw-zuruecknehmen { display: flex; justify-content: flex-end; margin: 4px 16px 0; }
+
+/* Einführung: Karten beim ersten Start */
+.overlay.einfuehrung .overlay-inhalt { max-width: 460px; }
+.ein-inhalt { display: flex; flex-direction: column; }
+.ein-skizze { width: 100%; height: auto; max-height: 132px; margin-bottom: 14px; background: var(--hintergrund); border-radius: 10px; }
+.ein-skizze .ein-linie { fill: none; stroke: var(--linie-stark); stroke-width: 2; }
+.ein-skizze .ein-linie-voll { fill: var(--linie-stark); }
+.ein-skizze .ein-fuell { fill: var(--text-schwach); }
+.ein-skizze .ein-hell { fill: var(--linie); }
+.ein-skizze .ein-akzent { fill: var(--akzent); }
+.ein-skizze .ein-weiss { fill: var(--flaeche); }
+.ein-titel { margin: 0 0 6px; font-size: 1.2rem; }
+.ein-titel:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
+.ein-text { margin: 0 0 10px; }
+.ein-liste { margin: 0 0 12px; padding-left: 20px; color: var(--text-schwach); font-size: var(--schrift-klein); }
+.ein-liste li { margin-bottom: 4px; }
+.ein-punkte { display: flex; justify-content: center; gap: 6px; margin-top: 4px; }
+.ein-punkt { width: 7px; height: 7px; border-radius: 50%; background: var(--linie-stark); }
+.ein-punkt.aktiv { background: var(--akzent); }
+.ein-zaehler { text-align: center; margin: 6px 0 0; }
+.ein-knoepfe { margin-top: 10px; }
+
+/* Hilfeseite */
+.hilfe-liste { display: flex; flex-direction: column; }
+.hilfe-thema { border-bottom: 1px solid var(--linie); }
+.hilfe-thema:last-child { border-bottom: none; }
+.hilfe-thema summary { display: flex; align-items: center; min-height: var(--tippziel); padding: 8px 14px; font-weight: 600; cursor: pointer; }
+.hilfe-thema summary::-webkit-details-marker { display: none; }
+.hilfe-thema summary::after { content: "⌄"; margin-left: auto; color: var(--text-schwach); }
+.hilfe-thema[open] summary::after { content: "⌃"; }
+.hilfe-text { padding: 0 14px 12px; }
+.hilfe-text p { margin: 0 0 8px; color: var(--text-schwach); font-size: var(--schrift-klein); }
+.hilfe-text p:last-child { margin-bottom: 0; }

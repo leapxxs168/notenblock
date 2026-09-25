@@ -37,6 +37,7 @@ NB.Startdaten = (function () {
       rundung: 'kaufmaennisch',        // 'kaufmaennisch' | 'zugunsten' | 'nachkomma'
       uebernommeneZaehlen: true,       // beim Verlassen festgeschriebene Standardnoten in der Auswertung mitzählen
       alleStundenkriterienZaehlen: false, // aus: nur Kompetenzen und „Zählt zur Fachleistung“ bilden die Note
+      einfuehrungGesehen: false,       // Einführungskarten beim ersten Start
       mitarbeitGewichtJeFach: {},      // fachId → Gewicht der mündlichen Mitarbeit in der Fachleistung (Standard: Gewicht des Kriteriums)
       // Darstellung
       beschreibungenAnzeigen: true,

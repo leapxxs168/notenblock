@@ -51,6 +51,10 @@ Dann auf dem iPad/iPhone:
 
 Die Passphrase wird auf jedem Gerät eigens festgelegt; es gibt keinen Abgleich zwischen Geräten.
 
+## Einführung und Hilfe
+
+Beim ersten Start zeigt Notenblock eine kurze Einführung in sieben Karten; sie lässt sich überspringen. Unter **Einstellungen → Hilfe** ist sie jederzeit erneut zu öffnen, dazu steht dort ein Überblick über alle Funktionen zum Nachschlagen.
+
 ## Nach einer Aktualisierung
 
 Wenn neue Dateien in den Ordner kommen: die App zweimal neu laden, mit ein paar Sekunden Abstand. Beim ersten Laden holt sich der Offline-Cache die neue Fassung vollständig im Hintergrund, beim zweiten Laden ist sie aktiv. Dateien aus zwei Fassungen werden nie gemischt.
