@@ -1567,3 +1567,4 @@ button.kl-zahl:active { background: var(--akzent-hell); }
 .bw-fach[aria-pressed="true"] { background: var(--fachfarbe, var(--akzent)); border-color: var(--fachfarbe, var(--akzent)); }
 .kind-benotung { margin-bottom: 14px; }
 .bw-position.ohne-note { color: var(--akzent-dunkel); }
+.bw-zuruecknehmen { display: flex; justify-content: flex-end; margin: 4px 16px 0; }

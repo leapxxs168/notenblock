@@ -702,6 +702,37 @@ NB.Modell = (function () {
   };
   M.bewertungen = M.einheiten;
 
+  /**
+   * Bewertung eines Kindes in einer Einheit zurücknehmen: alle Werte, „fehlt“
+   * und die Notiz zu dieser Stunde. Bleibt danach nichts übrig, verschwindet
+   * die Einheit ganz. Andere Kinder und andere Stunden bleiben unberührt.
+   */
+  M.kindBewertungLoeschen = function (klasseId, fachId, datum, stunde, kindId) {
+    const b = M.einheit(klasseId, fachId, datum, stunde);
+    if (!b || !b.kinder || !b.kinder[kindId]) return false;
+    delete b.kinder[kindId];
+    if (!M.bewertungHatInhalt(b)) D.entfernen('bewertung', M.einheitSchluesselVon(b));
+    else M.einheitSpeichern(b);
+    return true;
+  };
+
+  /** Ganze Einheit löschen (alle Kinder dieser Stunde). */
+  M.einheitLoeschen = function (klasseId, fachId, datum, stunde) {
+    const schluessel = M.einheitSchluessel(klasseId, fachId, datum, stunde);
+    if (!D.holen('bewertung', schluessel)) return false;
+    D.entfernen('bewertung', schluessel);
+    return true;
+  };
+
+  /** Anzahl der Kinder mit Inhalt in einer Einheit. */
+  M.anzahlKinderInEinheit = function (b) {
+    if (!b || !b.kinder) return 0;
+    return Object.keys(b.kinder).filter(function (id) {
+      const e = b.kinder[id];
+      return e && (e.fehlt || (e.notiz && e.notiz.trim()) || (e.noten && Object.keys(e.noten).length));
+    }).length;
+  };
+
   /** Archivierte Einheiten (frühere Kriterien) je Klasse und Fach. */
   M.archivierteEinheiten = function (klasseId, fachId) {
     return D.alle('bewertung').filter(b => b.archiviert && (!klasseId || b.klasseId === klasseId) && (!fachId || b.fachId === fachId));

@@ -411,9 +411,13 @@ NB.Bewertung = (function () {
       H.el('label', {}, [H.el('span', { class: 'feld-name text-klein', text: 'Notiz' }), el.notiz])
     ]);
 
+    el.zuruecknehmen = H.el('div', { class: 'bw-zuruecknehmen', hidden: true }, H.el('button', {
+      type: 'button', class: 'textknopf klein', text: 'Bewertung zurücknehmen …', onclick: zuruecknehmen
+    }));
+
     el.leer = H.el('div', { class: 'leer', hidden: true });
 
-    H.anhaengen(wurzel, [el.planung, el.hinweis, el.kindzeile, el.faecher, el.ansicht, el.fehltHinweis, el.fachHinweis, el.matrix, el.notizzeile, el.leer]);
+    H.anhaengen(wurzel, [el.planung, el.hinweis, el.kindzeile, el.faecher, el.ansicht, el.fehltHinweis, el.fachHinweis, el.matrix, el.zuruecknehmen, el.notizzeile, el.leer]);
 
     // Fußleiste
     el.balken = H.el('span');
@@ -568,6 +572,7 @@ NB.Bewertung = (function () {
     const eintrag = b && b.kinder ? b.kinder[kind.id] : null;
     const fehlt = !!(eintrag && eintrag.fehlt);
     el.fehltHinweis.hidden = !fehlt;
+    el.zuruecknehmen.hidden = !b || !M.anzahlKinderInEinheit(b);
     el.notiz.value = eintrag && eintrag.notiz ? eintrag.notiz : '';
     fachHinweisRendern();
     matrixRendern(kind, eintrag, fehlt);
@@ -631,6 +636,50 @@ NB.Bewertung = (function () {
         }));
       });
     });
+  }
+
+  /**
+   * Bewertung zurücknehmen: entweder nur die Werte des aktuellen Kindes in
+   * dieser Einheit oder die ganze Stunde. Andere Stunden bleiben unberührt.
+   */
+  async function zuruecknehmen() {
+    const kind = aktuellesKind();
+    const b = M.einheit(z.klasseId, z.fachId, z.datum, z.stunde);
+    if (!kind || !b) return;
+    const anzahl = M.anzahlKinderInEinheit(b);
+    const eintrag = b.kinder ? b.kinder[kind.id] : null;
+    const kindHatWerte = !!(eintrag && (eintrag.fehlt || (eintrag.notiz && eintrag.notiz.trim()) || (eintrag.noten && Object.keys(eintrag.noten).length)));
+    const einheitText = (z.stunde === M.OHNE_STUNDE ? 'Tag' : NB.Stundenplan.stundenText(z.stunde, z.stundeBis)) + ' am ' + H.datumKurzOhneJahr(z.datum);
+    const optionen = [];
+    if (kindHatWerte) optionen.push({ text: 'Nur ' + M.kindName(kind), untertitel: 'Werte, „Fehlt“ und Notiz dieses Kindes in dieser Stunde', wert: 'kind' });
+    optionen.push({ text: 'Ganze Stunde', untertitel: anzahl === 1 ? '1 Kind mit Einträgen' : anzahl + ' Kinder mit Einträgen', wert: 'einheit', klasse: 'auswahl-sekundaer' });
+    const wahl = await NB.Dialog.auswahl({ titel: 'Bewertung zurücknehmen – ' + einheitText, optionen: optionen });
+    if (!wahl) return;
+
+    if (wahl === 'kind') {
+      const ok = await NB.Dialog.bestaetigen({
+        titel: 'Bewertung von ' + M.kindName(kind) + ' zurücknehmen?',
+        text: 'Alle Werte, „Fehlt“ und die Notiz dieses Kindes in dieser Stunde werden gelöscht. Andere Kinder und andere Stunden bleiben unberührt.',
+        bestaetigen: 'Zurücknehmen',
+        gefaehrlich: true
+      });
+      if (!ok) return;
+      M.kindBewertungLoeschen(z.klasseId, z.fachId, z.datum, z.stunde, kind.id);
+      NB.App.meldung('Bewertung von ' + M.kindName(kind) + ' zurückgenommen.');
+    } else {
+      const ok = await NB.Dialog.bestaetigen({
+        titel: 'Ganze Stunde löschen?',
+        text: 'Die Einträge aller Kinder in dieser Stunde (' + einheitText + ') werden gelöscht – Werte, „Fehlt“ und Notizen zur Stunde. Andere Stunden und die Planung bleiben erhalten.',
+        bestaetigen: 'Stunde löschen',
+        gefaehrlich: true
+      });
+      if (!ok) return;
+      M.einheitLoeschen(z.klasseId, z.fachId, z.datum, z.stunde);
+      NB.App.meldung('Stunde gelöscht.');
+    }
+    statistikBerechnen();
+    kindRendern();
+    N.fussAktualisieren();
   }
 
   /** Stundenkriterium für die aktuelle Einheit aussetzen oder wieder aufnehmen – einmal für die ganze Klasse. */
@@ -828,16 +877,20 @@ NB.Bewertung = (function () {
   }
 
   /**
-   * Beim Verlassen eines Kindes: Notiz sichern und offene Stundenkriterien mit
-   * der Standardnote festschreiben (nur Arbeits- und Sozialverhalten).
-   * Steht an diesem Tag laut Plan keine Stunde des Fachs, entsteht dabei nichts,
-   * solange die Lehrerin nichts gesetzt und keine Stunde gewählt hat – sonst
-   * legte schon das Durchblättern eine Einheit mit Standardnoten an.
+   * Beim Verlassen eines Kindes wird die Notiz gesichert. Nur mit
+   * uebernehmen = true werden offene Stundenkriterien mit der Standardnote
+   * festgeschrieben – das passiert allein über „Weiter“ (und „Zur
+   * Auswertung“). Pfeile, Wischen, Fach-, Einheiten-, Klassen- oder
+   * Datumswechsel und das Verlassen des Bildschirms überspringen das Kind,
+   * ohne etwas festzuschreiben.
+   * Steht an diesem Tag laut Plan keine Stunde des Fachs, entsteht ohnehin
+   * nichts, solange die Lehrerin nichts gesetzt und keine Stunde gewählt hat.
    */
-  function kindVerlassen() {
+  function kindVerlassen(uebernehmen) {
     const kind = aktuellesKind();
     if (!kind || !z.klasseId || !z.fachId || !z.datum) return;
     notizSpeichern();
+    if (!uebernehmen) return;
     const nurAngesehen = keineStundeLautPlan()
       && z.stundeManuellFuer !== z.datum + '|' + z.fachId
       && !selbstErfasst(kind.id);
@@ -846,21 +899,23 @@ NB.Bewertung = (function () {
     if (M.vorbelegungUebernehmen(b, kind.id)) M.einheitSpeichern(b);
   }
 
-  function kindWechseln(richtung) {
+  /** Zum nächsten oder vorherigen Kind. uebernehmen nur bei „Weiter“. */
+  function kindWechseln(richtung, uebernehmen) {
     if (!kinder.length) return;
     const neu = H.begrenzen(z.kindIndex + richtung, 0, kinder.length - 1);
     if (neu === z.kindIndex) return;
-    kindVerlassen();
+    kindVerlassen(uebernehmen);
     z.kindIndex = neu;
     zustandMerken();
     kindRendern();
   }
 
+  /** „Weiter“: Standardnoten festschreiben – das Kind gilt damit als bewertet. */
   function weiter() {
     if (z.kindIndex < kinder.length - 1) {
-      kindWechseln(1);
+      kindWechseln(1, true);
     } else {
-      kindVerlassen();
+      kindVerlassen(true);
       N.bildschirmOeffnen('auswertung', { klasseId: z.klasseId, fachId: z.fachId, datum: z.datum });
     }
   }
