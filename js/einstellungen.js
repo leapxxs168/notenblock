@@ -168,6 +168,8 @@ NB.Einstellungen = (function () {
       'Oben im Kalender wählst du „Mein Plan“ oder eine Klasse, darunter Tag, Woche oder Monat. Dein eigener Plan ist die Summe aller eigenen Stunden aller Klassen; gepflegt wird der Plan je Klasse (Klassenübersicht → Stundenplan).',
       'Eine Stunde kann eine eigene Stunde sein (Fach, Raum, Turnus jede/A/B) oder eine fremde Stunde einer anderen Lehrkraft – letztere dient nur der Übersicht.',
       'Zwei unmittelbar aufeinanderfolgende eigene Stunden desselben Fachs bilden eine Bewertungseinheit (Doppelstunde).',
+      'Ändert sich der Stundenplan, legst du über dem Raster mit „+ Neuer Plan ab …“ einen neuen an: Er ist eine Kopie des bisherigen, du änderst nur die Stunden, die anders sind. Ein Enddatum brauchst du nie – der vorherige Plan endet am Tag davor. Vergangene Wochen zeigen weiterhin den Plan, der damals galt; mit den Pfeilen blätterst du durch alle Pläne.',
+      'Stunden, die du schon erfasst hast und die es im neuen Plan an diesem Tag nicht mehr gibt, kannst du auf einen Platz derselben Woche umhängen – Bewertung und Planung ziehen gemeinsam um. Der Hinweis dazu steht über dem Raster, einzelne Stunden lassen sich auch später im Bewertungsbildschirm verschieben. Was du stehen lässt, bleibt unverändert erhalten.',
       'Termine sind alles, was kein Unterricht ist: Ausflug, Konferenz, Elternabend, Fortbildung, Sprechtag. Ein Termin kann ganztägig sein oder eine Uhrzeit haben, zu einer Klasse gehören und mit dem Schalter „Unterricht fällt an diesem Tag aus“ den Unterricht entfallen lassen.',
       'Uhrzeiten, Schuljahr, A-Woche, Ferien und Feiertage gelten für alle Klassen: Einstellungen → Stundenplan.'
     ]],
@@ -410,7 +412,7 @@ NB.Einstellungen = (function () {
       return;
     }
     const klassen = M.klassen().filter(k => Array.isArray(k.faecher) && k.faecher.some(z => z.fachId === fach.id));
-    const stunden = M.klassen().reduce((s, k) => s + (k.stundenplan || []).filter(e => e.fachId === fach.id).length, 0);
+    const stunden = M.klassen().reduce((s, k) => s + M.allePlanEintraege(k).filter(e => e.fachId === fach.id).length, 0);
     const einheiten = M.anzahlEinheiten(null, fach.id);
     const ok = await NB.Dialog.bestaetigen({
       titel: '„' + fach.name + '“ stilllegen?',

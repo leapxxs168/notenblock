@@ -120,7 +120,9 @@ NB.BereichKalender = (function () {
 
   function hatPlanSicht() {
     const klasse = sichtKlasse();
-    return klasse ? SP.klassenplan(klasse).length > 0 : SP.hatStundenplan();
+    // Über alle Pläne hinweg: Auch wenn der heutige Plan leer ist, bleibt die
+    // Vergangenheit sichtbar, statt in den Leerzustand zu fallen.
+    return klasse ? SP.alleEintraege(klasse).length > 0 : SP.hatStundenplan();
   }
 
   function stundenTitel(s) {
@@ -455,7 +457,8 @@ NB.BereichKalender = (function () {
     const spalten = wochenende ? 7 : 5;
     let maxStunde = 0;
     stundenJeTag.forEach(liste => liste.forEach(s => { if (s.stundeBis > maxStunde) maxStunde = s.stundeBis; }));
-    (klasse ? SP.klassenplan(klasse) : SP.eintraege()).forEach(e => { if (Number(e.stunde) > maxStunde) maxStunde = Number(e.stunde); });
+    // Höhe des Rasters nach dem Plan, der in dieser Woche gilt
+    (klasse ? SP.klassenplan(klasse, montag) : SP.eintraege(montag)).forEach(e => { if (Number(e.stunde) > maxStunde) maxStunde = Number(e.stunde); });
     if (maxStunde < 1) maxStunde = 1;
 
     const raster = H.el('div', { class: 'wo-raster', role: 'grid' });

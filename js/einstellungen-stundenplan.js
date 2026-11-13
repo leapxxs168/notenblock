@@ -71,7 +71,7 @@ NB.EinstellungenStundenplan = (function () {
 
   ES.rendern = function (inhalt) {
     const klassen = M.klassen();
-    const eigene = klassen.reduce((n, k) => n + SP.klassenplan(k).filter(e => e.art !== 'fremd').length, 0);
+    const eigene = klassen.reduce((n, k) => n + SP.klassenplan(k, H.heute()).filter(e => e.art !== 'fremd').length, 0);
     inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach einst-hinweis', text:
       'Die Stundenpläne pflegst du je Klasse: Klassen → Stiftsymbol → Stundenplan. Dein eigener Plan ist die Summe aller eigenen Stunden'
       + (klassen.length ? ' – zurzeit ' + (eigene === 1 ? '1 eigene Stunde' : eigene + ' eigene Stunden') + ' in ' + (klassen.length === 1 ? '1 Klasse' : klassen.length + ' Klassen') + '.' : '.') }));

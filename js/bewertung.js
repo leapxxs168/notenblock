@@ -243,6 +243,17 @@ NB.Bewertung = (function () {
     if (!text) return;
     el.hinweis.appendChild(H.el('span', { text: text }));
     if (knopf) el.hinweis.appendChild(H.el('button', { type: 'button', class: 'textknopf klein', text: 'Auf heute setzen', onclick: aufHeuteSetzen }));
+    // Liegt hier eine Erfassung, die nicht mehr zum Stundenplan passt, lässt
+    // sie sich auf eine Stunde derselben Woche umhängen.
+    if (!istUnterrichtstag && z.stunde !== M.OHNE_STUNDE && M.einheit(z.klasseId, z.fachId, z.datum, z.stunde)) {
+      el.hinweis.appendChild(H.el('button', {
+        type: 'button', class: 'textknopf klein', text: 'Stunde verschieben …',
+        // Nach dem Verschieben die Stunde an ihrem neuen Platz zeigen
+        onclick: () => NB.PlanUmhaengen.einzelneStunde(z.klasseId, z.fachId, z.datum, z.stunde, function (ziel) {
+          Bw.oeffnen({ klasseId: z.klasseId, fachId: z.fachId, datum: ziel.datum, stunde: ziel.stunde });
+        })
+      }));
+    }
     el.hinweis.hidden = false;
   }
 

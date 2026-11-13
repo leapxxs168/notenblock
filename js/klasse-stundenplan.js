@@ -1,7 +1,11 @@
 /*
  * Notenblock – Stundenplan je Klasse
  *
- * Jede Klasse hat ihren eigenen Stundenplan als Wochenraster (Stunden × Tage).
+ * Jede Klasse hat ihre Stundenpläne als Wochenraster (Stunden × Tage) –
+ * nacheinander, jeder mit einem „gilt ab“. Gezeigt und bearbeitet wird immer
+ * genau einer; die Leiste über dem Raster sagt welcher und blättert durch die
+ * Geschichte. Bearbeiten ändert den gezeigten Plan für seinen Zeitraum, für
+ * eine echte Umstellung legt man mit „+ Neuer Plan ab …“ einen neuen an.
  * Ein Eintrag ist entweder eine eigene Stunde (Fach aus den Klassenfächern,
  * Raum, Turnus jede/A/B) oder eine fremde Stunde (freie Bezeichnung, optional
  * Lehrkraft und Raum), die nur der Übersicht dient und weder bewertet noch
@@ -98,9 +102,9 @@ NB.KlasseStundenplan = (function () {
   /* ---------- Wochenraster ---------- */
 
   /** Einträge eines Tages je Stunde: { '1': [eintrag, …] } */
-  function tagBelegung(klasse, wochentag) {
+  function tagBelegung(eintraege, wochentag) {
     const je = {};
-    SP.klassenplan(klasse).forEach(function (e) {
+    eintraege.forEach(function (e) {
       if (Number(e.wochentag) !== wochentag) return;
       const s = String(e.stunde);
       if (!je[s]) je[s] = [];
@@ -117,9 +121,9 @@ NB.KlasseStundenplan = (function () {
     return a.art !== 'fremd' && b.art !== 'fremd' && a.fachId === b.fachId && (a.turnus || 'jede') === (b.turnus || 'jede');
   }
 
-  /** Raster der Klasse (Stunden × Tage). Tage 6 und 7 nur, wenn belegt. */
-  function rasterBauen(klasse, beiZelle) {
-    const plan = SP.klassenplan(klasse);
+  /** Raster eines Plans (Stunden × Tage). Tage 6 und 7 nur, wenn belegt. */
+  function rasterBauen(klasse, beiZelle, eintraege) {
+    const plan = eintraege || [];
     let hoechste = 6;
     plan.forEach(e => { if (Number(e.stunde) > hoechste) hoechste = Number(e.stunde); });
     const stunden = Math.min(HOECHSTE_STUNDE, hoechste + (hoechste < HOECHSTE_STUNDE ? 1 : 0));
@@ -137,7 +141,7 @@ NB.KlasseStundenplan = (function () {
     });
 
     const belegung = {};
-    tage.forEach(wt => { belegung[wt] = tagBelegung(klasse, wt); });
+    tage.forEach(wt => { belegung[wt] = tagBelegung(plan, wt); });
 
     for (let s = 1; s <= stunden; s++) {
       const zeit = SP.uhrzeitText(s);
@@ -178,7 +182,7 @@ NB.KlasseStundenplan = (function () {
    * ein eigenes Ziel, der ganze Block führt zum Bearbeiten.
    */
   KS.rasterAnsicht = function (klasse) {
-    const gebaut = rasterBauen(klasse, function () { KS.oeffnen(klasse.id); });
+    const gebaut = rasterBauen(klasse, function () { KS.oeffnen(klasse.id); }, SP.klassenplan(klasse, H.heute()));
     gebaut.raster.classList.add('nur-ansicht');
     H.$$('.plan-zelle', gebaut.raster).forEach(function (zelle) {
       zelle.tabIndex = -1;
@@ -191,26 +195,31 @@ NB.KlasseStundenplan = (function () {
    * Raster, Ausfall- und Zusatztermine der Klasse in einen Container einfügen.
    * neuZeichnen() wird nach Änderungen an Ausfällen/Zusatzterminen gerufen.
    */
-  KS.rasterEinfuegen = function (klasse, container, neuZeichnen) {
+  KS.rasterEinfuegen = function (klasse, container, neuZeichnen, optionen) {
+    optionen = optionen || {};
+    const plan = optionen.plan || SP.aktuellerPlan(klasse);
+    const planId = plan ? plan.id : null;
+    const eintraege = SP.planEintraege(plan);
+    if (optionen.planLeiste) planLeisteEinfuegen(klasse, container, plan, optionen.beiPlanWechsel, neuZeichnen);
     const faecher = M.klassenFaecher(klasse);
     if (!faecher.length) {
       container.appendChild(H.el('p', { class: 'bw-hinweis', text: 'Die Klasse hat noch kein Fach – für eigene Stunden zuerst Fächer wählen. Fremde Stunden lassen sich trotzdem eintragen.' }));
     }
-    const gebaut = rasterBauen(klasse, function (wt, s, eintraege) {
-      if (!eintraege.length) { N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, wochentag: wt, stunde: s }); return; }
-      if (eintraege.length === 1) { N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, id: eintraege[0].id }); return; }
-      zelleWaehlen(klasse, wt, s, eintraege);
-    });
+    const gebaut = rasterBauen(klasse, function (wt, s, inZelle) {
+      if (!inZelle.length) { N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, planId: planId, wochentag: wt, stunde: s }); return; }
+      if (inZelle.length === 1) { N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, planId: planId, id: inZelle[0].id }); return; }
+      zelleWaehlen(klasse, wt, s, inZelle, planId);
+    }, eintraege);
     container.appendChild(gebaut.raster);
     const legende = [];
     legende.push('Tipp auf eine Zelle: Stunde eintragen oder bearbeiten.');
-    if (SP.klassenplan(klasse).some(e => e.art === 'fremd')) legende.push('Blasse Zellen sind fremde Stunden.');
+    if (eintraege.some(e => e.art === 'fremd')) legende.push('Blasse Zellen sind fremde Stunden.');
     if (gebaut.tage.length < 7) {
       container.appendChild(H.el('p', { class: 'text-klein text-schwach plan-legende' }, [
         legende.join(' ') + ' Wochenende: ',
-        gebaut.tage.indexOf(6) < 0 ? H.el('button', { type: 'button', class: 'textknopf klein', text: 'Samstag', onclick: () => N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, wochentag: 6, stunde: 1 }) }) : null,
+        gebaut.tage.indexOf(6) < 0 ? H.el('button', { type: 'button', class: 'textknopf klein', text: 'Samstag', onclick: () => N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, planId: planId, wochentag: 6, stunde: 1 }) }) : null,
         gebaut.tage.indexOf(6) < 0 && gebaut.tage.indexOf(7) < 0 ? ' · ' : null,
-        gebaut.tage.indexOf(7) < 0 ? H.el('button', { type: 'button', class: 'textknopf klein', text: 'Sonntag', onclick: () => N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, wochentag: 7, stunde: 1 }) }) : null
+        gebaut.tage.indexOf(7) < 0 ? H.el('button', { type: 'button', class: 'textknopf klein', text: 'Sonntag', onclick: () => N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, planId: planId, wochentag: 7, stunde: 1 }) }) : null
       ]));
     } else {
       container.appendChild(H.el('p', { class: 'text-klein text-schwach plan-legende', text: legende.join(' ') }));
@@ -219,14 +228,145 @@ NB.KlasseStundenplan = (function () {
     zusatzEinfuegen(klasse, container, neuZeichnen);
   };
 
+  /* ---------- Leiste: welcher Stundenplan wird gezeigt ---------- */
+
+  /** „Gilt seit 16.11.“, „Galt 02.11. – 15.11.“, „Gilt ab 01.02.“ – aus Sicht von heute. */
+  function planKopfText(klasse, plan) {
+    if (!plan) return '';
+    const heute = H.heute();
+    const bis = SP.planBis(klasse, plan);
+    const ab = plan.abDatum;
+    if (!ab && !bis) return 'Gilt immer';
+    if (ab && ab > heute) return 'Gilt ab ' + H.datumKurz(ab);
+    if (bis && bis < heute) return ab ? 'Galt ' + H.datumKurz(ab) + ' – ' + H.datumKurz(bis) : 'Galt bis ' + H.datumKurz(bis);
+    if (ab && bis) return 'Gilt ' + H.datumKurz(ab) + ' – ' + H.datumKurz(bis);
+    if (ab) return 'Gilt seit ' + H.datumKurz(ab);
+    return 'Gilt bis ' + H.datumKurz(bis);
+  }
+
+  /**
+   * Kopf über dem Raster: welcher Plan gezeigt wird, Pfeile zum Blättern durch
+   * die Geschichte und der Knopf für einen neuen Plan ab einem Datum.
+   * Bearbeiten im Raster ändert immer den gezeigten Plan – für eine echte
+   * Umstellung legt man einen neuen an.
+   */
+  function planLeisteEinfuegen(klasse, container, plan, beiPlanWechsel, neuZeichnen) {
+    const liste = SP.plaene(klasse);
+    const i = liste.findIndex(p => p.id === (plan && plan.id));
+    const aktuellerPlan = SP.planIstAktuell(klasse, plan);
+
+    const kopf = H.el('div', { class: 'plan-leiste-kopf' }, [
+      liste.length > 1 ? H.el('button', {
+        type: 'button', class: 'symbolknopf', 'aria-label': 'Vorheriger Stundenplan',
+        disabled: i <= 0 ? true : undefined,
+        onclick: () => beiPlanWechsel && beiPlanWechsel(liste[i - 1].id)
+      }, H.el('span', { class: 'pfeil-zurueck', 'aria-hidden': 'true', text: '‹' })) : null,
+      H.el('div', { class: 'plan-leiste-text' }, [
+        H.el('span', { class: 'plan-leiste-titel', text: planKopfText(klasse, plan) }),
+        H.el('span', { class: 'text-klein text-schwach', text: liste.length > 1
+          ? 'Stundenplan ' + (i + 1) + ' von ' + liste.length + (aktuellerPlan ? ' · gilt heute' : '')
+          : 'Dein einziger Stundenplan für diese Klasse' })
+      ]),
+      liste.length > 1 ? H.el('button', {
+        type: 'button', class: 'symbolknopf', 'aria-label': 'Nächster Stundenplan',
+        disabled: i >= liste.length - 1 ? true : undefined,
+        onclick: () => beiPlanWechsel && beiPlanWechsel(liste[i + 1].id)
+      }, H.el('span', { 'aria-hidden': 'true', text: '›' })) : null
+    ]);
+
+    const knoepfe = [
+      H.el('button', { type: 'button', class: 'knopf klein', text: '+ Neuer Plan ab …', onclick: () => planNeuWaehlen(klasse, beiPlanWechsel) })
+    ];
+    if (i > 0) {
+      knoepfe.push(H.el('button', { type: 'button', class: 'knopf klein', text: 'Datum ändern', onclick: () => planDatumAendern(klasse, plan, neuZeichnen) }));
+      knoepfe.push(H.el('button', { type: 'button', class: 'knopf klein gefaehrlich', text: 'Verwerfen', onclick: () => planVerwerfen(klasse, plan, beiPlanWechsel) }));
+    }
+
+    const hinweis = aktuellerPlan
+      ? 'Änderungen im Raster gelten für diesen Zeitraum – auch rückwirkend. Hat sich der Stundenplan wirklich geändert, lege einen neuen ab dem ersten Tag an.'
+      : 'Du bearbeitest einen Stundenplan, der heute nicht gilt. Änderungen wirken nur in seinem Zeitraum.';
+
+    // Stunden, die durch die Umstellung aus dem Raster gefallen sind
+    const offen = NB.PlanUmhaengen.offene(klasse, plan);
+    const umhaengen = offen.length ? H.el('div', { class: 'plan-leiste-offen' }, [
+      H.el('span', { class: 'text-klein', text: offen.length === 1
+        ? 'Eine erfasste Stunde passt nicht mehr in dieses Raster.'
+        : offen.length + ' erfasste Stunden passen nicht mehr in dieses Raster.' }),
+      H.el('button', { type: 'button', class: 'knopf klein', text: 'Umhängen …', onclick: () => NB.PlanUmhaengen.oeffnen(klasse.id, plan.id) })
+    ]) : null;
+
+    container.appendChild(H.el('section', { class: 'plan-leiste' + (aktuellerPlan ? '' : ' plan-leiste-anderer') }, [
+      kopf,
+      H.el('div', { class: 'plan-leiste-knoepfe' }, knoepfe),
+      H.el('p', { class: 'text-klein text-schwach plan-leiste-hinweis', text: hinweis }),
+      umhaengen
+    ]));
+  }
+
+  /** Datum für einen neuen Plan wählen und ihn anlegen (Kopie des bis dahin gültigen). */
+  function planNeuWaehlen(klasse, beiPlanWechsel) {
+    NB.Kalender.oeffnen({
+      datum: H.heute(),
+      markierungen: (jahr, monat) => SP.kalenderMarkierungen(jahr, monat, klasse.id),
+      fusszeile: () => 'Ab diesem Tag gilt der neue Stundenplan. Davor bleibt alles, wie es war.',
+      beiAuswahl: function (iso) {
+        const vorhanden = SP.plaene(klasse).find(p => p.abDatum === iso);
+        const plan = SP.planNeu(M.klasse(klasse.id), iso);
+        if (beiPlanWechsel) beiPlanWechsel(plan.id);
+        NB.App.meldung(vorhanden
+          ? 'Ab ' + H.datumKurz(iso) + ' gibt es schon einen Stundenplan – er wird jetzt gezeigt.'
+          : 'Neuer Stundenplan ab ' + H.datumKurz(iso) + '. Er ist eine Kopie des bisherigen – ändere jetzt die Stunden, die anders sind. Vor diesem Tag bleibt alles, wie es war.');
+      }
+    });
+  }
+
+  /** „Gilt ab“ eines Plans nachträglich verschieben. */
+  function planDatumAendern(klasse, plan, neuZeichnen) {
+    NB.Kalender.oeffnen({
+      datum: plan.abDatum || H.heute(),
+      markierungen: (jahr, monat) => SP.kalenderMarkierungen(jahr, monat, klasse.id),
+      fusszeile: () => 'Ab diesem Tag gilt dieser Stundenplan.',
+      beiAuswahl: function (iso) {
+        const fehler = SP.planDatumSetzen(M.klasse(klasse.id), plan.id, iso);
+        if (fehler) { NB.Dialog.hinweis({ titel: 'Datum nicht möglich', text: fehler }); return; }
+        if (neuZeichnen) neuZeichnen();
+        NB.App.meldung('Der Stundenplan gilt jetzt ab ' + H.datumKurz(iso) + '.');
+      }
+    });
+  }
+
+  /** Einen versehentlich angelegten Plan verwerfen – nur solange nichts darunter erfasst wurde. */
+  async function planVerwerfen(klasse, plan, beiPlanWechsel) {
+    const bis = SP.planBis(klasse, plan);
+    const einheiten = M.einheitenImZeitraum(klasse.id, plan.abDatum, bis);
+    if (einheiten.length) {
+      await NB.Dialog.hinweis({
+        titel: 'Lässt sich nicht verwerfen',
+        text: 'In diesem Zeitraum ' + (einheiten.length === 1 ? 'ist schon eine Stunde' : 'sind schon ' + einheiten.length + ' Stunden') + ' erfasst. Stundenpläne mit erfassten Stunden bleiben erhalten – du kannst stattdessen das Datum ändern oder die Stunden im Raster anpassen.'
+      });
+      return;
+    }
+    const ok = await NB.Dialog.bestaetigen({
+      titel: 'Stundenplan verwerfen?',
+      text: 'Der Stundenplan ab ' + H.datumKurz(plan.abDatum) + ' wird entfernt. Danach gilt in diesem Zeitraum wieder der vorherige Plan. Erfasste Stunden gibt es hier keine.',
+      bestaetigen: 'Verwerfen',
+      gefaehrlich: true
+    });
+    if (!ok) return;
+    const frisch = M.klasse(klasse.id);
+    SP.planVerwerfen(frisch, plan.id);
+    if (beiPlanWechsel) beiPlanWechsel(SP.aktuellerPlan(M.klasse(klasse.id)).id);
+    NB.App.meldung('Stundenplan verworfen.');
+  }
+
   /** Mehrere Einträge in einer Zelle (A- und B-Woche): welcher soll bearbeitet werden? */
-  async function zelleWaehlen(klasse, wt, s, eintraege) {
+  async function zelleWaehlen(klasse, wt, s, eintraege, planId) {
     const optionen = eintraege.map(e => ({ text: eintragText(e), untertitel: [SP.turnusText(e.turnus), SP.raumText(e.raum)].filter(Boolean).join(' · ') || 'Jede Woche', wert: e.id }));
     optionen.push({ text: 'Weitere Stunde eintragen', wert: '__neu__', klasse: 'auswahl-sekundaer' });
     const wahl = await NB.Dialog.auswahl({ titel: H.WOCHENTAGE[wt - 1] + ', ' + s + '. Stunde', optionen: optionen });
     if (!wahl) return;
-    if (wahl === '__neu__') N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, wochentag: wt, stunde: s });
-    else N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, id: wahl });
+    if (wahl === '__neu__') N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, planId: planId, wochentag: wt, stunde: s });
+    else N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, planId: planId, id: wahl });
   }
 
   /* ---------- Ausfalltermine der Klasse ---------- */
@@ -295,9 +435,15 @@ NB.KlasseStundenplan = (function () {
       wurzel.appendChild(H.el('div', { class: 'leer' }, H.el('p', { text: 'Diese Klasse gibt es nicht mehr.' })));
       return;
     }
+    const plan = SP.plan(klasse, aktuell.planId) || SP.aktuellerPlan(klasse);
+    aktuell.planId = plan ? plan.id : null;
     const inhalt = H.el('div', { class: 'karte-inhalt einst' });
     inhalt.appendChild(H.el('h2', { class: 'aw-titel', text: klasse.name }));
-    KS.rasterEinfuegen(klasse, inhalt, () => planRendern(aktuell));
+    KS.rasterEinfuegen(klasse, inhalt, () => planRendern(aktuell), {
+      plan: plan,
+      planLeiste: true,
+      beiPlanWechsel: function (planId) { aktuell.planId = planId; planRendern(aktuell); }
+    });
     inhalt.appendChild(H.el('p', { class: 'text-klein text-schwach', text: 'Uhrzeiten, Schuljahr, A-Woche, Ferien und Feiertage gelten für alle Klassen: Einstellungen → Stundenplan.' }));
     wurzel.appendChild(inhalt);
   }
@@ -314,8 +460,11 @@ NB.KlasseStundenplan = (function () {
       return;
     }
     const istZusatz = !!(stundeParameter.zusatz || stundeParameter.zusatzId);
+    // Alle Änderungen gelten dem Plan, aus dem die Stunde geöffnet wurde
+    const plan = SP.plan(klasse, stundeParameter.planId) || SP.aktuellerPlan(klasse);
+    const planEintraege = SP.planEintraege(plan);
     let vorlage = null;
-    if (stundeParameter.id) vorlage = SP.klassenplan(klasse).find(e => e.id === stundeParameter.id) || null;
+    if (stundeParameter.id) vorlage = planEintraege.find(e => e.id === stundeParameter.id) || null;
     if (stundeParameter.zusatzId) vorlage = (klasse.zusatz || []).find(z => z.id === stundeParameter.zusatzId) || null;
 
     const faecher = M.klassenFaecher(klasse);
@@ -448,7 +597,7 @@ NB.KlasseStundenplan = (function () {
       }
 
       // Gleicher Tag, gleiche Stunde in dieser Klasse: Konflikt, wenn sich die Turnusse überschneiden
-      const doppelt = SP.klassenplan(klasse).find(function (e) {
+      const doppelt = planEintraege.find(function (e) {
         if (vorlage && e.id === vorlage.id) return false;
         if (Number(e.wochentag) !== werte.wochentag || Number(e.stunde) !== werte.stunde) return false;
         const t = e.turnus || 'jede';
@@ -461,8 +610,8 @@ NB.KlasseStundenplan = (function () {
       const neu = eigene
         ? { id: vorlage ? vorlage.id : H.neueId(), art: 'eigene', wochentag: werte.wochentag, stunde: werte.stunde, fachId: werte.fachId, raum: werte.raum.trim(), turnus: werte.turnus }
         : { id: vorlage ? vorlage.id : H.neueId(), art: 'fremd', wochentag: werte.wochentag, stunde: werte.stunde, bezeichnung: werte.bezeichnung.trim(), lehrkraft: werte.lehrkraft.trim(), raum: werte.raum.trim(), turnus: werte.turnus };
-      const konflikte = eigene ? SP.ueberschneidungen(klasse, neu) : [];
-      SP.eintragSpeichern(klasse, neu);
+      const konflikte = eigene ? SP.ueberschneidungen(klasse, neu, plan) : [];
+      SP.eintragSpeichern(klasse, neu, plan ? plan.id : null);
       if (konflikte.length) NB.App.meldung('Hinweis: Zur selben Zeit steht bereits ' + konflikte.map(k => k.klasseName + ' · ' + fachName(k.fachId)).join(', ') + ' in deinem Plan.');
       N.zurueck();
     }
@@ -470,18 +619,21 @@ NB.KlasseStundenplan = (function () {
     async function entfernen() {
       const ok = await NB.Dialog.bestaetigen({
         titel: istZusatz ? 'Zusatztermin entfernen?' : 'Stunde entfernen?',
-        text: (istZusatz ? H.datumMitWochentag(vorlage.datum) : H.WOCHENTAGE[Number(vorlage.wochentag) - 1]) + ', ' + vorlage.stunde + '. Stunde: ' + eintragText(vorlage) + '. Bereits erfasste Bewertungen bleiben erhalten.',
+        text: (istZusatz ? H.datumMitWochentag(vorlage.datum) : H.WOCHENTAGE[Number(vorlage.wochentag) - 1]) + ', ' + vorlage.stunde + '. Stunde: ' + eintragText(vorlage) + '.'
+          + ((!istZusatz && SP.plaene(klasse).length > 1) ? ' Betrifft den Stundenplan ' + SP.planZeitraumText(klasse, plan) + '.' : '')
+          + ' Bereits erfasste Bewertungen bleiben erhalten.',
         bestaetigen: 'Entfernen',
         gefaehrlich: true
       });
       if (!ok) return;
       if (istZusatz) { klasse.zusatz = (klasse.zusatz || []).filter(x => x.id !== vorlage.id); M.klasseSpeichern(klasse); }
-      else SP.eintragEntfernen(klasse, vorlage.id);
+      else SP.eintragEntfernen(klasse, vorlage.id, plan ? plan.id : null);
       N.zurueck();
     }
 
     wurzel.appendChild(H.el('div', { class: 'karte-inhalt einst' }, H.el('form', { novalidate: true, onsubmit: speichern }, [
-      H.el('p', { class: 'text-klein text-schwach', text: klasse.name }),
+      H.el('p', { class: 'text-klein text-schwach', text: klasse.name
+        + ((!istZusatz && SP.plaene(klasse).length > 1) ? ' · Stundenplan ' + SP.planZeitraumText(klasse, plan) : '') }),
       H.el('div', { class: 'einst-karte' }, felder),
       fehler,
       H.el('div', { class: 'knopfzeile' }, [

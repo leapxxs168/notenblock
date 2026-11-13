@@ -1,7 +1,11 @@
 /*
  * Notenblock – Stundenpläne je Klasse, „Mein Plan“ und Bewertungseinheiten
  *
- * Jede Klasse hat einen eigenen Stundenplan als Wochenraster. Ein Eintrag ist
+ * Jede Klasse hat ihre Stundenpläne als Wochenraster – nacheinander, jeder mit
+ * einem „gilt ab“. Der erste gilt für alles davor, jeder weitere beendet den
+ * vorherigen am Tag davor, der jüngste läuft unbefristet weiter. Pläne bleiben
+ * erhalten, damit die Vergangenheit den Plan zeigt, der damals galt. Ein
+ * Eintrag ist
  * entweder eine eigene Stunde (Fach aus den Klassenfächern, Raum, Turnus) oder
  * eine fremde Stunde (freie Bezeichnung, Lehrkraft, Raum), die nur der
  * Übersicht dient und weder bewertet noch geplant wird.
@@ -64,7 +68,7 @@ NB.Stundenplan = (function () {
   SP.maxStunde = function () {
     let max = 6;
     M.klassen().forEach(function (k) {
-      (k.stundenplan || []).forEach(e => { if (Number(e.stunde) > max) max = Number(e.stunde); });
+      SP.alleEintraege(k).forEach(e => { if (Number(e.stunde) > max) max = Number(e.stunde); });
       (k.zusatz || []).forEach(e => { if (Number(e.stunde) > max) max = Number(e.stunde); });
     });
     const zeiten = SP.stundenzeiten();
@@ -136,35 +140,162 @@ NB.Stundenplan = (function () {
 
   /* ---------- Pläne je Klasse ---------- */
 
-  SP.klassenplan = klasse => (klasse && Array.isArray(klasse.stundenplan)) ? klasse.stundenplan : [];
+  /*
+   * Eine Klasse hat mehrere Stundenpläne nacheinander (NB.Modell.klassenPlaene).
+   * Jeder trägt ein „gilt ab“; der erste hat keins und gilt für alles davor.
+   * Ein neuer Plan beendet den vorherigen am Tag davor, der jüngste gilt
+   * unbefristet weiter. Jede Abfrage nach Stunden nennt deshalb ein Datum und
+   * bekommt den Plan, der an diesem Tag galt – die Vergangenheit bleibt so,
+   * wie sie war.
+   */
 
-  /** Hat die Klasse eigene Stunden im Plan? */
-  SP.klasseHatPlan = klasse => SP.klassenplan(klasse).some(e => e.art !== 'fremd');
+  SP.plaene = klasse => M.klassenPlaene(klasse);
+  SP.planEintraege = plan => M.planEintraege(plan);
+
+  /** Der Plan, der an einem Datum galt. Ohne Datum: der heute gültige. */
+  SP.planFuer = function (klasse, iso) {
+    const liste = SP.plaene(klasse);
+    if (!liste.length) return null;
+    const tag = iso || H.heute();
+    let gewaehlt = liste[0];
+    liste.forEach(function (p) {
+      if (!p.abDatum || p.abDatum <= tag) gewaehlt = p;
+    });
+    return gewaehlt;
+  };
+
+  SP.aktuellerPlan = klasse => SP.planFuer(klasse, H.heute());
+
+  SP.plan = function (klasse, planId) {
+    return SP.plaene(klasse).find(p => p.id === planId) || null;
+  };
+
+  /** Letzter Tag, an dem ein Plan gilt – null, wenn er unbefristet weiterläuft. */
+  SP.planBis = function (klasse, plan) {
+    const liste = SP.plaene(klasse);
+    const i = liste.findIndex(p => p.id === (plan && plan.id));
+    const naechster = i >= 0 ? liste[i + 1] : null;
+    return (naechster && naechster.abDatum) ? H.tageAddieren(naechster.abDatum, -1) : null;
+  };
+
+  /** Gilt dieser Plan heute? */
+  SP.planIstAktuell = function (klasse, plan) {
+    const jetzt = SP.aktuellerPlan(klasse);
+    return !!(jetzt && plan && jetzt.id === plan.id);
+  };
+
+  /** Zeitraum eines Plans als Text: „gilt immer“, „bis 08.11.“, „ab 09.11.“, „09.11. – 20.12.“ */
+  SP.planZeitraumText = function (klasse, plan) {
+    if (!plan) return '';
+    const bis = SP.planBis(klasse, plan);
+    if (!plan.abDatum && !bis) return 'gilt immer';
+    if (!plan.abDatum) return 'bis ' + H.datumKurz(bis);
+    if (!bis) return 'ab ' + H.datumKurz(plan.abDatum);
+    return H.datumKurz(plan.abDatum) + ' – ' + H.datumKurz(bis);
+  };
+
+  /** Einträge des Plans, der an einem Datum galt. Ohne Datum: der heutige Plan. */
+  SP.klassenplan = function (klasse, iso) {
+    return SP.planEintraege(SP.planFuer(klasse, iso));
+  };
+
+  /** Alle Einträge aller Pläne einer Klasse. */
+  SP.alleEintraege = klasse => M.allePlanEintraege(klasse);
+
+  /** Hat die Klasse irgendwann eigene Stunden im Plan? */
+  SP.klasseHatPlan = klasse => SP.alleEintraege(klasse).some(e => e.art !== 'fremd');
 
   /** Gibt es irgendwo einen Stundenplan mit eigenen Stunden? */
   SP.hatStundenplan = () => M.klassen().some(SP.klasseHatPlan);
 
-  /** Eintrag im Plan einer Klasse anlegen oder (nach id) ersetzen. */
-  SP.eintragSpeichern = function (klasse, eintrag) {
-    if (!Array.isArray(klasse.stundenplan)) klasse.stundenplan = [];
+  /** Pläne einer Klasse so ablegen, dass sie auch beim nächsten Lesen stimmen. */
+  function plaeneSichern(klasse, liste) {
+    klasse.plaene = liste.slice().sort(M.planVergleich);
+    if (klasse.stundenplan) delete klasse.stundenplan; // ab jetzt zählen nur noch die Pläne
+    M.klasseSpeichern(klasse);
+  }
+
+  /**
+   * Neuer Plan ab einem Datum: Der bis dahin gültige Plan wird kopiert (mit
+   * frischen Ids), damit nur noch die Änderungen einzutragen sind. Der
+   * vorherige Plan endet am Tag davor. Gibt es schon einen Plan ab genau
+   * diesem Tag, wird dieser zurückgegeben.
+   */
+  SP.planNeu = function (klasse, abDatum) {
+    const liste = SP.plaene(klasse).slice();
+    const vorhanden = liste.find(p => p.abDatum === abDatum);
+    if (vorhanden) return vorhanden;
+    const vorlage = SP.planFuer(klasse, abDatum);
+    const plan = {
+      id: H.neueId(),
+      abDatum: abDatum,
+      eintraege: SP.planEintraege(vorlage).map(e => Object.assign({}, e, { id: H.neueId() }))
+    };
+    liste.push(plan);
+    plaeneSichern(klasse, liste);
+    return plan;
+  };
+
+  /**
+   * „Gilt ab“ eines Plans ändern. Erlaubt ist jedes Datum zwischen dem Beginn
+   * des vorherigen und dem des nächsten Plans; der erste Plan behält sein
+   * offenes Ende nach hinten. Gibt einen Fehlertext zurück oder null.
+   */
+  SP.planDatumSetzen = function (klasse, planId, abDatum) {
+    const liste = SP.plaene(klasse).slice();
+    const i = liste.findIndex(p => p.id === planId);
+    if (i < 0) return 'Diesen Stundenplan gibt es nicht mehr.';
+    if (i === 0) return 'Der erste Stundenplan gilt für alles davor und bekommt kein Datum.';
+    if (!abDatum) return 'Bitte ein Datum wählen.';
+    const vorher = liste[i - 1];
+    const nachher = liste[i + 1];
+    if (vorher && vorher.abDatum && abDatum <= vorher.abDatum) {
+      return 'Der Plan kann frühestens am Tag nach dem vorherigen beginnen (' + H.datumKurz(vorher.abDatum) + ').';
+    }
+    if (nachher && nachher.abDatum && abDatum >= nachher.abDatum) {
+      return 'Der Plan muss vor dem nächsten beginnen (' + H.datumKurz(nachher.abDatum) + ').';
+    }
+    liste[i].abDatum = abDatum;
+    plaeneSichern(klasse, liste);
+    return null;
+  };
+
+  /** Einen versehentlich angelegten Plan verwerfen (nie den ersten). */
+  SP.planVerwerfen = function (klasse, planId) {
+    const liste = SP.plaene(klasse).slice();
+    const i = liste.findIndex(p => p.id === planId);
+    if (i <= 0) return false;
+    liste.splice(i, 1);
+    plaeneSichern(klasse, liste);
+    return true;
+  };
+
+  /** Eintrag in einem Plan anlegen oder (nach id) ersetzen. Ohne planId: im heutigen Plan. */
+  SP.eintragSpeichern = function (klasse, eintrag, planId) {
+    const liste = SP.plaene(klasse).slice();
+    const plan = (planId && liste.find(p => p.id === planId)) || SP.aktuellerPlan(klasse);
+    if (!plan) return;
+    if (!Array.isArray(plan.eintraege)) plan.eintraege = [];
     if (!eintrag.id) eintrag.id = H.neueId();
-    const i = klasse.stundenplan.findIndex(e => e.id === eintrag.id);
-    if (i >= 0) klasse.stundenplan[i] = eintrag;
-    else klasse.stundenplan.push(eintrag);
-    M.klasseSpeichern(klasse);
+    const i = plan.eintraege.findIndex(e => e.id === eintrag.id);
+    if (i >= 0) plan.eintraege[i] = eintrag;
+    else plan.eintraege.push(eintrag);
+    plaeneSichern(klasse, liste);
   };
 
-  SP.eintragEntfernen = function (klasse, id) {
-    if (!Array.isArray(klasse.stundenplan)) return;
-    klasse.stundenplan = klasse.stundenplan.filter(e => e.id !== id);
-    M.klasseSpeichern(klasse);
+  SP.eintragEntfernen = function (klasse, id, planId) {
+    const liste = SP.plaene(klasse).slice();
+    const plan = (planId && liste.find(p => p.id === planId)) || SP.aktuellerPlan(klasse);
+    if (!plan || !Array.isArray(plan.eintraege)) return;
+    plan.eintraege = plan.eintraege.filter(e => e.id !== id);
+    plaeneSichern(klasse, liste);
   };
 
-  /** Alle eigenen Stunden aller Klassen (Lesesicht auf „Mein Plan“), mit klasseId. */
-  SP.eintraege = function () {
+  /** Alle eigenen Stunden aller Klassen an einem Datum (Lesesicht auf „Mein Plan“), mit klasseId. */
+  SP.eintraege = function (iso) {
     const liste = [];
     M.klassen().forEach(function (k) {
-      SP.klassenplan(k).forEach(function (e) {
+      SP.klassenplan(k, iso).forEach(function (e) {
         if (e.art === 'fremd') return;
         liste.push(Object.assign({}, e, { klasseId: k.id }));
       });
@@ -176,21 +307,41 @@ NB.Stundenplan = (function () {
     return !eintrag.turnus || eintrag.turnus === 'jede' || eintrag.turnus === typ;
   }
 
+  /** Überlappen sich zwei Zeiträume? null steht für „offen“. */
+  function zeitraeumeUeberlappen(von1, bis1, von2, bis2) {
+    if (bis1 && von2 && von2 > bis1) return false;
+    if (bis2 && von1 && von1 > bis2) return false;
+    return true;
+  }
+
   /**
    * Eigene Stunden anderer Klassen, die sich mit einem Eintrag überschneiden
-   * (gleicher Wochentag, gleiche Stunde, überlappender Turnus).
+   * (gleicher Wochentag, gleiche Stunde, überlappender Turnus). Verglichen
+   * wird nur mit Plänen, deren Zeitraum sich mit dem des bearbeiteten Plans
+   * überschneidet – ein Plan aus dem letzten Halbjahr stört also nicht mehr.
    */
-  SP.ueberschneidungen = function (klasse, eintrag) {
+  SP.ueberschneidungen = function (klasse, eintrag, plan) {
     const treffer = [];
     if (!eintrag || eintrag.art === 'fremd') return treffer;
     const t1 = eintrag.turnus || 'jede';
+    const eigenerPlan = plan || SP.aktuellerPlan(klasse);
+    const von1 = eigenerPlan ? eigenerPlan.abDatum : null;
+    const bis1 = eigenerPlan ? SP.planBis(klasse, eigenerPlan) : null;
+    const gesehen = {};
     M.klassen().forEach(function (k) {
       if (k.id === klasse.id) return;
-      SP.klassenplan(k).forEach(function (e) {
-        if (e.art === 'fremd') return;
-        if (Number(e.wochentag) !== Number(eintrag.wochentag) || Number(e.stunde) !== Number(eintrag.stunde)) return;
-        const t2 = e.turnus || 'jede';
-        if (t1 === t2 || t1 === 'jede' || t2 === 'jede') treffer.push(Object.assign({}, e, { klasseId: k.id, klasseName: k.name }));
+      SP.plaene(k).forEach(function (p) {
+        if (!zeitraeumeUeberlappen(von1, bis1, p.abDatum, SP.planBis(k, p))) return;
+        SP.planEintraege(p).forEach(function (e) {
+          if (e.art === 'fremd') return;
+          if (Number(e.wochentag) !== Number(eintrag.wochentag) || Number(e.stunde) !== Number(eintrag.stunde)) return;
+          const t2 = e.turnus || 'jede';
+          if (!(t1 === t2 || t1 === 'jede' || t2 === 'jede')) return;
+          const schluessel = k.id + '|' + e.fachId + '|' + e.wochentag + '|' + e.stunde;
+          if (gesehen[schluessel]) return;
+          gesehen[schluessel] = true;
+          treffer.push(Object.assign({}, e, { klasseId: k.id, klasseName: k.name }));
+        });
       });
     });
     return treffer;
@@ -203,8 +354,10 @@ NB.Stundenplan = (function () {
    * [{ klasseId, stunde, art, fachId, bezeichnung, lehrkraft, raum, turnus, quelle: 'plan'|'zusatz', eintragId }]
    * Eigene Stunden eines Fachs, das die Klasse nicht (mehr) gewählt hat oder
    * das stillgelegt ist, bleiben gespeichert, erscheinen aber nicht.
+   * Mit eintraegeStattPlan lässt sich ein anderer Plan unterschieben – so
+   * lässt sich fragen, wie der Tag mit einem früheren Plan ausgesehen hätte.
    */
-  SP.klassenStundenAmTag = function (klasse, iso) {
+  SP.klassenStundenAmTag = function (klasse, iso, eintraegeStattPlan) {
     const liste = [];
     if (!klasse) return liste;
     const sichtbareFaecher = M.klassenFaecher(klasse).map(f => f.id);
@@ -213,7 +366,7 @@ NB.Stundenplan = (function () {
       const wt = H.wochentag(iso);
       const typ = SP.wochenTyp(iso);
       const ausfaelle = (klasse.ausnahmen || []).filter(a => a.datum === iso && a.stunde);
-      SP.klassenplan(klasse).forEach(function (e) {
+      (eintraegeStattPlan || SP.klassenplan(klasse, iso)).forEach(function (e) {
         if (Number(e.wochentag) !== wt || !turnusPasst(e, typ)) return;
         if (ausfaelle.some(a => Number(a.stunde) === Number(e.stunde))) return;
         if (e.art !== 'fremd' && !fachSichtbar(e.fachId)) return;
@@ -252,8 +405,8 @@ NB.Stundenplan = (function () {
    * Aufeinanderfolgende eigene Stunden desselben Fachs bilden eine Einheit;
    * jede andere Stunde (fremd, anderes Fach) oder Lücke trennt.
    */
-  SP.einheitenAmTag = function (klasse, iso, fachId) {
-    const alle = SP.klassenStundenAmTag(klasse, iso);
+  SP.einheitenAmTag = function (klasse, iso, fachId, eintraegeStattPlan) {
+    const alle = SP.klassenStundenAmTag(klasse, iso, eintraegeStattPlan);
     const einheiten = [];
     let laufend = null;
     alle.forEach(function (s) {

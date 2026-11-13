@@ -145,6 +145,20 @@ NB.Umstellung = (function () {
     return ergebnis;
   }
 
+  /**
+   * Datenmodell 2.4: Aus dem einen Stundenplan je Klasse wird der erste Plan
+   * ohne „gilt ab“ – er gilt damit weiter für alles, was bisher erfasst wurde.
+   * Rein hinzufügend: Die Einträge selbst bleiben unverändert.
+   */
+  function plaeneErgaenzen() {
+    M.klassen().forEach(function (k) {
+      if (Array.isArray(k.plaene) && k.plaene.length) return;
+      k.plaene = [{ id: H.neueId(), abDatum: null, eintraege: Array.isArray(k.stundenplan) ? k.stundenplan : [] }];
+      delete k.stundenplan;
+      M.klasseSpeichern(k);
+    });
+  }
+
   /** Ausfall- und Zusatztermine vom Schuljahr in die Klassen verschieben. */
   function termineVerschieben(katalog) {
     const sj = D.holen('schuljahr', '');
@@ -240,6 +254,7 @@ NB.Umstellung = (function () {
 
     klassenErweitern();
     bericht.stundenplan = stundenplanUebernehmen(aufbau.katalog, alteFaecher);
+    plaeneErgaenzen();
     termineVerschieben(aufbau.katalog);
     planungenAngleichen();
     verweiseBereinigen(aufbau.katalog);
@@ -298,6 +313,8 @@ NB.Umstellung = (function () {
     hinweis = stundenkriterienErgaenzen(neu) || hinweis;
     // Farben (Datenmodell 2.3): jede Klasse und jedes Fach bekommt eine aus der Palette
     try { M.farbenErgaenzen(); } catch (fehler) { console.error(fehler); }
+    // Stundenpläne (Datenmodell 2.4): der bisherige Plan wird zum ersten Plan ohne „gilt ab“
+    try { plaeneErgaenzen(); } catch (fehler) { console.error(fehler); }
     e.datenmodell = SD.DATENMODELL;
     if (e.mitarbeitGewichtJeFach === undefined) e.mitarbeitGewichtJeFach = {};
     D.setzen('einstellungen', '', e);

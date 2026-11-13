@@ -13,7 +13,8 @@
  *                      kompetenzen: [{ id, name, bereich, stufe, gewicht, stufen: [6 Texte], aktiv }] }
  *   Arbeits- und Sozialverhalten: { name, hinweis, kriterien: [{ id, name, bereich, gewicht, stufen, aktiv }] }
  *   Klasse: { id, name, stufe: '1-2'|'3-4'|null, kinder, letztesSchuljahr,
- *             faecher: [{ fachId, abgeschaltet: [kompetenzId] }], stundenplan: [Eintrag], ausnahmen, zusatz }
+ *             faecher: [{ fachId, abgeschaltet: [kompetenzId] }],
+ *             plaene: [{ id, abDatum, eintraege: [Eintrag] }], ausnahmen, zusatz }
  *   Stundenplaneintrag der Klasse: { id, wochentag, stunde, art: 'eigene'|'fremd', fachId, bezeichnung,
  *                                    lehrkraft, raum, turnus }
  */
@@ -22,14 +23,14 @@ NB.Startdaten = (function () {
   const SD = {};
   const H = NB.Hilfen;
 
-  SD.DATENMODELL = 2.3;
+  SD.DATENMODELL = 2.4;
   SD.STUFEN = ['1-2', '3-4'];
 
   /** Standardwerte aller Einstellungen. */
   SD.einstellungenStandard = function () {
     return {
       version: 3,                      // Stand der Standardwerte (für Ergänzungen beim Laden)
-      datenmodell: SD.DATENMODELL,     // Aufbau des Bestands; 2 = Stufen, Kompetenzen, Einheiten je Stunde; 2.1 = Stundenkriterien mit fachnote; 2.2 = fachspezifische Fassungen; 2.3 = Termine und Farben
+      datenmodell: SD.DATENMODELL,     // Aufbau des Bestands; 2 = Stufen, Kompetenzen, Einheiten je Stunde; 2.1 = Stundenkriterien mit fachnote; 2.2 = fachspezifische Fassungen; 2.3 = Termine und Farben; 2.4 = Stundenpläne mit „gilt ab“
       // Bewertung – gilt nur für das Arbeits- und Sozialverhalten
       standardNote: 3,                 // 1–6, 'letzte' (letzte Note des Kindes) oder 'keine'
       standardNoteJeFach: {},          // fachId → Überschreibung
@@ -243,7 +244,7 @@ NB.Startdaten = (function () {
       letztesSchuljahr: SD.aktuellesSchuljahr(),
       faecher: [],          // [{ fachId, abgeschaltet: [kompetenzId] }] in Reihenfolge
       faecherFestgelegt: false, // true, sobald die Auswahl bewusst getroffen wurde (auch wenn leer)
-      stundenplan: [],      // Einträge dieser Klasse (eigene und fremde Stunden)
+      plaene: [{ id: H.neueId(), abDatum: null, eintraege: [] }], // Stundenpläne nacheinander, jeder mit „gilt ab“ (der erste ohne)
       ausnahmen: [],        // [{ id, datum, stunde?, grund }] – Ausfalltermine dieser Klasse
       zusatz: []            // [{ id, datum, stunde, fachId, raum }] – Zusatztermine dieser Klasse
     };
@@ -274,11 +275,12 @@ NB.Startdaten = (function () {
       [4, 4, 'kunst', 'Kunstraum'],
       [5, 2, 'musik', 'Musikraum']
     ];
-    klasse.stundenplan = eigene.map(e => ({
+    const eintraege = eigene.map(e => ({
       id: H.neueId(), wochentag: e[0], stunde: e[1], art: 'eigene', fachId: e[2], raum: e[3], turnus: 'jede', beispiel: true
     }));
     // Eine fremde Stunde zur Übersicht: wird weder bewertet noch geplant
-    klasse.stundenplan.push({ id: H.neueId(), wochentag: 1, stunde: 3, art: 'fremd', bezeichnung: 'Sport', lehrkraft: 'Frau Beispiel', raum: 'Turnhalle', turnus: 'jede', beispiel: true });
+    eintraege.push({ id: H.neueId(), wochentag: 1, stunde: 3, art: 'fremd', bezeichnung: 'Sport', lehrkraft: 'Frau Beispiel', raum: 'Turnhalle', turnus: 'jede', beispiel: true });
+    klasse.plaene = [{ id: H.neueId(), abDatum: null, eintraege: eintraege }];
     return klasse;
   };
 

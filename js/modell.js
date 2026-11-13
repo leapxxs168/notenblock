@@ -192,9 +192,46 @@ NB.Modell = (function () {
     M.klasseSpeichern(klasse);
   };
 
+  /* ---------- Stundenpläne einer Klasse ---------- */
+
+  /**
+   * Eine Klasse hat mehrere Stundenpläne nacheinander, jeder mit einem
+   * „gilt ab“. Der erste hat abDatum null und gilt für alles davor; jeder
+   * weitere beendet den vorherigen am Tag davor, der jüngste gilt unbefristet
+   * weiter. Pläne werden nie gelöscht – so zeigt die Vergangenheit immer den
+   * Plan, der damals galt.
+   *
+   * Liefert immer mindestens einen Plan, aufsteigend nach „gilt ab“. Ein
+   * Bestand von vor der Umstellung (nur klasse.stundenplan) wird gelesen, als
+   * wäre er dieser eine Plan; umgeschrieben wird er beim nächsten Start.
+   */
+  M.klassenPlaene = function (klasse) {
+    if (!klasse) return [];
+    if (Array.isArray(klasse.plaene) && klasse.plaene.length) return klasse.plaene.slice().sort(M.planVergleich);
+    return [{ id: 'erster', abDatum: null, eintraege: Array.isArray(klasse.stundenplan) ? klasse.stundenplan : [] }];
+  };
+
+  /** Sortierung der Pläne: der ohne Datum zuerst, danach nach „gilt ab“. */
+  M.planVergleich = function (a, b) {
+    if (!a.abDatum && !b.abDatum) return 0;
+    if (!a.abDatum) return -1;
+    if (!b.abDatum) return 1;
+    return a.abDatum < b.abDatum ? -1 : (a.abDatum > b.abDatum ? 1 : 0);
+  };
+
+  /** Einträge eines Plans (leer, wenn der Plan fehlt). */
+  M.planEintraege = plan => (plan && Array.isArray(plan.eintraege)) ? plan.eintraege : [];
+
+  /** Alle Einträge aller Pläne einer Klasse – für Zählungen und Aufräumarbeiten. */
+  M.allePlanEintraege = function (klasse) {
+    const liste = [];
+    M.klassenPlaene(klasse).forEach(p => M.planEintraege(p).forEach(e => liste.push(e)));
+    return liste;
+  };
+
   /** Stundenplaneinträge einer Klasse zu einem Fach (für die Rückfrage beim Abwählen). */
   M.anzahlPlanEintraege = function (klasse, fachId) {
-    return (klasse && Array.isArray(klasse.stundenplan) ? klasse.stundenplan : []).filter(e => e.art !== 'fremd' && e.fachId === fachId).length;
+    return M.allePlanEintraege(klasse).filter(e => e.art !== 'fremd' && e.fachId === fachId).length;
   };
 
   /* ---------- Kriterien ---------- */
@@ -472,6 +509,9 @@ NB.Modell = (function () {
     M.klassen().forEach(function (klasse) {
       let geaendert = false;
       if (Array.isArray(klasse.faecher) && klasse.faecher.some(z => z.fachId === fachId)) { klasse.faecher = klasse.faecher.filter(z => z.fachId !== fachId); geaendert = true; }
+      M.klassenPlaene(klasse).forEach(function (plan) {
+        if (M.planEintraege(plan).some(e => e.fachId === fachId)) { plan.eintraege = plan.eintraege.filter(e => e.fachId !== fachId); geaendert = true; }
+      });
       if (Array.isArray(klasse.stundenplan) && klasse.stundenplan.some(e => e.fachId === fachId)) { klasse.stundenplan = klasse.stundenplan.filter(e => e.fachId !== fachId); geaendert = true; }
       if (Array.isArray(klasse.zusatz) && klasse.zusatz.some(e => e.fachId === fachId)) { klasse.zusatz = klasse.zusatz.filter(e => e.fachId !== fachId); geaendert = true; }
       if (geaendert) M.klasseSpeichern(klasse);
@@ -716,6 +756,32 @@ NB.Modell = (function () {
     return true;
   };
 
+  /**
+   * Eine erfasste Einheit auf einen anderen Tag oder eine andere Stunde
+   * umhängen – samt der Planung dieser Stunde. Liegt am Ziel schon eine
+   * Einheit desselben Fachs, geschieht nichts: Zusammengeführt wird nie.
+   */
+  M.einheitVerschieben = function (klasseId, fachId, vonDatum, vonStunde, zielDatum, zielStunde, zielStundeBis) {
+    const b = M.einheit(klasseId, fachId, vonDatum, vonStunde);
+    if (!b) return false;
+    if (M.einheit(klasseId, fachId, zielDatum, zielStunde)) return false;
+    D.entfernen('bewertung', M.einheitSchluesselVon(b));
+    b.datum = zielDatum;
+    b.stunde = zielStunde;
+    b.stundeBis = (zielStundeBis == null ? zielStunde : zielStundeBis);
+    M.einheitSpeichern(b);
+    // Die Planung der Stunde zieht mit, solange am Ziel noch keine liegt
+    const alt = M.planung(vonDatum, vonStunde, klasseId, fachId);
+    if (alt && !M.planung(zielDatum, zielStunde, klasseId, fachId)) {
+      D.entfernen('planung', alt.schluessel);
+      alt.schluessel = M.planungSchluessel(zielDatum, zielStunde, klasseId, fachId);
+      alt.datum = zielDatum;
+      alt.stunde = Number(zielStunde);
+      M.planungSpeichern(alt);
+    }
+    return true;
+  };
+
   /** Ganze Einheit löschen (alle Kinder dieser Stunde). */
   M.einheitLoeschen = function (klasseId, fachId, datum, stunde) {
     const schluessel = M.einheitSchluessel(klasseId, fachId, datum, stunde);
@@ -731,6 +797,11 @@ NB.Modell = (function () {
       const e = b.kinder[id];
       return e && (e.fehlt || (e.notiz && e.notiz.trim()) || (e.noten && Object.keys(e.noten).length));
     }).length;
+  };
+
+  /** Einheiten einer Klasse in einem Zeitraum; beide Grenzen dürfen fehlen (offen). */
+  M.einheitenImZeitraum = function (klasseId, vonIso, bisIso) {
+    return M.einheiten(klasseId).filter(b => (!vonIso || b.datum >= vonIso) && (!bisIso || b.datum <= bisIso));
   };
 
   /** Archivierte Einheiten (frühere Kriterien) je Klasse und Fach. */

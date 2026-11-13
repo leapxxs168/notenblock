@@ -1361,6 +1361,33 @@ input[type="time"] {
 .plan-zelle-raum { font-size: 0.7rem; color: var(--text-schwach); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-legende { margin: 0 0 16px; }
 
+/* Leiste über dem Raster: welcher Stundenplan wird gezeigt */
+.plan-leiste {
+  background: var(--flaeche);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  padding: 8px 10px 10px;
+  margin-bottom: 12px;
+}
+.plan-leiste.plan-leiste-anderer { border-left: 4px solid var(--linie); }
+.plan-leiste-kopf { display: flex; align-items: center; gap: 4px; }
+.plan-leiste-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; text-align: center; }
+.plan-leiste-titel { font-weight: 600; }
+.plan-leiste-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.plan-leiste-knoepfe .knopf { flex: 1 1 auto; min-height: var(--tippziel); }
+.plan-leiste-hinweis { margin: 8px 0 0; }
+.plan-leiste-offen {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--linie);
+}
+.plan-leiste-offen span { flex: 1 1 140px; }
+
+/* Erfasste Stunden umhängen */
+.umhaengen-karte { display: block; }
+.umhaengen-frage { margin: 6px 0 8px; }
+.umhaengen-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }
+.umhaengen-knoepfe .knopf { flex: 1 1 auto; min-height: var(--tippziel); }
+
 /* Klasse anlegen: Stufe als zwei große Flächen, Schrittanzeige */
 .stufen-flaechen { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
 .stufen-flaeche {
