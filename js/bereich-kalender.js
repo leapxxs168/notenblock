@@ -32,7 +32,8 @@ NB.BereichKalender = (function () {
   const N = NB.Navigation;
   const SP = NB.Stundenplan;
 
-  let z = { ansicht: 'tag', datum: null, sicht: 'mein' };   // sicht: 'mein' (Mein Plan) oder eine klasseId
+  let z = { ansicht: 'tag', datum: null, sicht: 'mein', bearbeiten: false };
+  // sicht: 'mein' (Mein Plan) oder eine klasseId; bearbeiten: Stundenplan statt Planung bearbeiten
   let heuteVerlassen = false;                // hat die Nutzerin bewusst einen anderen Tag gewählt?
   let zuletztHeute = null;
   let verdrahtet = false;
@@ -44,11 +45,12 @@ NB.BereichKalender = (function () {
     const zs = D.holen('zustand', '') || {};
     if (zs.kalender && zs.kalender.ansicht) z.ansicht = zs.kalender.ansicht;
     if (zs.kalender && zs.kalender.sicht) z.sicht = zs.kalender.sicht;
+    z.bearbeiten = !!(zs.kalender && zs.kalender.bearbeiten);
     if (['tag', 'woche', 'monat'].indexOf(z.ansicht) < 0) z.ansicht = 'tag';
   }
 
   function zustandMerken() {
-    N.zustandMerken({ kalender: { ansicht: z.ansicht, sicht: z.sicht } });
+    N.zustandMerken({ kalender: { ansicht: z.ansicht, sicht: z.sicht, bearbeiten: z.bearbeiten } });
   }
 
   function datumSetzen(iso, bewusst) {
@@ -285,9 +287,151 @@ NB.BereichKalender = (function () {
     });
     wurzel.appendChild(umschalter);
 
+    // Stundenplan direkt im Kalender bearbeiten (nur Tag und Woche)
+    if (z.ansicht !== 'monat' && M.klassen().length) wurzel.appendChild(bearbeitenLeiste());
+
     if (z.ansicht === 'woche') wocheRendern(wurzel);
     else if (z.ansicht === 'monat') monatRendern(wurzel);
     else tagRendern(wurzel);
+  }
+
+  /* ---------- Stundenplan im Kalender bearbeiten ---------- */
+
+  /**
+   * Schalter über dem Plan. Ausgeschaltet bleibt alles wie gewohnt: Ein Tipp
+   * auf eine Stunde öffnet ihre Planung. Eingeschaltet führt derselbe Tipp in
+   * den Stundenplan – und freie Felder lassen sich belegen.
+   */
+  function bearbeitenLeiste() {
+    const knopf = H.el('button', {
+      type: 'button', class: 'knopf klein' + (z.bearbeiten ? ' primaer' : ''),
+      text: z.bearbeiten ? 'Fertig' : 'Plan bearbeiten',
+      'aria-pressed': z.bearbeiten ? 'true' : 'false',
+      onclick: function () { z.bearbeiten = !z.bearbeiten; zustandMerken(); inhaltRendern(); }
+    });
+    return H.el('div', { class: 'kal-bearbeiten' + (z.bearbeiten ? ' an' : '') }, [
+      z.bearbeiten
+        ? H.el('span', { class: 'text-klein text-schwach', text: 'Ein Tipp ändert jetzt den Stundenplan – auf eine Stunde oder auf ein freies Feld.' })
+        : H.el('span', { class: 'text-klein text-schwach' }),
+      knopf
+    ]);
+  }
+
+  /** Montag der Woche, in der ein Datum liegt – ab dort gilt eine dauerhafte Änderung. */
+  function montagVon(iso) { return SP.montag(iso); }
+
+  /** Klasse für eine neue Stunde erfragen; bei nur einer Klasse ohne Rückfrage. */
+  async function klasseWaehlen() {
+    const klasse = sichtKlasse();
+    if (klasse) return klasse;
+    const klassen = M.klassen();
+    if (klassen.length === 1) return klassen[0];
+    const wahl = await NB.Dialog.auswahl({
+      titel: 'Für welche Klasse?',
+      optionen: klassen.map(function (k) {
+        const stufe = k.stufe ? M.stufe(k.stufe) : null;
+        return { text: k.name, untertitel: stufe ? stufe.kurz : 'Stufe offen', wert: k.id };
+      })
+    });
+    return wahl ? M.klasse(wahl) : null;
+  }
+
+  /**
+   * Was soll die Änderung bewirken? „Nur an diesem Tag“ bleibt eine Ausnahme
+   * (Ausfall oder Zusatzstunde), „ab dieser Woche“ geht in den Stundenplan –
+   * in einen Plan ab dem Montag der gezeigten Woche.
+   */
+  async function wirkungWaehlen(datum, vorhanden) {
+    const montag = montagVon(datum);
+    const schonVorbei = montag < H.heute();
+    return NB.Dialog.auswahl({
+      titel: H.datumMitWochentag(datum),
+      optionen: [
+        { text: 'Nur an diesem Tag', untertitel: vorhanden ? 'Die Stunde fällt einmalig aus' : 'Eine einzelne Zusatzstunde', wert: 'tag' },
+        {
+          text: 'Ab ' + H.datumMitWochentag(montag),
+          // Liegt der Montag zurück, gilt die Änderung auch für die schon vergangenen Tage dieser Woche
+          untertitel: 'Dauerhaft im Stundenplan. Die Wochen davor bleiben unverändert'
+            + (schonVorbei ? ', die bereits vergangenen Tage dieser Woche ändern sich mit.' : '.'),
+          wert: 'dauerhaft'
+        }
+      ]
+    });
+  }
+
+  /** Freies Feld belegen: Zusatzstunde an diesem Tag oder dauerhaft im Plan. */
+  async function stundeAnlegen(datum, stunde) {
+    const wirkung = await wirkungWaehlen(datum, false);
+    if (!wirkung) return;
+    const klasse = await klasseWaehlen();
+    if (!klasse) return;
+    if (wirkung === 'tag') {
+      N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, zusatz: true, datum: datum, stunde: stunde });
+      return;
+    }
+    const montag = montagVon(datum);
+    N.bildschirmOeffnen('klasse-stunde', {
+      klasseId: klasse.id, wochentag: H.wochentag(datum), stunde: stunde,
+      abMontag: montag, ausKalender: true
+    });
+  }
+
+  /**
+   * Der Stundenplaneintrag hinter einer Stunde des Kalenders. Der Kalender
+   * zeigt Einheiten (Doppelstunden zusammengefasst) – gesucht ist der Eintrag
+   * der angetippten Stundennummer im Plan dieses Tages.
+   */
+  function eintragZuStunde(klasse, datum, s, stundeNr) {
+    const plan = SP.planFuer(klasse, datum);
+    const wt = H.wochentag(datum);
+    const typ = SP.wochenTyp(datum);
+    return SP.planEintraege(plan).find(function (e) {
+      if (Number(e.wochentag) !== wt || Number(e.stunde) !== Number(stundeNr)) return false;
+      if (e.turnus && e.turnus !== 'jede' && e.turnus !== typ) return false;
+      return s.art === 'fremd' ? e.art === 'fremd' : (e.art !== 'fremd' && e.fachId === s.fachId);
+    }) || null;
+  }
+
+  /** Vorhandene Stunde im Kalender bearbeiten. */
+  async function stundeBearbeiten(datum, s, stundeNr) {
+    const klasse = M.klasse(s.klasseId);
+    if (!klasse) return;
+    const stunde = Number(stundeNr || s.stunde);
+    // Zusatzstunden gehören zu einem Tag, nicht zum Plan – direkt in ihren Editor
+    if (s.quelle === 'zusatz') {
+      const zusatz = (klasse.zusatz || []).find(x => x.datum === datum && Number(x.stunde) === stunde && x.fachId === s.fachId);
+      if (zusatz) N.bildschirmOeffnen('klasse-stunde', { klasseId: klasse.id, zusatzId: zusatz.id });
+      return;
+    }
+    const wirkung = await wirkungWaehlen(datum, true);
+    if (!wirkung) return;
+    if (wirkung === 'tag') {
+      const ok = await NB.Dialog.bestaetigen({
+        titel: 'Stunde fällt aus?',
+        text: H.datumMitWochentag(datum) + ', ' + stunde + '. Stunde: ' + klasse.name + ' · ' + (s.art === 'fremd' ? (s.bezeichnung || 'fremde Stunde') : fachName(s.fachId))
+          + '. Die Stunde entfällt nur an diesem Tag. Bereits erfasste Bewertungen bleiben erhalten.',
+        bestaetigen: 'Fällt aus'
+      });
+      if (!ok) return;
+      const frisch = M.klasse(klasse.id);
+      if (!Array.isArray(frisch.ausnahmen)) frisch.ausnahmen = [];
+      frisch.ausnahmen.push({ id: H.neueId(), datum: datum, stunde: stunde, grund: '' });
+      M.klasseSpeichern(frisch);
+      inhaltRendern();
+      NB.App.meldung('Die Stunde am ' + H.datumKurzOhneJahr(datum) + ' fällt aus. Rückgängig: Klasse → Stundenplan → Ausfalltermine.');
+      return;
+    }
+    const montag = montagVon(datum);
+    const planDerWoche = SP.planFuer(klasse, datum);
+    const eintrag = eintragZuStunde(klasse, datum, s, stunde);
+    if (!eintrag) {
+      await NB.Dialog.hinweis({ titel: 'Nicht im Stundenplan', text: 'Diese Stunde steht nicht als fester Eintrag im Stundenplan – vermutlich ist sie ein Zusatztermin. Ändern lässt sie sich unter Klasse → Stundenplan.' });
+      return;
+    }
+    N.bildschirmOeffnen('klasse-stunde', {
+      klasseId: klasse.id, planId: planDerWoche ? planDerWoche.id : null, id: eintrag.id,
+      abMontag: montag, ausKalender: true
+    });
   }
 
   /* ---------- Termine ---------- */
@@ -393,6 +537,16 @@ NB.BereichKalender = (function () {
       offen.forEach(t => liste.appendChild(NB.Termine.karte(t, inhaltRendern, { mitKlasse: z.sicht === 'mein' })));
       wurzel.appendChild(liste);
     }
+    if (z.bearbeiten) {
+      // Nächste freie Stunde vorschlagen – ändern lässt sie sich im Editor
+      let naechste = 1;
+      stunden.forEach(function (s) { if (Number(s.stundeBis) >= naechste) naechste = Number(s.stundeBis) + 1; });
+      if (naechste > 10) naechste = 10;
+      wurzel.appendChild(H.el('div', { class: 'kal-stunde-anlegen' }, H.el('button', {
+        type: 'button', class: 'knopf', text: '+ Stunde eintragen',
+        onclick: () => stundeAnlegen(datum, naechste)
+      })));
+    }
     wurzel.appendChild(terminKnopf(datum));
 
     // Platz für Aufgaben mit Fälligkeit (Schritt 6)
@@ -405,8 +559,14 @@ NB.BereichKalender = (function () {
     const zeitFremd = SP.uhrzeitTextBereich(s.stunde, s.stundeBis);
     const nummerFremd = s.stundeBis > s.stunde ? s.stunde + '.–' + s.stundeBis + '.' : s.stunde + '.';
     if (s.art === 'fremd') {
-      // Fremde Stunde: nur zur Übersicht – keine Planung, keine Bewertung
-      return H.el('div', { class: 'kal-stunde fremd', 'aria-label': SP.stundenText(s.stunde, s.stundeBis) + ', fremde Stunde: ' + stundenTitel(s) }, [
+      // Fremde Stunde: nur zur Übersicht – keine Planung, keine Bewertung.
+      // Beim Bearbeiten führt sie in den Stundenplan.
+      return H.el(z.bearbeiten ? 'button' : 'div', {
+        type: z.bearbeiten ? 'button' : undefined,
+        class: 'kal-stunde fremd',
+        'aria-label': SP.stundenText(s.stunde, s.stundeBis) + ', fremde Stunde: ' + stundenTitel(s),
+        onclick: z.bearbeiten ? (() => stundeBearbeiten(datum, s)) : undefined
+      }, [
         H.el('span', { class: 'kal-stunde-nr' }, [
           H.el('span', { class: 'kal-nr', text: nummerFremd }),
           zeitFremd ? H.el('span', { class: 'kal-zeit text-klein text-schwach', text: zeitFremd }) : null
@@ -426,7 +586,9 @@ NB.BereichKalender = (function () {
       type: 'button',
       class: 'kal-stunde' + (fertig ? ' geplant' : ''),
       'aria-label': SP.stundenText(s.stunde, s.stundeBis) + ', ' + klassenName(s.klasseId) + ' ' + fachName(s.fachId) + (fertig ? ', Planung fertig' : ', Planung offen') + (bewertet ? ', bewertet' : ''),
-      onclick: () => B.planungOeffnen({ datum: datum, stunde: s.stunde, klasseId: s.klasseId, fachId: s.fachId })
+      onclick: () => (z.bearbeiten
+        ? stundeBearbeiten(datum, s)
+        : B.planungOeffnen({ datum: datum, stunde: s.stunde, klasseId: s.klasseId, fachId: s.fachId }))
     }, [
       H.el('span', { class: 'kal-stunde-nr' }, [
         H.el('span', { class: 'kal-nr', text: nummer }),
@@ -460,6 +622,8 @@ NB.BereichKalender = (function () {
     // Höhe des Rasters nach dem Plan, der in dieser Woche gilt
     (klasse ? SP.klassenplan(klasse, montag) : SP.eintraege(montag)).forEach(e => { if (Number(e.stunde) > maxStunde) maxStunde = Number(e.stunde); });
     if (maxStunde < 1) maxStunde = 1;
+    // Beim Bearbeiten eine Zeile mehr, damit sich unten etwas anhängen lässt
+    if (z.bearbeiten && maxStunde < 10) maxStunde++;
 
     const raster = H.el('div', { class: 'wo-raster', role: 'grid' });
     raster.style.gridTemplateColumns = '30px repeat(' + spalten + ', minmax(0, 1fr))';
@@ -507,15 +671,25 @@ NB.BereichKalender = (function () {
         const passende = stundenJeTag[i].filter(s => stunde >= s.stunde && stunde <= s.stundeBis);
         const frei = freierTagSicht(iso);
         if (!passende.length) {
+          if (z.bearbeiten) {
+            raster.appendChild(H.el('button', {
+              type: 'button', class: 'wo-zelle wo-leer wo-anlegen' + (frei ? ' frei' : ''), role: 'gridcell',
+              'aria-label': H.WOCHENTAGE[i] + ', ' + stunde + '. Stunde: frei, Stunde eintragen',
+              onclick: () => stundeAnlegen(iso, stunde)
+            }, H.el('span', { 'aria-hidden': 'true', text: '+' })));
+            return;
+          }
           raster.appendChild(H.el('div', { class: 'wo-zelle wo-leer' + (frei ? ' frei' : ''), role: 'gridcell' }));
           return;
         }
         const zelle = H.el('div', { class: 'wo-zelle', role: 'gridcell' });
         passende.forEach(function (s) {
           if (s.art === 'fremd') {
-            zelle.appendChild(H.el('div', {
+            zelle.appendChild(H.el(z.bearbeiten ? 'button' : 'div', {
+              type: z.bearbeiten ? 'button' : undefined,
               class: 'wo-stunde fremd' + (stunde > s.stunde ? ' fortsetzung' : '') + (stunde < s.stundeBis ? ' weiter' : ''),
-              'aria-label': H.WOCHENTAGE[i] + ', ' + stunde + '. Stunde, fremde Stunde: ' + stundenTitel(s)
+              'aria-label': H.WOCHENTAGE[i] + ', ' + stunde + '. Stunde, fremde Stunde: ' + stundenTitel(s),
+              onclick: z.bearbeiten ? (() => stundeBearbeiten(iso, s, stunde)) : undefined
             }, stunde > s.stunde ? null : [
               H.el('span', { class: 'wo-klasse', text: s.bezeichnung || 'Fremde Stunde' }),
               s.lehrkraft ? H.el('span', { class: 'wo-fach', text: s.lehrkraft }) : null
@@ -527,7 +701,9 @@ NB.BereichKalender = (function () {
           const stundeKnopf = H.el('button', {
             type: 'button', class: 'wo-stunde eigene' + (fertig ? ' geplant' : '') + (bewertet ? ' bewertet' : '') + (stunde > s.stunde ? ' fortsetzung' : '') + (stunde < s.stundeBis ? ' weiter' : ''),
             'aria-label': H.WOCHENTAGE[i] + ', ' + stunde + '. Stunde, ' + klassenName(s.klasseId) + ' ' + fachName(s.fachId) + (fertig ? ', geplant' : ', ungeplant') + (bewertet ? ', bewertet' : ''),
-            onclick: () => B.planungOeffnen({ datum: iso, stunde: s.stunde, klasseId: s.klasseId, fachId: s.fachId })
+            onclick: () => (z.bearbeiten
+              ? stundeBearbeiten(iso, s, stunde)
+              : B.planungOeffnen({ datum: iso, stunde: s.stunde, klasseId: s.klasseId, fachId: s.fachId }))
           }, stunde > s.stunde ? null : (klasse
             ? [H.el('span', { class: 'wo-klasse', text: fachName(s.fachId) }), s.raum ? H.el('span', { class: 'wo-fach', text: SP.raumText(s.raum) }) : null]
             : [H.el('span', { class: 'wo-klasse', text: klassenName(s.klasseId) }), H.el('span', { class: 'wo-fach', text: fachName(s.fachId) })]));

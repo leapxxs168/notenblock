@@ -237,6 +237,38 @@ NB.Stundenplan = (function () {
   };
 
   /**
+   * Der Plan, in dem eine dauerhafte Änderung ab einem Datum landen soll:
+   * Beginnt dort schon einer, ist er es; sonst wird einer angelegt (Kopie des
+   * bis dahin gültigen). So ändert eine Bearbeitung im Kalender immer nur ab
+   * dem gewünschten Tag und lässt die Wochen davor in Ruhe.
+   */
+  SP.planZumBearbeiten = function (klasse, abDatum) {
+    if (!abDatum) return SP.aktuellerPlan(klasse);
+    const liste = SP.plaene(klasse);
+    const vorhanden = liste.find(p => p.abDatum === abDatum);
+    if (vorhanden) return vorhanden;
+    // Klasse ganz ohne Stundenplan: den ersten Plan füllen, statt einen zweiten anzulegen
+    if (liste.length === 1 && !liste[0].abDatum && !SP.planEintraege(liste[0]).length) return liste[0];
+    return SP.planNeu(klasse, abDatum);
+  };
+
+  /**
+   * Der Eintrag in einem anderen Plan, der demselben Platz entspricht
+   * (gleicher Wochentag, gleiche Stunde, gleicher Turnus und dasselbe Fach
+   * beziehungsweise dieselbe Bezeichnung) – nach dem Kopieren eines Plans
+   * haben die Einträge neue Ids.
+   */
+  SP.entsprechenderEintrag = function (plan, vorlage) {
+    if (!plan || !vorlage) return null;
+    return SP.planEintraege(plan).find(function (e) {
+      if (Number(e.wochentag) !== Number(vorlage.wochentag) || Number(e.stunde) !== Number(vorlage.stunde)) return false;
+      if ((e.turnus || 'jede') !== (vorlage.turnus || 'jede')) return false;
+      if ((e.art === 'fremd') !== (vorlage.art === 'fremd')) return false;
+      return e.art === 'fremd' ? (e.bezeichnung || '') === (vorlage.bezeichnung || '') : e.fachId === vorlage.fachId;
+    }) || null;
+  };
+
+  /**
    * „Gilt ab“ eines Plans ändern. Erlaubt ist jedes Datum zwischen dem Beginn
    * des vorherigen und dem des nächsten Plans; der erste Plan behält sein
    * offenes Ende nach hinten. Gibt einen Fehlertext zurück oder null.

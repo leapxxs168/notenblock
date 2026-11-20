@@ -1376,6 +1376,23 @@ input[type="time"] {
 .plan-leiste-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .plan-leiste-knoepfe .knopf { flex: 1 1 auto; min-height: var(--tippziel); }
 .plan-leiste-hinweis { margin: 8px 0 0; }
+
+/* Stundenplan im Kalender bearbeiten */
+.kal-bearbeiten {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 10px;
+}
+.kal-bearbeiten span { flex: 1 1 auto; }
+.kal-bearbeiten .knopf { flex: 0 0 auto; min-height: var(--tippziel); }
+.kal-bearbeiten.an span { color: var(--akzent); }
+.wo-zelle.wo-anlegen {
+  display: flex; align-items: center; justify-content: center;
+  font: inherit; color: var(--text-schwach); background: transparent;
+  border: 1px dashed var(--linie); border-radius: 6px; cursor: pointer;
+}
+.wo-zelle.wo-anlegen:active { background: var(--akzent-hell); color: var(--akzent); }
+.kal-stunde-anlegen { margin: 10px 0; }
+.kal-stunde-anlegen .knopf { width: 100%; }
 .plan-leiste-offen {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--linie);

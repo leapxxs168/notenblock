@@ -467,6 +467,9 @@ NB.KlasseStundenplan = (function () {
     if (stundeParameter.id) vorlage = planEintraege.find(e => e.id === stundeParameter.id) || null;
     if (stundeParameter.zusatzId) vorlage = (klasse.zusatz || []).find(z => z.id === stundeParameter.zusatzId) || null;
 
+    // Aus dem Kalender geöffnet: Die Änderung soll erst ab einem Montag gelten.
+    // Der Plan dafür entsteht erst beim Speichern – wer abbricht, hinterlässt nichts.
+    const abMontag = stundeParameter.abMontag || null;
     const faecher = M.klassenFaecher(klasse);
     const werte = {
       art: vorlage && vorlage.art === 'fremd' ? 'fremd' : 'eigene',
@@ -610,8 +613,18 @@ NB.KlasseStundenplan = (function () {
       const neu = eigene
         ? { id: vorlage ? vorlage.id : H.neueId(), art: 'eigene', wochentag: werte.wochentag, stunde: werte.stunde, fachId: werte.fachId, raum: werte.raum.trim(), turnus: werte.turnus }
         : { id: vorlage ? vorlage.id : H.neueId(), art: 'fremd', wochentag: werte.wochentag, stunde: werte.stunde, bezeichnung: werte.bezeichnung.trim(), lehrkraft: werte.lehrkraft.trim(), raum: werte.raum.trim(), turnus: werte.turnus };
-      const konflikte = eigene ? SP.ueberschneidungen(klasse, neu, plan) : [];
-      SP.eintragSpeichern(klasse, neu, plan ? plan.id : null);
+      // Ab-Montag-Änderung aus dem Kalender: jetzt erst den Plan ab diesem Tag
+      // besorgen und den Eintrag dort treffen – die Wochen davor bleiben, wie sie sind.
+      let zielPlan = plan;
+      if (abMontag) {
+        zielPlan = SP.planZumBearbeiten(M.klasse(klasse.id), abMontag);
+        if (vorlage && zielPlan && (!plan || zielPlan.id !== plan.id)) {
+          const entsprechend = SP.entsprechenderEintrag(zielPlan, vorlage);
+          neu.id = entsprechend ? entsprechend.id : H.neueId();
+        }
+      }
+      const konflikte = eigene ? SP.ueberschneidungen(klasse, neu, zielPlan) : [];
+      SP.eintragSpeichern(M.klasse(klasse.id), neu, zielPlan ? zielPlan.id : null);
       if (konflikte.length) NB.App.meldung('Hinweis: Zur selben Zeit steht bereits ' + konflikte.map(k => k.klasseName + ' · ' + fachName(k.fachId)).join(', ') + ' in deinem Plan.');
       N.zurueck();
     }
@@ -620,20 +633,27 @@ NB.KlasseStundenplan = (function () {
       const ok = await NB.Dialog.bestaetigen({
         titel: istZusatz ? 'Zusatztermin entfernen?' : 'Stunde entfernen?',
         text: (istZusatz ? H.datumMitWochentag(vorlage.datum) : H.WOCHENTAGE[Number(vorlage.wochentag) - 1]) + ', ' + vorlage.stunde + '. Stunde: ' + eintragText(vorlage) + '.'
-          + ((!istZusatz && SP.plaene(klasse).length > 1) ? ' Betrifft den Stundenplan ' + SP.planZeitraumText(klasse, plan) + '.' : '')
+          + (abMontag ? ' Gilt ab ' + H.datumKurz(abMontag) + '; davor bleibt der Stundenplan, wie er ist.'
+            : ((!istZusatz && SP.plaene(klasse).length > 1) ? ' Betrifft den Stundenplan ' + SP.planZeitraumText(klasse, plan) + '.' : ''))
           + ' Bereits erfasste Bewertungen bleiben erhalten.',
         bestaetigen: 'Entfernen',
         gefaehrlich: true
       });
       if (!ok) return;
       if (istZusatz) { klasse.zusatz = (klasse.zusatz || []).filter(x => x.id !== vorlage.id); M.klasseSpeichern(klasse); }
+      else if (abMontag) {
+        const zielPlan = SP.planZumBearbeiten(M.klasse(klasse.id), abMontag);
+        const entsprechend = (zielPlan && plan && zielPlan.id === plan.id) ? vorlage : SP.entsprechenderEintrag(zielPlan, vorlage);
+        if (entsprechend) SP.eintragEntfernen(M.klasse(klasse.id), entsprechend.id, zielPlan.id);
+      }
       else SP.eintragEntfernen(klasse, vorlage.id, plan ? plan.id : null);
       N.zurueck();
     }
 
     wurzel.appendChild(H.el('div', { class: 'karte-inhalt einst' }, H.el('form', { novalidate: true, onsubmit: speichern }, [
       H.el('p', { class: 'text-klein text-schwach', text: klasse.name
-        + ((!istZusatz && SP.plaene(klasse).length > 1) ? ' · Stundenplan ' + SP.planZeitraumText(klasse, plan) : '') }),
+        + (abMontag ? ' · gilt ab ' + H.datumKurz(abMontag)
+          : ((!istZusatz && SP.plaene(klasse).length > 1) ? ' · Stundenplan ' + SP.planZeitraumText(klasse, plan) : '')) }),
       H.el('div', { class: 'einst-karte' }, felder),
       fehler,
       H.el('div', { class: 'knopfzeile' }, [
